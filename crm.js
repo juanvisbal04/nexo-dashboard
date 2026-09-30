@@ -223,4 +223,79 @@ async function openProspectEditor(prospect) {
     convert.disabled = true;
     convert.textContent = "Creando cliente…";
     try {
-      const { data: orgResult, error: orgError } = await C.supabase.functions.invoke("admin-create-organization", 
+      const { data: orgResult, error: orgError } = await C.supabase.functions.invoke("admin-create-organization", {
+        body: {
+          name: modal.querySelector("#crmProspectBusiness").value.trim(),
+          sector: modal.querySelector("#crmProspectIndustry").value.trim(),
+          assistant,
+          initials: "",
+          color: "#316bff",
+        },
+      });
+      if (orgError) throw orgError;
+      if (!orgResult?.ok) throw new Error(orgResult?.error || "No se pudo crear la empresa.");
+
+      const org = orgResult.organization;
+      const expectedMrr = nullableNumber(modal.querySelector("#crmProspectMrr").value);
+      const expectedSetup = nullableNumber(modal.querySelector("#crmProspectSetup").value);
+
+      const { error: commercialError } = await C.supabase.from("organization_commercials").upsert({
+        organization_id: org.id,
+        lifecycle_stage: "implementacion",
+        plan_name: modal.querySelector("#crmConvertPlan").value.trim() || null,
+        mrr: expectedMrr,
+        monthly_cost: nullableNumber(modal.querySelector("#crmConvertCost").value),
+        setup_fee: expectedSetup,
+        billing_status: "pending",
+        implementation_status: "discovery",
+        integration_status: "pending",
+        contract_start_date: new Date().toISOString().slice(0, 10),
+        commercial_notes: "Creado desde NEXO CRM.",
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "organization_id" });
+      if (commercialError) throw commercialError;
+
+      const { error: prospectError } = await C.supabase.from("demo_requests").update({
+        stage: "implementacion",
+        status: "Cliente",
+        organization_id: org.id,
+        updated_at: new Date().toISOString(),
+      }).eq("id", prospect.id);
+      if (prospectError) throw prospectError;
+
+      await C.supabase.from("crm_activities").insert({
+        demo_request_id: prospect.id,
+        organization_id: org.id,
+        activity_type: "status_change",
+        title: "Prospecto convertido a cliente",
+        details: `Organización creada con asistente ${assistant}.`,
+        created_by: C.state.session.user.id,
+      });
+
+      C.showToast("Cliente creado y vinculado al CRM.");
+      close();
+      await C.loadOrganizations();
+      await renderCrm();
+    } catch (error) {
+      C.showError(error.message || "No pudimos convertir el prospecto.");
+      convert.disabled = false;
+      convert.textContent = "Convertir a cliente";
+    }
+  });
+}
+
+async function openCommercialEditor(org, commercial, integrations) {
+  if (!org) return;
+  const body = `
+    <form id="crmCommercialForm" class="crm-form">
+      <div class="crm-form-grid">
+        <label>Etapa
+          <select id="crmLifecycle">
+            ${["cliente","implementacion","activo","pausado","cancelado"].map((value) => `<option value="${value}" ${commercial?.lifecycle_stage === value ? "selected" : ""}>${crmStageLabel(value)}</option>`).join("")}
+          </select>
+        </label>
+        <label>Plan<input id="crmPlan" value="${esc(commercial?.plan_name || "")}" placeholder="Ej. NEXO Growth"></label>
+        <label>MRR / cuota mensual<input id="crmMrr" type="number" min="0" step="1000" value="${commercial?.mrr ?? ""}"></label>
+        <label>Costo mensual base<input id="crmMonthlyCost" type="number" min="0" step="1000" value="${commercial?.monthly_cost ?? ""}"></label>
+        <label>Setup cobrado<input id="crmSetupFee" type="number" min="0" step="1000" value="${commercial?.setup_fee ?? ""}"></label>
+        <label>Costo implementación<input id="crmImplementationCost" type="number" min="0" step="1
