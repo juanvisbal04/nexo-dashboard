@@ -178,6 +178,83 @@ function activityChart(series) {
   `;
 }
 
+function healthBadge(health, compact = false) {
+  if (!health || health.score === null) {
+    return `<span class="health-badge neutral">${compact ? "Sin datos" : "Sin actividad"}</span>`;
+  }
+  return `<span class="health-badge ${health.tone}">${compact ? health.score : `${health.score}/100 · ${esc(health.level)}`}</span>`;
+}
+
+function alertCenterHtml(alerts, title = "Centro de alertas") {
+  if (!alerts.length) {
+    return `
+      <section class="card alert-center">
+        <div class="card-head"><div><h2>${esc(title)}</h2><p>Señales operativas del período</p></div><span class="health-badge good">Todo estable</span></div>
+        <div class="alert-empty"><span>✓</span><div><b>Sin alertas activas</b><p>No detectamos situaciones que requieran revisión inmediata.</p></div></div>
+      </section>
+    `;
+  }
+  return `
+    <section class="card alert-center">
+      <div class="card-head"><div><h2>${esc(title)}</h2><p>Priorizadas por impacto operativo</p></div><span class="count">${alerts.length} alerta${alerts.length === 1 ? "" : "s"}</span></div>
+      <div class="alert-list">
+        ${alerts.slice(0, 8).map((alert) => `
+          <button class="alert-item ${alert.tone}" type="button" data-alert-page="${esc(alert.page || "overview")}">
+            <i></i>
+            <div><b>${esc(alert.title)}</b><span>${esc(alert.detail)}</span></div>
+            <em>→</em>
+          </button>
+        `).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function demandHeatmap(hourly) {
+  const blocks = [
+    { label: "Madrugada", start: 0, end: 6 },
+    { label: "Mañana", start: 6, end: 12 },
+    { label: "Tarde", start: 12, end: 18 },
+    { label: "Noche", start: 18, end: 24 },
+  ];
+  const values = blocks.map((block) => ({
+    ...block,
+    count: hourly.filter((row) => row.hour >= block.start && row.hour < block.end).reduce((sum, row) => sum + row.count, 0),
+  }));
+  const max = Math.max(1, ...values.map((row) => row.count));
+  return `
+    <div class="demand-grid">
+      ${values.map((row) => {
+        const strength = row.count / max;
+        const level = strength >= .75 ? 4 : strength >= .5 ? 3 : strength >= .25 ? 2 : row.count ? 1 : 0;
+        return `<div class="demand-cell level-${level}"><span>${esc(row.label)}</span><b>${row.count}</b><small>conversaciones</small></div>`;
+      }).join("")}
+    </div>
+  `;
+}
+
+function weekdayBars(days) {
+  const max = Math.max(1, ...days.map((row) => row.count));
+  return `
+    <div class="weekday-bars">
+      ${days.map((row) => `
+        <div><span>${esc(row.day)}</span><i><b style="height:${Math.max(3, (row.count / max) * 100)}%"></b></i><strong>${row.count}</strong></div>
+      `).join("")}
+    </div>
+  `;
+}
+
+function bindAlertNavigation() {
+  document.querySelectorAll("[data-alert-page]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const page = button.dataset.alertPage || "overview";
+      state.page = page;
+      document.querySelectorAll(".nav-item").forEach((item) => item.classList.toggle("active", item.dataset.page === page));
+      render();
+    });
+  });
+}
+
 function rankingHtml(items, total) {
   return items.length ? items.map(([label, value]) => `
     <div>
