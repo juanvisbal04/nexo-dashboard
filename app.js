@@ -18,7 +18,10 @@ const state = {
   isAdmin: false,
   session: null,
   currentRows: [],
+  pendingRealtimeRefresh: false,
 };
+let realtimeChannel = null;
+let realtimeTimer = null;
 
 const UI_STATE_KEY = "nexo.dashboard.ui.v2";
 
@@ -1623,6 +1626,53 @@ async function renderTeam() {
   });
 }
 
+function isUserEditing() {
+  const active = document.activeElement;
+  const formFocused = active && ["INPUT","TEXTAREA","SELECT"].includes(active.tagName);
+  const chat = document.getElementById("chatModal");
+  const chatOpen = chat && !chat.classList.contains("hidden");
+  const crmOpen = !!document.getElementById("crmModal");
+  return Boolean(formFocused || chatOpen || crmOpen);
+}
+
+function pageUsesRealtimeTable(table) {
+  const map = {
+    conversations: ["overview","conversations","metrics"],
+    messages: ["overview","conversations","metrics"],
+    leads: ["overview","leads","metrics"],
+    appointments: ["overview","appointments","metrics"],
+    followups: ["overview","followups","metrics"],
+    client_invoices: ["crm"],
+    demo_requests: ["crm","admin"],
+    crm_activities: ["crm"],
+  };
+  return (map[table] || []).includes(state.page);
+}
+
+function scheduleRealtimeRefresh(table) {
+  if (!state.session || !pageUsesRealtimeTable(table)) return;
+  state.pendingRealtimeRefresh = true;
+  clearTimeout(realtimeTimer);
+  realtimeTimer = setTimeout(async () => {
+    if (isUserEditing()) return;
+    state.pendingRealtimeRefresh = false;
+    await render();
+  }, 650);
+}
+
+function startRealtime() {
+  if (!state.session) return;
+  if (realtimeChannel) supabase.removeChannel(realtimeChannel);
+  realtimeChannel = supabase.channel("nexo-dashboard-live");
+  [
+    "conversations","messages","leads","appointments","followups",
+    "client_invoices","demo_requests","crm_activities"
+  ].forEach((table) => {
+    realtimeChannel.on("postgres_changes", { event: "*", schema: "public", table }, () => scheduleRealtimeRefresh(table));
+  });
+  realtimeChannel.subscribe();
+}
+
 async function render() {
   closeContactChat();
   document.getElementById("crmModal")?.remove();
@@ -1752,6 +1802,7 @@ async function enterApp(session) {
   await loadIdentity();
   await loadOrganizations();
   restoreUiState();
+  startRealtime();
   await render();
 }
 
@@ -1824,6 +1875,10 @@ $("logoutButton").addEventListener("click", async () => {
   $("logoutButton").querySelector("span").textContent = "Cerrando…";
   try {
     localStorage.removeItem(UI_STATE_KEY);
+    if (realtimeChannel) {
+      await supabase.removeChannel(realtimeChannel);
+      realtimeChannel = null;
+    }
     await supabase.auth.signOut();
     window.location.replace(window.location.origin);
   } catch (error) {
@@ -1874,6 +1929,15 @@ function repairUiLocks() {
   const crmOpen = !!document.getElementById("crmModal");
   if (!chatOpen && !crmOpen) document.body.classList.remove("modal-open");
 }
+
+document.addEventListener("focusout", () => {
+  if (!state.pendingRealtimeRefresh) return;
+  setTimeout(async () => {
+    if (!state.pendingRealtimeRefresh || isUserEditing()) return;
+    state.pendingRealtimeRefresh = false;
+    await render();
+  }, 200);
+});
 
 document.addEventListener("pointerdown", (event) => {
   if (document.body.classList.contains("sidebar-open")) {
