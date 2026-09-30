@@ -893,6 +893,12 @@ function chatAction(row) {
   return `<button class="chat-button" data-contact-id="${row.contact_id}" data-org-id="${row.organization_id || ""}" data-conversation-id="${row.id || ""}">Ver chat</button>`;
 }
 
+function closeContactChat() {
+  const modal = document.getElementById("chatModal");
+  if (modal) modal.classList.add("hidden");
+  document.body.classList.remove("modal-open");
+}
+
 async function openContactChat(contactId, organizationId = currentOrgId()) {
   try {
     let modal = document.getElementById("chatModal");
@@ -915,7 +921,7 @@ async function openContactChat(contactId, organizationId = currentOrgId()) {
         </section>
       `;
       document.body.appendChild(modal);
-      modal.querySelectorAll("[data-close-chat]").forEach((el) => el.addEventListener("click", () => modal.classList.add("hidden")));
+      modal.querySelectorAll("[data-close-chat]").forEach((el) => el.addEventListener("click", closeContactChat));
     }
 
     modal.classList.remove("hidden");
@@ -962,6 +968,7 @@ async function openContactChat(contactId, organizationId = currentOrgId()) {
 
     $("chatBody").scrollTop = $("chatBody").scrollHeight;
   } catch (error) {
+    closeContactChat();
     showError(error.message || "No pudimos abrir el historial del contacto.");
   }
 }
@@ -1612,6 +1619,8 @@ async function renderTeam() {
 }
 
 async function render() {
+  closeContactChat();
+  document.body.classList.remove("sidebar-open");
   clearError();
   const meta = pageMeta[state.page];
   $("breadcrumb").textContent = meta[0];
@@ -1825,6 +1834,25 @@ document.querySelectorAll(".nav-item").forEach((button) => {
 });
 
 $("menuButton").addEventListener("click", () => document.body.classList.toggle("sidebar-open"));
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    closeContactChat();
+    document.body.classList.remove("sidebar-open");
+  }
+});
+
+window.addEventListener("pageshow", () => {
+  closeContactChat();
+  document.body.classList.remove("sidebar-open");
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) {
+    const modal = document.getElementById("chatModal");
+    if (!modal || modal.classList.contains("hidden")) document.body.classList.remove("modal-open");
+  }
+});
 
 supabase.auth.onAuthStateChange((event, session) => {
   if (event === "SIGNED_IN" && session && !state.session) enterApp(session);
