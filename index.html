@@ -24,20 +24,19 @@
         <p>Accede a conversaciones, leads, citas, seguimientos y métricas de tus negocios en NEXO.</p>
       </div>
 
-      <label>Correo</label>
-      <input id="emailInput" type="email" value="nexobyjuanvisbal@gmail.com" autocomplete="email" />
-
-      <button id="magicButton" class="btn primary">Enviarme un enlace de acceso</button>
+      <form id="passwordForm">
+        <label>Correo</label>
+        <input id="emailInput" type="email" value="nexobyjuanvisbal@gmail.com" autocomplete="email" />
+        <label>Contraseña</label>
+        <input id="passwordInput" type="password" autocomplete="current-password" required />
+        <button class="btn primary" type="submit">Ingresar</button>
+      </form>
 
       <div class="divider"><span>o</span></div>
 
       <details class="password-access">
-        <summary>Ingresar con contraseña</summary>
-        <form id="passwordForm">
-          <label>Contraseña</label>
-          <input id="passwordInput" type="password" autocomplete="current-password" />
-          <button class="btn secondary" type="submit">Ingresar</button>
-        </form>
+        <summary>Recibir un enlace de acceso por correo</summary>
+        <button id="magicButton" class="btn secondary" type="button">Enviarme un enlace</button>
       </details>
 
       <div id="loginMessage" class="message hidden"></div>
