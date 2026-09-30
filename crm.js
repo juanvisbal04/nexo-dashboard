@@ -447,6 +447,7 @@ export async function renderCrm(context) {
     { data: activities, error: activityError },
     { data: plans, error: planError },
     { data: expenses, error: expenseError },
+    { data: invoices, error: invoiceError },
   ] = await Promise.all([
     C.supabase.from("demo_requests").select("*").order("created_at", { ascending: false }).limit(500),
     C.supabase.from("organization_commercials").select("*"),
@@ -454,6 +455,7 @@ export async function renderCrm(context) {
     C.supabase.from("crm_activities").select("*").order("created_at", { ascending: false }).limit(500),
     C.supabase.from("nexo_plans").select("*").order("sort_order"),
     C.supabase.from("nexo_expenses").select("*").order("created_at", { ascending: false }),
+    C.supabase.from("client_invoices").select("*").order("due_date", { ascending: false }).limit(1000),
   ]);
 
   if (prospectError) throw prospectError;
@@ -462,6 +464,7 @@ export async function renderCrm(context) {
   if (activityError) throw activityError;
   if (planError) throw planError;
   if (expenseError) throw expenseError;
+  if (invoiceError) throw invoiceError;
 
   const opportunityRows = prospects || [];
   const commercialRows = commercials || [];
@@ -469,6 +472,7 @@ export async function renderCrm(context) {
   const activityRows = activities || [];
   const planRows = plans || [];
   const expenseRows = expenses || [];
+  const invoiceRows = invoices || [];
 
   const commercialMap = new Map(commercialRows.map((row) => [row.organization_id, row]));
   const integrationsByOrg = new Map();
@@ -500,6 +504,22 @@ export async function renderCrm(context) {
   const netOperatingProfit = grossProfit - sharedMonthlyExpenses;
   const netOperatingMargin = activeMrr ? Math.round((netOperatingProfit / activeMrr) * 100) : 0;
   const arr = activeMrr * 12;
+  const today = new Date();
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+  const paidThisMonth = invoiceRows
+    .filter((row) => row.status === "paid" && row.paid_at && new Date(row.paid_at) >= monthStart && new Date(row.paid_at) < monthEnd)
+    .reduce((sum, row) => sum + Number(row.amount_cop || 0), 0);
+  const receivable = invoiceRows
+    .filter((row) => ["pending","overdue"].includes(row.status))
+    .reduce((sum, row) => sum + Number(row.amount_cop || 0), 0);
+  const overdueInvoices = invoiceRows.filter((row) => row.status === "overdue" || (row.status === "pending" && new Date(row.due_date + "T23:59:59").getTime() < Date.now()));
+  const dueSoonInvoices = invoiceRows
+    .filter((row) => row.status === "pending")
+    .filter((row) => {
+      const due = new Date(row.due_date + "T23:59:59").getTime();
+      return due >= Date.now() && due <= Date.now() + 30 * 86400000;
+    });
   const pipelineStages = new Set(["prospecto", "demo", "propuesta"]);
   const pipelineMrr = opportunityRows
     .filter((row) => pipelineStages.has(row.stage))
@@ -546,11 +566,11 @@ export async function renderCrm(context) {
 
     <div class="crm-finance-strip">
       <div><span>MRR activo</span><b>${money(activeMrr)}</b></div>
-      <div><span>ARR</span><b>${money(arr)}</b></div>
-      <div><span>Costos directos</span><b>${money(monthlyCost)}</b></div>
+      <div><span>Cobrado este mes</span><b>${money(paidThisMonth)}</b></div>
+      <div><span>Cuentas por cobrar</span><b>${money(receivable)}</b></div>
       <div><span>Gastos compartidos</span><b>${money(sharedMonthlyExpenses)}</b></div>
       <div><span>Resultado operativo</span><b>${money(netOperatingProfit)}</b></div>
-      <div><span>Clientes activos</span><b>${active.length}</b></div>
+      <div><span>Vencidas</span><b>${overdueInvoices.length}</b></div>
     </div>
 
     <div class="crm-two-col crm-foundation-grid">
@@ -586,6 +606,51 @@ export async function renderCrm(context) {
         </form>
       </section>
     </div>
+
+    <section class="card crm-billing-card">
+      <div class="card-head">
+        <div><h2>Facturación y cartera</h2><p>Mensualidades, setup, vencimientos y pagos de clientes</p></div>
+        <span class="count">${invoiceRows.length} movimientos</span>
+      </div>
+      <div class="crm-billing-kpis">
+        <div><span>Cobrado este mes</span><b>${money(paidThisMonth)}</b></div>
+        <div><span>Por cobrar</span><b>${money(receivable)}</b></div>
+        <div><span>Vencidas</span><b>${overdueInvoices.length}</b></div>
+        <div><span>Próximos 30 días</span><b>${dueSoonInvoices.length}</b></div>
+      </div>
+      <form id="crmInvoiceForm" class="crm-invoice-form">
+        <select id="crmInvoiceOrg" required>
+          <option value="">Cliente</option>
+          ${clients.map((org)=>`<option value="${org.id}">${esc(org.name)}</option>`).join("")}
+        </select>
+        <select id="crmInvoiceType"><option value="monthly">Mensualidad</option><option value="setup">Setup</option><option value="other">Otro</option></select>
+        <input id="crmInvoiceAmount" type="number" min="0" step="1000" placeholder="Valor COP" required>
+        <input id="crmInvoiceDue" type="date" required>
+        <input id="crmInvoiceReference" placeholder="Referencia / concepto">
+        <button class="btn primary" type="submit">Crear cobro</button>
+      </form>
+      <div class="table-wrap crm-billing-table">
+        <table>
+          <thead><tr><th>Cliente</th><th>Tipo</th><th>Valor</th><th>Vence</th><th>Estado</th><th>Pago</th><th>Referencia</th><th></th></tr></thead>
+          <tbody>
+            ${invoiceRows.length ? invoiceRows.slice(0,30).map((row)=>{
+              const org=clients.find((item)=>item.id===row.organization_id);
+              const derived = row.status === "pending" && new Date(row.due_date + "T23:59:59").getTime() < Date.now() ? "overdue" : row.status;
+              return `<tr>
+                <td><b>${esc(org?.name || "Cliente")}</b></td>
+                <td>${esc(row.invoice_type)}</td>
+                <td><b>${money(row.amount_cop)}</b></td>
+                <td>${shortDate(row.due_date)}</td>
+                <td><span class="pill ${derived==="paid"?"green":derived==="overdue"?"orange":""}">${esc(derived)}</span></td>
+                <td>${row.paid_at ? dateTime(row.paid_at) : "—"}</td>
+                <td>${esc(row.reference || "—")}</td>
+                <td>${derived==="pending"||derived==="overdue" ? `<button class="crm-invoice-paid btn small" data-id="${row.id}" type="button">Marcar pagado</button>` : ""}</td>
+              </tr>`;
+            }).join("") : `<tr><td colspan="8">${C.emptyState("Sin cobros todavía.", "Crea el primer cobro cuando corresponda.")}</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+    </section>
 
     <section class="card crm-pipeline-card">
       <div class="card-head">
@@ -719,6 +784,38 @@ export async function renderCrm(context) {
     button.addEventListener("click", () => {
       const org = clients.find((row) => row.id === button.dataset.orgId);
       openCommercialEditor(org, commercialMap.get(org.id) || null, integrationsByOrg.get(org.id) || [], planRows);
+    });
+  });
+
+  $("crmInvoiceForm")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const { error } = await C.supabase.from("client_invoices").insert({
+      organization_id: $("crmInvoiceOrg").value,
+      invoice_type: $("crmInvoiceType").value,
+      amount_cop: nullableNumber($("crmInvoiceAmount").value) || 0,
+      due_date: $("crmInvoiceDue").value,
+      reference: $("crmInvoiceReference").value.trim() || null,
+      status: "pending",
+    });
+    if (error) return C.showError(error.message);
+    C.showToast("Cobro creado.");
+    await renderCrm();
+  });
+
+  document.querySelectorAll(".crm-invoice-paid").forEach((button) => {
+    button.addEventListener("click", async () => {
+      button.disabled = true;
+      const { error } = await C.supabase.from("client_invoices").update({
+        status: "paid",
+        paid_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }).eq("id", button.dataset.id);
+      if (error) {
+        button.disabled = false;
+        return C.showError(error.message);
+      }
+      C.showToast("Pago registrado.");
+      await renderCrm();
     });
   });
 
