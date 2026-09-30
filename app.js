@@ -256,6 +256,128 @@ function buildActivitySeries(conversations, leads, appointments) {
   return [...map.values()].sort((a, b) => a.date.localeCompare(b.date)).slice(-30);
 }
 
+function localHour(value) {
+  if (!value) return null;
+  const hour = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Bogota", hour: "2-digit", hour12: false,
+  }).format(new Date(value));
+  return Number(hour);
+}
+
+function localWeekday(value) {
+  if (!value) return null;
+  return new Intl.DateTimeFormat("es-CO", {
+    timeZone: "America/Bogota", weekday: "short",
+  }).format(new Date(value)).replace(".", "");
+}
+
+function distributionByHour(rows) {
+  const counts = Array.from({ length: 24 }, (_, hour) => ({ hour, count: 0 }));
+  rows.forEach((row) => {
+    const hour = localHour(row.created_at);
+    if (hour !== null && hour >= 0 && hour < 24) counts[hour].count += 1;
+  });
+  return counts;
+}
+
+function distributionByWeekday(rows) {
+  const order = ["lun", "mar", "mié", "jue", "vie", "sáb", "dom"];
+  const map = Object.fromEntries(order.map((day) => [day, 0]));
+  rows.forEach((row) => {
+    const day = localWeekday(row.created_at);
+    if (day in map) map[day] += 1;
+  });
+  return order.map((day) => ({ day, count: map[day] || 0 }));
+}
+
+function operationalHealth(metrics) {
+  if (!metrics.chats) {
+    return { score: null, level: "Sin actividad", tone: "neutral", reasons: ["No hay conversaciones en el período seleccionado."] };
+  }
+
+  let score = 100;
+  const reasons = [];
+
+  if (metrics.escalationRate > 0) {
+    const penalty = Math.min(24, metrics.escalationRate * 0.7);
+    score -= penalty;
+    if (metrics.attention > 0) reasons.push(`${metrics.attention} conversación${metrics.attention === 1 ? "" : "es"} requiere${metrics.attention === 1 ? "" : "n"} atención.`);
+  }
+  if (metrics.cancellationRate > 0) {
+    score -= Math.min(18, metrics.cancellationRate * 0.45);
+    if (metrics.cancelled > 0) reasons.push(`${metrics.cancelled} cita${metrics.cancelled === 1 ? "" : "s"} cancelada${metrics.cancelled === 1 ? "" : "s"}.`);
+  }
+  if (metrics.noShowRate > 0) {
+    score -= Math.min(14, metrics.noShowRate * 0.45);
+    if (metrics.noShow > 0) reasons.push(`${metrics.noShow} no-show registrado${metrics.noShow === 1 ? "" : "s"}.`);
+  }
+  if (metrics.response > 60) {
+    score -= Math.min(20, (metrics.response - 60) / 6);
+    reasons.push(`Respuesta media de ${metrics.response.toFixed(1)} s.`);
+  }
+  if (metrics.requested > 0) {
+    score -= Math.min(10, metrics.requested * 2);
+    reasons.push(`${metrics.requested} solicitud${metrics.requested === 1 ? "" : "es"} de cita pendiente${metrics.requested === 1 ? "" : "s"}.`);
+  }
+
+  score = Math.max(0, Math.min(100, Math.round(score)));
+  const level = score >= 85 ? "Estable" : score >= 70 ? "Monitorear" : "Requiere atención";
+  const tone = score >= 85 ? "good" : score >= 70 ? "watch" : "risk";
+  if (!reasons.length) reasons.push("Sin alertas operativas relevantes en el período.");
+  return { score, level, tone, reasons };
+}
+
+function buildOperationalAlerts(metrics, organizationName = "") {
+  const alerts = [];
+  const prefix = organizationName ? organizationName + " · " : "";
+
+  if (metrics.attention > 0) alerts.push({
+    priority: 3, tone: "risk", title: prefix + "Atención humana pendiente",
+    detail: `${metrics.attention} conversación${metrics.attention === 1 ? "" : "es"} requiere${metrics.attention === 1 ? "" : "n"} intervención.`,
+    page: "conversations",
+  });
+  if (metrics.requested > 0) alerts.push({
+    priority: 2, tone: "watch", title: prefix + "Citas por confirmar",
+    detail: `${metrics.requested} solicitud${metrics.requested === 1 ? "" : "es"} todavía pendiente${metrics.requested === 1 ? "" : "s"}.`,
+    page: "appointments",
+  });
+  if (metrics.noShow > 0) alerts.push({
+    priority: 2, tone: "watch", title: prefix + "No-show detectado",
+    detail: `${metrics.noShow} ausencia${metrics.noShow === 1 ? "" : "s"} registrada${metrics.noShow === 1 ? "" : "s"} en el período.`,
+    page: "appointments",
+  });
+  if (metrics.cancellationRate >= 20 && metrics.appointmentCount >= 3) alerts.push({
+    priority: 2, tone: "watch", title: prefix + "Cancelación elevada",
+    detail: `${metrics.cancellationRate}% de las citas registradas están canceladas.`,
+    page: "metrics",
+  });
+  if (metrics.response > 120 && metrics.chats >= 3) alerts.push({
+    priority: 1, tone: "info", title: prefix + "Respuesta más lenta",
+    detail: `La respuesta media está en ${metrics.response.toFixed(1)} segundos.`,
+    page: "metrics",
+  });
+  if (!metrics.chats) alerts.push({
+    priority: 1, tone: "neutral", title: prefix + "Sin actividad",
+    detail: "No hay conversaciones registradas en el período seleccionado.",
+    page: "overview",
+  });
+
+  return alerts.sort((a, b) => b.priority - a.priority);
+}
+
+function busiestLabel(hourly) {
+  const best = [...hourly].sort((a, b) => b.count - a.count)[0];
+  if (!best || !best.count) return "Sin datos";
+  const end = (best.hour + 1) % 24;
+  return `${String(best.hour).padStart(2, "0")}:00–${String(end).padStart(2, "0")}:00`;
+}
+
+function busiestDayLabel(days) {
+  const best = [...days].sort((a, b) => b.count - a.count)[0];
+  if (!best || !best.count) return "Sin datos";
+  return best.day.charAt(0).toUpperCase() + best.day.slice(1);
+}
+
 function summarizeMetricRows({ conversations, leads, appointments, followups, messages, orgIds }) {
   const confirmedRows = appointments.filter((row) => ["Confirmada", "Completada"].includes(row.status));
   const requestedRows = appointments.filter((row) => row.status === "Solicitada");
@@ -318,6 +440,8 @@ function summarizeMetricRows({ conversations, leads, appointments, followups, me
     appointmentStatuses: countBy(appointments, "status"),
     leadStages: countBy(leads, "stage"),
     activitySeries: buildActivitySeries(conversations, leads, appointments),
+    hourlyDistribution: distributionByHour(conversations),
+    weekdayDistribution: distributionByWeekday(conversations),
   };
 }
 
