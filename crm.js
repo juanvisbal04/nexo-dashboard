@@ -99,6 +99,12 @@ async function openProspectEditor(prospect, plans = []) {
         <label>WhatsApp<input id="crmProspectPhone" value="${esc(prospect.phone || "")}"></label>
         <label>Correo<input id="crmProspectEmail" type="email" value="${esc(prospect.email || "")}"></label>
         <label>Sector<input id="crmProspectIndustry" value="${esc(prospect.industry || "")}"></label>
+        <label>Plan de interés
+          <select id="crmProspectPlanInterest">
+            <option value="">Sin definir</option>
+            ${plans.filter((plan)=>plan.active).sort((a,b)=>a.sort_order-b.sort_order).map((plan)=>`<option value="${plan.code}" ${prospect.plan_interest === plan.code ? "selected" : ""}>${esc(plan.name)}</option>`).join("")}
+          </select>
+        </label>
         <label>Etapa
           <select id="crmProspectStage">
             ${CRM_STAGES.map(([value, label]) => `<option value="${value}" ${prospect.stage === value ? "selected" : ""}>${label}</option>`).join("")}
@@ -129,7 +135,7 @@ async function openProspectEditor(prospect, plans = []) {
           <label>Plan inicial
             <select id="crmConvertPlan">
               <option value="">Seleccionar plan</option>
-              ${plans.filter((plan) => plan.active).sort((a,b) => a.sort_order-b.sort_order).map((plan) => `<option value="${plan.id}">${esc(plan.name)} · ${plan.monthly_fee ? money(plan.monthly_fee) + "/mes" : "Cotización"}</option>`).join("")}
+              ${plans.filter((plan) => plan.active).sort((a,b) => a.sort_order-b.sort_order).map((plan) => `<option value="${plan.id}" ${prospect.plan_interest === plan.code ? "selected" : ""}>${esc(plan.name)} · ${plan.monthly_fee ? money(plan.monthly_fee) + "/mes" : "Cotización"}</option>`).join("")}
             </select>
           </label>
           <label>Costo mensual base<input id="crmConvertCost" type="number" min="0" step="1000" placeholder="0"></label>
@@ -173,6 +179,7 @@ async function openProspectEditor(prospect, plans = []) {
       phone: modal.querySelector("#crmProspectPhone").value.trim() || null,
       email: modal.querySelector("#crmProspectEmail").value.trim() || null,
       industry: modal.querySelector("#crmProspectIndustry").value.trim() || null,
+      plan_interest: modal.querySelector("#crmProspectPlanInterest").value || null,
       stage: modal.querySelector("#crmProspectStage").value,
       expected_mrr: nullableNumber(modal.querySelector("#crmProspectMrr").value),
       expected_setup_fee: nullableNumber(modal.querySelector("#crmProspectSetup").value),
