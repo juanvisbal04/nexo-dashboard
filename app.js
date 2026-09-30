@@ -1116,6 +1116,8 @@ async function renderMetrics() {
   const assistantLabel = state.isAdmin && isInternalOrg()
     ? "red de asistentes"
     : (currentOrg()?.assistant || "tu asistente");
+  const health = operationalHealth(m);
+  const alerts = buildOperationalAlerts(m);
 
   $("content").innerHTML = `
     <div class="metrics-hero card">
@@ -1127,7 +1129,7 @@ async function renderMetrics() {
       <div class="metric-score">
         <small>Conversión lead → cita</small>
         <strong>${m.conversion}%</strong>
-        ${trendChip(m.delta?.conversion)}
+        <div class="metric-score-foot">${trendChip(m.delta?.conversion)} ${healthBadge(health)}</div>
       </div>
     </div>
 
@@ -1154,6 +1156,23 @@ async function renderMetrics() {
       <div class="chart-wrap">${activityChart(m.activitySeries)}</div>
     </section>
 
+    <div class="analytics-insight-grid">
+      <section class="card">
+        <div class="card-head"><div><h2>Demanda por franja</h2><p>Cuándo empiezan más conversaciones</p></div><span class="pill">${esc(busiestLabel(m.hourlyDistribution))}</span></div>
+        <div class="demand-wrap">${demandHeatmap(m.hourlyDistribution)}</div>
+      </section>
+      <section class="card">
+        <div class="card-head"><div><h2>Demanda por día</h2><p>Días con mayor volumen conversacional</p></div><span class="pill">${esc(busiestDayLabel(m.weekdayDistribution))}</span></div>
+        <div class="weekday-wrap">${weekdayBars(m.weekdayDistribution)}</div>
+      </section>
+      <section class="card health-detail-card">
+        <div class="card-head"><div><h2>Estado operativo</h2><p>Señal basada en atención, respuesta y citas</p></div>${healthBadge(health)}</div>
+        <div class="health-reasons">${health.reasons.map((reason) => `<div><i></i><span>${esc(reason)}</span></div>`).join("")}</div>
+      </section>
+    </div>
+
+    ${alertCenterHtml(alerts, "Alertas del período")}
+
     <div class="analytics-grid">
       <section class="card">
         <div class="card-head"><div><h2>Servicios consultados</h2><p>Qué genera más conversación</p></div></div>
@@ -1173,6 +1192,7 @@ async function renderMetrics() {
       </section>
     </div>
   `;
+  bindAlertNavigation();
 }
 
 async function renderAdmin() {
