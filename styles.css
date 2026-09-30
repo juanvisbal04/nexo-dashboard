@@ -763,3 +763,14 @@ body.modal-open{overflow:hidden;touch-action:none}
 .logout-button:hover{background:#ffffff0f;color:#fff}
 .logout-button b{font-size:12px;font-weight:600}
 .logout-button:disabled{opacity:.55;cursor:wait}
+
+.top-logout-button{
+  border:1px solid #d9e2ec;background:#fff;color:#4e6178;border-radius:8px;
+  padding:8px 11px;font-size:9px;font-weight:700;white-space:nowrap
+}
+.top-logout-button:hover{border-color:#b7c8db;background:#f8fafc}
+.top-logout-button:disabled{opacity:.6}
+@media(max-width:720px){
+  .top-email{display:none}
+  .top-logout-button{padding:7px 9px;font-size:8px}
+}
