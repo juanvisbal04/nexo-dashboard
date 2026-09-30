@@ -331,6 +331,13 @@ async function openCommercialEditor(org, commercial, integrations, plans = []) {
         <label>Facturación
           <select id="crmBillingStatus">${["pending","active","past_due","paused","cancelled"].map((value) => `<option value="${value}" ${commercial?.billing_status === value ? "selected" : ""}>${value}</option>`).join("")}</select>
         </label>
+        <label>Día de cobro mensual
+          <input id="crmBillingDay" type="number" min="1" max="28" value="${commercial?.billing_day ?? ""}" placeholder="Ej. 5">
+        </label>
+        <label class="crm-check-label">
+          <input id="crmAutoInvoice" type="checkbox" ${commercial?.auto_invoice !== false ? "checked" : ""}>
+          <span>Generar mensualidad automáticamente</span>
+        </label>
         <label>Implementación
           <select id="crmImplementationStatus">${["pending","discovery","design","configuration","testing","go_live","active","paused"].map((value) => `<option value="${value}" ${commercial?.implementation_status === value ? "selected" : ""}>${value}</option>`).join("")}</select>
         </label>
@@ -391,6 +398,8 @@ async function openCommercialEditor(org, commercial, integrations, plans = []) {
       go_live_date: modal.querySelector("#crmGoLiveDate").value || null,
       renewal_date: modal.querySelector("#crmRenewalDate").value || null,
       billing_status: modal.querySelector("#crmBillingStatus").value,
+      billing_day: nullableNumber(modal.querySelector("#crmBillingDay").value),
+      auto_invoice: modal.querySelector("#crmAutoInvoice").checked,
       implementation_status: modal.querySelector("#crmImplementationStatus").value,
       integration_status: modal.querySelector("#crmIntegrationStatus").value,
       commercial_notes: modal.querySelector("#crmCommercialNotes").value.trim() || null,
@@ -440,6 +449,11 @@ export async function renderCrm(context) {
   }
 
   const clients = C.clientOrganizations({ activeOnly: false });
+  try {
+    await C.supabase.rpc("generate_due_monthly_invoices");
+  } catch (error) {
+    console.warn("NEXO_BILLING_REFRESH", error);
+  }
   const [
     { data: prospects, error: prospectError },
     { data: commercials, error: commercialError },
