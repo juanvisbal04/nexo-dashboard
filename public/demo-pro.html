@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta name="description" content="Solicita una demo de NEXO para tu negocio. Revisamos tu operación y diseñamos una propuesta alrededor de tus conversaciones, reservas, ventas y atención."/>
+  <meta name="theme-color" content="#07172b"/>
+  <title>Solicitar demo PRO | NEXO by Juan Visbal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css?v=20260930-premium4"/>
+</head>
+<body>
+<header class="nav">
+  <a class="brand" href="./index.html"><span class="brand-word">NE<span>X</span>O</span><small>by Juan Visbal</small></a>
+  <button class="menu" id="menu" aria-label="Abrir menú">☰</button>
+  <nav id="navLinks">
+    <a href="./index.html">Inicio</a>
+    <a href="./catalogo.html">Soluciones</a>
+    <a href="./planes.html">Planes</a>
+    <a href="./index.html#caso">Caso Lía</a>
+    <a href="./index.html#contacto">Contacto</a>
+    <a class="login-link" href="https://dashboard.nexobyjv.online">Ingresar</a>
+  </nav>
+</header>
+
+<main>
+<section class="subpage-hero demo-hero">
+  <div class="subpage-copy">
+    <div class="section-label light">SOLICITAR DEMO</div>
+    <h1>Muéstrame cómo atiendes hoy. <span>Te muestro qué puede hacer NEXO.</span></h1>
+    <p>No necesitas tener todo definido. Cuéntanos cómo funciona tu negocio, qué preguntas repites todos los días y qué te gustaría mejorar.</p>
+    <div class="demo-proof">
+      <div><b>01</b><span>Revisamos tu operación</span></div>
+      <div><b>02</b><span>Definimos un caso de uso</span></div>
+      <div><b>03</b><span>Preparamos una demo</span></div>
+    </div>
+  </div>
+  <div class="subpage-media">
+    <img src="https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=1400&q=82" alt="Equipo conversando sobre procesos de negocio" loading="eager"/>
+    <div class="media-shade"></div>
+    <div class="demo-floating"><small>DEMO PERSONALIZADA</small><b>Tu negocio, tus reglas, tu asistente.</b></div>
+  </div>
+</section>
+
+<section class="section demo-section">
+  <div class="demo-layout">
+    <div class="demo-intro">
+      <div class="section-label">ANTES DE HABLAR</div>
+      <h2>Cuéntanos lo esencial.</h2>
+      <p>Esta información nos ayuda a llegar a la conversación con contexto y preparar algo útil, no una presentación genérica.</p>
+      <div class="demo-expectations">
+        <div><span>✓</span><p><b>Sin compromiso.</b><br>Primero entendemos si NEXO realmente encaja.</p></div>
+        <div><span>✓</span><p><b>Enfoque práctico.</b><br>Hablamos de tu operación y tus clientes.</p></div>
+        <div><span>✓</span><p><b>Escalable.</b><br>Podemos empezar pequeño y crecer después.</p></div>
+      </div>
+    </div>
+
+    <section class="demo-form-card">
+      <form id="demoForm">
+        <div class="form-grid">
+          <label>Tu nombre
+            <input id="demoName" name="full_name" type="text" autocomplete="name" placeholder="Nombre completo" required/>
+          </label>
+          <label>Nombre del negocio
+            <input id="demoBusiness" name="business_name" type="text" placeholder="Empresa o marca" required/>
+          </label>
+          <label>WhatsApp
+            <input id="demoPhone" name="phone" type="tel" autocomplete="tel" placeholder="+57 300 000 0000"/>
+          </label>
+          <label>Correo
+            <input id="demoEmail" name="email" type="email" autocomplete="email" placeholder="tu@empresa.com"/>
+          </label>
+          <label>Plan de interés
+            <select id="demoPlan" name="plan_interest">
+              <option value="">Todavía no lo sé</option>
+              <option value="start">NEXO Start · $290.000/mes</option>
+              <option value="growth">NEXO Growth · $490.000/mes</option>
+              <option value="pro" selected>NEXO Pro · $850.000/mes</option>
+              <option value="custom">NEXO Custom · desde $900.000/mes</option>
+            </select>
+          </label>
+          <label>Sector
+            <select id="demoIndustry" name="industry">
+              <option value="">Selecciona una opción</option>
+              <option>Estética & wellness</option>
+              <option>Hotel</option>
+              <option>Restaurante</option>
+              <option>Clínica / odontología</option>
+              <option>Inmobiliaria</option>
+              <option>Servicios profesionales</option>
+              <option>Comercio</option>
+              <option>Otro</option>
+            </select>
+          </label>
+          <label class="wide">¿Qué te gustaría mejorar?
+            <textarea id="demoMessage" name="message" rows="5" placeholder="Ej. recibimos muchas preguntas por WhatsApp, se pierden leads fuera de horario y queremos organizar reservas..."></textarea>
+          </label>
+          <label class="honeypot" aria-hidden="true">Sitio web
+            <input id="demoWebsite" name="website" tabindex="-1" autocomplete="off"/>
+          </label>
+        </div>
+        <button id="demoSubmit" class="btn primary bright demo-submit" type="submit">Solicitar mi demo <span>→</span></button>
+        <p class="form-note">Al enviar aceptas que NEXO use estos datos únicamente para contactarte sobre tu solicitud. Consulta nuestra <a href="./privacidad.html">política de privacidad</a>.</p>
+        <div id="demoResult" class="demo-result hidden"></div>
+      </form>
+    </section>
+  </div>
+</section>
+
+<section class="section demo-next">
+  <div class="section-heading">
+    <div class="section-label">QUÉ PASA DESPUÉS</div>
+    <h2>Una conversación corta puede ahorrar muchas horas de trabajo repetitivo.</h2>
+  </div>
+  <div class="demo-next-grid">
+    <article><span>01</span><b>Revisión</b><p>Miramos lo que nos compartiste y detectamos el punto de mayor impacto.</p></article>
+    <article><span>02</span><b>Conversación</b><p>Validamos cómo atiendes hoy, qué herramientas usas y dónde se pierde tiempo.</p></article>
+    <article><span>03</span><b>Demo</b><p>Mostramos un flujo aplicado a tu negocio y planteamos un alcance inicial.</p></article>
+    <article><span>04</span><b>Piloto</b><p>Si tiene sentido, definimos alcance, tiempos y una primera versión medible.</p></article>
+  </div>
+</section>
+
+<section class="section quick-contact">
+  <div>
+    <div class="section-label light">¿PREFIERES ESCRIBIR?</div>
+    <h2>También podemos hablar por WhatsApp.</h2>
+  </div>
+  <a class="btn primary bright" href="https://wa.me/573006150188?text=Hola%20NEXO,%20quiero%20hablar%20sobre%20una%20demo." target="_blank" rel="noopener">Abrir WhatsApp <span>→</span></a>
+</section>
+</main>
+
+<footer>
+  <div class="footer-brand"><span class="brand-word small">NE<span>X</span>O</span><small>by Juan Visbal</small><p>Conectamos tu negocio con tus clientes.</p></div>
+  <div class="footer-col"><b>Explorar</b><a href="./index.html">Inicio</a><a href="./catalogo.html">Soluciones</a><a href="./planes.html">Planes</a><a href="./privacidad.html">Privacidad</a></div>
+  <div class="footer-col"><b>Contacto</b><a href="mailto:nexobyjuanvisbal@gmail.com">Correo</a><a href="https://www.instagram.com/nexo.byjuanvisbal/" target="_blank" rel="noopener">Instagram</a><a href="https://dashboard.nexobyjv.online">Dashboard</a></div>
+  <div class="footer-bottom"><span>© 2026 NEXO by Juan Visbal.</span><span>Medellín, Colombia.</span></div>
+</footer>
+<script src="./site.js?v=20260930-premium2"></script>
+<script src="./demo.js?v=20260930-5"></script>
+</body>
+</html>
