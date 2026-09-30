@@ -424,4 +424,76 @@ export async function renderCrm(context) {
   if (activityError) throw activityError;
 
   const opportunityRows = prospects || [];
-  const commercialRows = com
+  const commercialRows = commercials || [];
+  const integrationRows = integrations || [];
+  const activityRows = activities || [];
+
+  const commercialMap = new Map(commercialRows.map((row) => [row.organization_id, row]));
+  const integrationsByOrg = new Map();
+  integrationRows.forEach((row) => {
+    if (!integrationsByOrg.has(row.organization_id)) integrationsByOrg.set(row.organization_id, []);
+    integrationsByOrg.get(row.organization_id).push(row);
+  });
+
+  const clientFinancials = clients.map((org) => {
+    const commercial = commercialMap.get(org.id) || null;
+    const orgIntegrations = integrationsByOrg.get(org.id) || [];
+    const integrationCost = orgIntegrations.reduce((sum, row) => sum + Number(row.monthly_cost || 0), 0);
+    const economics = commercialProfit(commercial, integrationCost);
+    return { org, commercial, orgIntegrations, integrationCost, economics };
+  });
+
+  const active = clientFinancials.filter((row) => row.commercial?.lifecycle_stage === "activo");
+  const activeMrr = active.reduce((sum, row) => sum + row.economics.mrr, 0);
+  const monthlyCost = active.reduce((sum, row) => sum + row.economics.cost, 0);
+  const grossProfit = activeMrr - monthlyCost;
+  const grossMargin = activeMrr ? Math.round((grossProfit / activeMrr) * 100) : 0;
+  const arr = activeMrr * 12;
+  const pipelineStages = new Set(["prospecto", "demo", "propuesta"]);
+  const pipelineMrr = opportunityRows
+    .filter((row) => pipelineStages.has(row.stage))
+    .reduce((sum, row) => sum + Number(row.expected_mrr || 0), 0);
+  const implementationCount = clientFinancials.filter((row) => row.commercial?.lifecycle_stage === "implementacion").length;
+  const integrationAttention = integrationRows.filter((row) => ["pending", "configuration", "attention"].includes(row.status)).length;
+
+  const now = Date.now();
+  const nextActions = opportunityRows
+    .filter((row) => row.next_action_at && !["activo", "perdido"].includes(row.stage))
+    .sort((a, b) => new Date(a.next_action_at) - new Date(b.next_action_at));
+  const overdue = nextActions.filter((row) => new Date(row.next_action_at).getTime() < now).length;
+
+  C.state.currentRows = [
+    ...opportunityRows.map((row) => ({
+      type: "prospect",
+      business: row.business_name,
+      stage: row.stage,
+      expected_mrr: row.expected_mrr,
+      next_action_at: row.next_action_at,
+    })),
+    ...clientFinancials.map((row) => ({
+      type: "client",
+      business: row.org.name,
+      stage: row.commercial?.lifecycle_stage,
+      mrr: row.economics.mrr,
+      monthly_cost: row.economics.cost,
+      profit: row.economics.profit,
+      margin: row.economics.margin,
+    })),
+  ];
+
+  const pipelineStagesUi = CRM_STAGES.filter(([value]) => value !== "perdido");
+
+  $("content").innerHTML = `
+    <div class="crm-kpi-grid">
+      ${C.metricCard("MRR activo", money(activeMrr), `ARR ${money(arr)}`, null, true)}
+      ${C.metricCard("Utilidad bruta mensual", money(grossProfit), `Margen ${grossMargin}%`)}
+      ${C.metricCard("Pipeline MRR", money(pipelineMrr), "Prospecto + Demo + Propuesta")}
+      ${C.metricCard("Clientes activos", active.length, `${implementationCount} en implementación`)}
+      ${C.metricCard("Costo mensual", money(monthlyCost), "Base + integraciones")}
+      ${C.metricCard("Seguimientos vencidos", overdue, `${nextActions.length} próximas acciones`)}
+    </div>
+
+    <div class="crm-finance-strip">
+      <div><span>MRR activo</span><b>${money(activeMrr)}</b></div>
+      <div><span>ARR</span><b>${money(arr)}</b></div>
+    
