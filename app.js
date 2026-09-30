@@ -26,7 +26,8 @@ const pageMeta = {
   followups: ["Seguimientos", "NEXO RECOVERY", "El siguiente paso importa.", "Oportunidades que necesitan una nueva acción."],
   metrics: ["Métricas", "NEXO ANALYTICS", "Entiende tus resultados.", "Conversión, automatización, respuesta, demanda y valor en una sola vista."],
   team: ["Usuarios", "CONTROL DE ACCESO", "Tu equipo, con el acceso correcto.", "Invita y administra usuarios de este dashboard."],
-  admin: ["NEXO Admin", "NEXO COMMAND CENTER", "Control total de la plataforma.", "Clientes activos, accesos y crecimiento de NEXO."],
+  crm: ["CRM & Finanzas", "NEXO INTERNAL CRM", "Tu negocio, de prospecto a cliente activo.", "Pipeline, MRR, costos, implementación e integraciones en un solo lugar."],
+  admin: ["Platform Admin", "NEXO COMMAND CENTER", "Control total de la plataforma.", "Clientes activos, accesos y configuración de NEXO."],
 };
 
 function esc(value) {
@@ -1636,6 +1637,7 @@ async function render() {
     else if (["conversations", "leads", "appointments", "followups"].includes(state.page)) await renderTablePage(state.page);
     else if (state.page === "metrics") await renderMetrics();
     else if (state.page === "team") await renderTeam();
+    else if (state.page === "crm") await renderCrm();
     else if (state.page === "admin") await renderAdmin();
   } catch (error) {
     showError(error.message || "No pudimos cargar la información.");
@@ -1824,7 +1826,7 @@ $("exportButton").addEventListener("click", exportCsv);
 
 document.querySelectorAll(".nav-item").forEach((button) => {
   button.addEventListener("click", () => {
-    if (button.dataset.page === "admin" && !state.isAdmin) return;
+    if (["admin","crm"].includes(button.dataset.page) && !state.isAdmin) return;
     if (button.dataset.page === "team" && !canManageCurrentOrgUsers()) return;
     state.page = button.dataset.page;
     document.querySelectorAll(".nav-item").forEach((item) => item.classList.toggle("active", item.dataset.page === state.page));
