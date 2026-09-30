@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
-import { renderCrm } from "./crm.js?v=20260930-crm5";
+import { renderCrm } from "./crm.js?v=20260930-crm6";
 
 const SUPABASE_URL = "https://ixewnbjndguchunwcuhf.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_vFnLRe9cmnOcyz2Fivprhw_8UjBaRGL";
@@ -19,6 +19,45 @@ const state = {
   session: null,
   currentRows: [],
 };
+
+const UI_STATE_KEY = "nexo.dashboard.ui.v2";
+
+function readStoredUiState() {
+  try {
+    return JSON.parse(localStorage.getItem(UI_STATE_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function persistUiState() {
+  const orgId = $("orgSelect")?.value || null;
+  const period = $("periodSelect")?.value || "30";
+  const value = { page: state.page, orgId, period };
+  try { localStorage.setItem(UI_STATE_KEY, JSON.stringify(value)); } catch {}
+  const nextHash = state.page && state.page !== "overview" ? "#" + state.page : "";
+  if (window.location.hash !== nextHash) {
+    history.replaceState(null, "", window.location.pathname + window.location.search + nextHash);
+  }
+}
+
+function restoreUiState() {
+  const saved = readStoredUiState();
+  const hashPage = window.location.hash.replace(/^#/, "");
+  const savedOrg = saved.orgId && state.organizations.some((org) => org.id === saved.orgId) ? saved.orgId : null;
+  if (savedOrg) $("orgSelect").value = savedOrg;
+
+  const allowedPeriods = new Set(["1","7","30","90"]);
+  if (allowedPeriods.has(String(saved.period || ""))) $("periodSelect").value = String(saved.period);
+
+  let page = pageMeta[hashPage] ? hashPage : (pageMeta[saved.page] ? saved.page : "overview");
+  if (["crm","admin"].includes(page) && !state.isAdmin) page = "overview";
+  if (page === "team" && !canManageCurrentOrgUsers()) page = "overview";
+  state.page = page;
+  updateNavigationAccess();
+  document.querySelectorAll(".nav-item").forEach((item) => item.classList.toggle("active", item.dataset.page === state.page));
+  persistUiState();
+}
 
 const pageMeta = {
   overview: ["Vista general", "NEXO DASHBOARD", "Tu negocio, en perspectiva.", "Métricas y actividad de tu operación."],
@@ -259,6 +298,7 @@ function bindAlertNavigation() {
       const page = button.dataset.alertPage || "overview";
       state.page = page;
       document.querySelectorAll(".nav-item").forEach((item) => item.classList.toggle("active", item.dataset.page === page));
+      persistUiState();
       render();
     });
   });
@@ -1596,6 +1636,7 @@ async function render() {
     if (internal && $("orgSelect").value !== internal.id) $("orgSelect").value = internal.id;
   }
 
+  persistUiState();
   $("periodSelect").classList.toggle("hidden", state.page === "crm");
   $("exportButton").textContent = state.page === "crm" ? "Exportar CRM" : "Exportar CSV";
 
@@ -1710,6 +1751,7 @@ async function enterApp(session) {
   $("topEmail").textContent = session.user.email || "";
   await loadIdentity();
   await loadOrganizations();
+  restoreUiState();
   await render();
 }
 
@@ -1778,8 +1820,17 @@ $("passwordForm").addEventListener("submit", async (event) => {
 });
 
 $("logoutButton").addEventListener("click", async () => {
-  await supabase.auth.signOut();
-  window.location.reload();
+  $("logoutButton").disabled = true;
+  $("logoutButton").querySelector("span").textContent = "Cerrando…";
+  try {
+    localStorage.removeItem(UI_STATE_KEY);
+    await supabase.auth.signOut();
+    window.location.replace(window.location.origin);
+  } catch (error) {
+    $("logoutButton").disabled = false;
+    $("logoutButton").querySelector("span").textContent = "Cerrar sesión";
+    showError(error.message || "No pudimos cerrar la sesión.");
+  }
 });
 
 $("refreshButton").addEventListener("click", async () => {
@@ -1794,9 +1845,13 @@ $("orgSelect").addEventListener("change", async () => {
     state.page = "overview";
     document.querySelectorAll(".nav-item").forEach((item) => item.classList.toggle("active", item.dataset.page === "overview"));
   }
+  persistUiState();
   await render();
 });
-$("periodSelect").addEventListener("change", render);
+$("periodSelect").addEventListener("change", async () => {
+  persistUiState();
+  await render();
+});
 $("exportButton").addEventListener("click", exportCsv);
 
 document.querySelectorAll(".nav-item").forEach((button) => {
@@ -1806,6 +1861,7 @@ document.querySelectorAll(".nav-item").forEach((button) => {
     state.page = button.dataset.page;
     document.querySelectorAll(".nav-item").forEach((item) => item.classList.toggle("active", item.dataset.page === state.page));
     document.body.classList.remove("sidebar-open");
+    persistUiState();
     render();
   });
 });
@@ -1827,6 +1883,16 @@ document.addEventListener("pointerdown", (event) => {
   }
   repairUiLocks();
 }, { passive: true });
+
+window.addEventListener("hashchange", () => {
+  if (!state.session) return;
+  const page = window.location.hash.replace(/^#/, "") || "overview";
+  if (!pageMeta[page]) return;
+  if (["admin","crm"].includes(page) && !state.isAdmin) return;
+  state.page = page;
+  document.querySelectorAll(".nav-item").forEach((item) => item.classList.toggle("active", item.dataset.page === state.page));
+  render();
+});
 
 window.addEventListener("focus", repairUiLocks);
 window.addEventListener("touchend", repairUiLocks, { passive: true });
