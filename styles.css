@@ -46,7 +46,7 @@ aside{width:240px;position:fixed;inset:0 auto 0 0;background:var(--navy);color:#
 .workspace-label{display:flex;justify-content:space-between;align-items:center;border:1px solid #2b3b57;border-radius:8px;padding:10px 12px;margin:0 0 27px;font-size:13px;color:#d4deed}
 .workspace-label span{font-size:10px;background:#293a57;padding:3px 6px;border-radius:4px}
 .nav-title{font-size:10px;font-weight:800;letter-spacing:1.55px;color:#7f8faa;padding:0 12px;margin:0 0 10px}
-nav,.admin-nav,.team-nav{display:flex;flex-direction:column;gap:3px}
+#clientNav,.admin-nav,.team-nav{display:flex;flex-direction:column;gap:3px}
 .nav-item{border:0;background:transparent;color:inherit;text-align:left;padding:12px;border-radius:8px;font-size:14px;font-weight:600}
 .nav-item:hover{background:#1b2b47;color:#fff}
 .nav-item.active{background:var(--blue);color:#fff}
