@@ -785,3 +785,8 @@ body.modal-open{overflow:hidden;touch-action:none}
 .billing-portal-note p{margin:4px 0 0;font-size:8px;line-height:1.5}
 @media(max-width:900px){.billing-portal-kpis{grid-template-columns:1fr 1fr}}
 @media(max-width:560px){.billing-portal-kpis{grid-template-columns:1fr}}
+
+/* Online invoice payments */
+.billing-payment-state{display:block;margin-top:4px;font-size:7px;color:#8494a7}
+.billing-pay-button{white-space:nowrap}
+@media(max-width:720px){.billing-pay-button{width:100%}}
