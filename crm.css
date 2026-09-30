@@ -72,7 +72,7 @@
 
 /* Billing and collections */
 .crm-billing-card{margin-bottom:20px}
-.crm-billing-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;border-top:1px solid #edf1f5;border-bottom:1px solid #edf1f5}
+.crm-billing-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0;border-top:1px solid #edf1f5;border-bottom:1px solid #edf1f5}
 .crm-billing-kpis>div{padding:15px 18px;border-right:1px solid #edf1f5}
 .crm-billing-kpis>div:last-child{border-right:0}
 .crm-billing-kpis span{display:block;font-size:8px;text-transform:uppercase;letter-spacing:.65px;color:#8998aa;font-weight:700}
