@@ -68,3 +68,21 @@
 @media(max-width:900px){.crm-two-col{grid-template-columns:1fr}.crm-form-grid{grid-template-columns:1fr}.crm-form-grid .wide{grid-column:auto}.crm-mini-form{grid-template-columns:1fr 1fr}.crm-activity-form{grid-template-columns:1fr 1fr}.crm-activity-form textarea,.crm-activity-form button{grid-column:1/-1}}
 @media(max-width:720px){.crm-kpi-grid{grid-template-columns:1fr 1fr}.crm-finance-strip{grid-template-columns:1fr 1fr}.crm-pipeline{grid-template-columns:repeat(6,82vw);padding-left:14px;padding-right:14px}.crm-modal-panel{width:100%;height:100dvh}.crm-modal-body{padding:14px}.crm-modal-head{padding:16px}.crm-form,.crm-convert-box,.crm-activity-box,.crm-integrations-box{padding:14px}.crm-convert-grid,.crm-mini-form,.crm-activity-form{grid-template-columns:1fr}.crm-activity-form textarea,.crm-activity-form button{grid-column:auto}.crm-integration-row{grid-template-columns:1fr}.crm-integration-row span{text-align:left}.crm-action-row{grid-template-columns:90px 1fr 12px}}
 @media(max-width:480px){.crm-kpi-grid,.crm-finance-strip{grid-template-columns:1fr}.crm-pipeline{grid-template-columns:repeat(6,88vw)}}
+
+
+/* Billing and collections */
+.crm-billing-card{margin-bottom:20px}
+.crm-billing-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;border-top:1px solid #edf1f5;border-bottom:1px solid #edf1f5}
+.crm-billing-kpis>div{padding:15px 18px;border-right:1px solid #edf1f5}
+.crm-billing-kpis>div:last-child{border-right:0}
+.crm-billing-kpis span{display:block;font-size:8px;text-transform:uppercase;letter-spacing:.65px;color:#8998aa;font-weight:700}
+.crm-billing-kpis b{display:block;margin-top:6px;font-family:"Manrope";font-size:18px;color:#2b4869}
+.crm-invoice-form{display:grid;grid-template-columns:1.15fr .75fr .8fr .8fr 1.2fr auto;gap:8px;padding:16px 18px;border-bottom:1px solid #edf1f5}
+.crm-invoice-form input,.crm-invoice-form select{width:100%;border:1px solid #dfe5ed;border-radius:8px;background:#fbfcfe;padding:9px 10px;color:#354d68;font:inherit;font-size:9px;outline:none}
+.crm-invoice-form input:focus,.crm-invoice-form select:focus{border-color:#83aaf9;box-shadow:0 0 0 3px #316bff10}
+.crm-billing-table{max-height:430px;overflow:auto}
+.crm-check-label{display:flex!important;flex-direction:row!important;align-items:center!important;gap:8px!important;padding:9px 0}
+.crm-check-label input{width:17px!important;height:17px!important;flex:0 0 auto}
+.crm-check-label span{font-size:9px;color:#5f728b;font-weight:700}
+@media(max-width:1100px){.crm-invoice-form{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:720px){.crm-billing-kpis{grid-template-columns:1fr 1fr}.crm-invoice-form{grid-template-columns:1fr}.crm-billing-kpis>div:nth-child(2){border-right:0}.crm-billing-kpis>div:nth-child(n+3){border-top:1px solid #edf1f5}}
