@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
-import { renderCrm } from "./crm.js?v=20260930-crm21";
+import { renderCrm } from "./crm.js?v=20260930-crm22";
 
 const SUPABASE_URL = "https://ixewnbjndguchunwcuhf.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_vFnLRe9cmnOcyz2Fivprhw_8UjBaRGL";
@@ -1808,6 +1808,7 @@ async function renderSettings() {
   const assistants=results[1].data||[];
   const commercial=adminMode?(results[2].data||{}):{};
   const integrations=adminMode?(results[3].data||[]):[];
+  const assistant=assistants[0]||null;
 
   $("content").innerHTML=`
     ${adminInternalView()? `<section class="settings-context card">
@@ -1834,10 +1835,33 @@ async function renderSettings() {
           <div class="settings-grid">
             <label>Nombre del negocio<input id="settingName" value="${esc(targetOrg?.name||"")}" ${adminMode?"":"disabled"}></label>
             <label>Sector<input id="settingSector" value="${esc(targetOrg?.sector||"")}" ${adminMode?"":"disabled"}></label>
-            <label>Nombre del asistente<input id="settingAssistant" value="${esc(targetOrg?.assistant||"")}" ${adminMode?"":"disabled"}></label>
+            <label>Asistente asignado<input value="${esc(targetOrg?.assistant||"")}" disabled></label>
             <label>Iniciales<input id="settingInitials" maxlength="3" value="${esc(targetOrg?.initials||"NX")}" ${adminMode?"":"disabled"}></label>
             <label>Color de marca<input id="settingColor" type="color" value="${esc(targetOrg?.color||"#316bff")}" ${adminMode?"":"disabled"}></label>
             <label>Zona horaria<input id="settingTimezone" value="${esc(targetOrg?.timezone||"America/Bogota")}" ${adminMode?"":"disabled"}></label>
+          </div>
+        </section>
+
+        <section class="card settings-section assistant-settings-section">
+          <div class="card-head"><div><h2>Asistente virtual</h2><p>Identidad, contexto y capacidades visibles de ${esc(assistant?.name||targetOrg?.assistant||"tu asistente")}</p></div><span class="pill ${assistant?.status==="active"?"green":""}">${assistant?.status==="active"?"Activo":esc(assistant?.status||"—")}</span></div>
+          <div class="assistant-editor">
+            <div class="assistant-editor-photo">
+              <div id="assistantPhotoPreview" class="assistant-editor-avatar">
+                ${assistant?.avatar_url?`<img src="${esc(assistant.avatar_url)}" alt="${esc(assistant.name||"Asistente")}">`:esc(initialsFor(assistant?.name||targetOrg?.assistant||"NX"))}
+              </div>
+              ${canEdit?`<label class="btn small assistant-photo-button">Subir foto<input id="assistantPhotoInput" type="file" accept="image/jpeg,image/png,image/webp" hidden></label>`:""}
+              <small>La misma imagen se mostrará en Inicio y en la vista de NEXO.</small>
+            </div>
+            <div class="settings-grid assistant-editor-fields">
+              <label>Nombre visible<input id="assistantNameProfile" value="${esc(assistant?.name||targetOrg?.assistant||"")}" ${canEdit?"":"disabled"}></label>
+              <label>Rol<input id="assistantRoleLabel" value="${esc(assistant?.role_label||"")}" placeholder="Ej. Asistente virtual de reservas" ${canEdit?"":"disabled"}></label>
+              <label>Canal<input id="assistantChannel" value="${esc(assistant?.channel||"WhatsApp")}" ${canEdit?"":"disabled"}></label>
+              <label>Estado<select id="assistantStatus" ${canEdit?"":"disabled"}><option value="active" ${assistant?.status==="active"?"selected":""}>Activo</option><option value="paused" ${assistant?.status==="paused"?"selected":""}>Pausado</option><option value="maintenance" ${assistant?.status==="maintenance"?"selected":""}>Mantenimiento</option></select></label>
+              <label class="wide">Descripción<textarea id="assistantDescription" rows="3" ${canEdit?"":"disabled"}>${esc(assistant?.description||"")}</textarea></label>
+              <label class="wide">Contexto del asistente<textarea id="assistantContext" rows="4" ${canEdit?"":"disabled"}>${esc(assistant?.context_summary||"")}</textarea></label>
+              <label class="wide">Tono<textarea id="assistantTone" rows="2" ${canEdit?"":"disabled"}>${esc(assistant?.tone||setting.assistant_tone||"")}</textarea></label>
+              <label class="wide">Capacidades <small>Sepáralas por coma o una por línea.</small><textarea id="assistantCapabilities" rows="3" ${canEdit?"":"disabled"}>${esc((Array.isArray(assistant?.capabilities)?assistant.capabilities:[]).join("\n"))}</textarea></label>
+            </div>
           </div>
         </section>
 
@@ -1855,10 +1879,9 @@ async function renderSettings() {
         </section>
 
         <section class="card settings-section">
-          <div class="card-head"><div><h2>Asistente y handoff</h2><p>Preferencias que ayudan a mantener la identidad del negocio</p></div></div>
+          <div class="card-head"><div><h2>Handoff y portal</h2><p>Reglas operativas del negocio cuando interviene una persona</p></div></div>
           <div class="settings-grid">
             <label>Teléfono para handoff<input id="settingHandoff" value="${esc(setting.handoff_phone||"")}" ${canEdit?"":"disabled"}></label>
-            <label>Tono del asistente<input id="settingTone" value="${esc(setting.assistant_tone||"")}" ${canEdit?"":"disabled"}></label>
             <label class="wide">Mensaje de bienvenida del portal<textarea id="settingWelcome" rows="3" ${canEdit?"":"disabled"}>${esc(setting.portal_welcome_message||"")}</textarea></label>
             <label class="settings-toggle"><input id="settingNotifications" type="checkbox" ${setting.allow_email_notifications!==false?"checked":""} ${canEdit?"":"disabled"}><span>Recibir notificaciones operativas por correo</span></label>
             <label class="settings-toggle"><input id="settingBillingEmails" type="checkbox" ${setting.allow_billing_emails!==false?"checked":""} ${canEdit?"":"disabled"}><span>Recibir correos de facturación</span></label>
@@ -1887,6 +1910,15 @@ async function renderSettings() {
     </div>
   `;
 
+  let pendingAssistantAvatar=null;
+  $("assistantPhotoInput")?.addEventListener("change",(event)=>{
+    const file=event.target.files?.[0];
+    if(!file)return;
+    pendingAssistantAvatar=file;
+    const url=URL.createObjectURL(file);
+    $("assistantPhotoPreview").innerHTML=`<img src="${url}" alt="Vista previa del asistente">`;
+  });
+
   $("settingsOrgSelect")?.addEventListener("change",async(event)=>{state.settingsOrgId=event.target.value;persistUiState();await renderSettings();});
   $("settingsUsersButton")?.addEventListener("click",async()=>{state.page="team";persistUiState();await render();});
 
@@ -1907,7 +1939,7 @@ async function renderSettings() {
         city:$("settingCity").value.trim()||null,
         country:setting.country||"Colombia",
         handoff_phone:$("settingHandoff").value.trim()||null,
-        assistant_tone:$("settingTone").value.trim()||null,
+        assistant_tone:$("assistantTone").value.trim()||null,
         portal_welcome_message:$("settingWelcome").value.trim()||null,
         allow_email_notifications:$("settingNotifications").checked,
         allow_billing_emails:$("settingBillingEmails").checked,
@@ -1917,14 +1949,34 @@ async function renderSettings() {
       const {error:settingsError}=await supabase.from("organization_settings").upsert(settingsPayload,{onConflict:"organization_id"});
       if(settingsError)throw settingsError;
 
+      if(assistant){
+        let assistantAvatarUrl=assistant.avatar_url||null;
+        if(pendingAssistantAvatar) assistantAvatarUrl=await uploadMediaImage(pendingAssistantAvatar,"assistants",targetId);
+        const capabilities=$("assistantCapabilities").value
+          .split(/[,\n]/).map((item)=>item.trim()).filter(Boolean);
+        const assistantPayload={
+          name:$("assistantNameProfile").value.trim()||assistant.name,
+          role_label:$("assistantRoleLabel").value.trim()||null,
+          channel:$("assistantChannel").value.trim()||"WhatsApp",
+          status:$("assistantStatus").value,
+          description:$("assistantDescription").value.trim()||null,
+          context_summary:$("assistantContext").value.trim()||null,
+          tone:$("assistantTone").value.trim()||null,
+          capabilities,
+          avatar_url:assistantAvatarUrl,
+          updated_at:new Date().toISOString(),
+        };
+        const {error:assistantError}=await supabase.from("assistants").update(assistantPayload).eq("id",assistant.id);
+        if(assistantError)throw assistantError;
+      }
+
       if(adminMode){
         const {error:orgError}=await supabase.from("organizations").update({
           name:$("settingName").value.trim(),sector:$("settingSector").value.trim(),
-          assistant:$("settingAssistant").value.trim(),initials:$("settingInitials").value.trim().toUpperCase()||"NX",
+          assistant:$("assistantNameProfile").value.trim(),initials:$("settingInitials").value.trim().toUpperCase()||"NX",
           color:$("settingColor").value,timezone:$("settingTimezone").value.trim()||"America/Bogota",updated_at:new Date().toISOString()
         }).eq("id",targetId);
         if(orgError)throw orgError;
-        await supabase.from("assistants").update({name:$("settingAssistant").value.trim()}).eq("organization_id",targetId);
         const {error:billingError}=await supabase.from("organization_commercials").update({
           billing_contact_name:$("settingBillingContact").value.trim()||null,
           billing_email:$("settingBillingEmail").value.trim()||null,
