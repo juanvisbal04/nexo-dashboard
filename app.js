@@ -208,6 +208,7 @@ function alertCenterHtml(alerts, title = "Centro de alertas") {
       </div>
     </section>
   `;
+  bindAlertNavigation();
 }
 
 function demandHeatmap(hourly) {
@@ -787,6 +788,7 @@ async function renderOverview() {
       <div><span>Respuesta media</span><b>${m.response.toFixed(1)} s</b><small>mediana ${m.medianResponse.toFixed(1)} s</small></div>
       <div><span>Contactos activos</span><b>${m.contactCount}</b><small>${m.messagesPerConversation.toFixed(1)} mensajes / conversación</small></div>
       <div><span>Valor confirmado</span><b>${money(m.value)}</b><small>ticket medio ${money(m.avgTicket)}</small></div>
+      <div><span>Estado operativo</span><b>${health.score === null ? "—" : health.score + "/100"}</b><small>${esc(health.level)}</small></div>
     </div>
 
     <div class="grid-two">
@@ -805,6 +807,19 @@ async function renderOverview() {
           `).join("")}
         </div>
         <div class="value-box"><span>Valor estimado confirmado</span><strong>${money(m.value)}</strong></div>
+      </section>
+    </div>
+
+    ${alertCenterHtml(alerts)}
+
+    <div class="grid-two demand-overview">
+      <section class="card">
+        <div class="card-head"><div><h2>Cuándo escriben tus clientes</h2><p>Distribución de conversaciones por franja</p></div><span class="pill">${esc(busiestLabel(m.hourlyDistribution))}</span></div>
+        <div class="demand-wrap">${demandHeatmap(m.hourlyDistribution)}</div>
+      </section>
+      <section class="card">
+        <div class="card-head"><div><h2>Días con mayor actividad</h2><p>Conversaciones según día de la semana</p></div><span class="pill">${esc(busiestDayLabel(m.weekdayDistribution))}</span></div>
+        <div class="weekday-wrap">${weekdayBars(m.weekdayDistribution)}</div>
       </section>
     </div>
 
