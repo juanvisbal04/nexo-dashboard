@@ -657,7 +657,16 @@ export async function renderCrm(context) {
       <div><span>Vencidas</span><b>${overdueInvoices.length}</b></div>
     </div>
 
-    <div class="crm-two-col crm-foundation-grid">
+    <nav class="crm-section-nav" aria-label="Secciones del CRM">
+      <button type="button" data-crm-section="crmPipeline">Pipeline</button>
+      <button type="button" data-crm-section="crmBilling">Cartera</button>
+      <button type="button" data-crm-section="crmRevenue">Ingresos</button>
+      <button type="button" data-crm-section="crmClients">Clientes</button>
+      <button type="button" data-crm-section="crmPlans">Planes & costos</button>
+      <button type="button" data-crm-section="crmActions">Actividad</button>
+    </nav>
+
+    <div id="crmPlans" class="crm-two-col crm-foundation-grid">
       <section class="card crm-plans-card">
         <div class="card-head"><div><h2>Planes oficiales NEXO</h2><p>Tarifa estándar de referencia para nuevas propuestas</p></div><span class="count">${planRows.filter((p)=>p.active).length} planes</span></div>
         <div class="crm-plan-list">
@@ -691,7 +700,7 @@ export async function renderCrm(context) {
       </section>
     </div>
 
-    <section class="card crm-billing-card">
+    <section id="crmBilling" class="card crm-billing-card">
       <div class="card-head">
         <div><h2>Facturación y cartera</h2><p>Mensualidades, setup, vencimientos y pagos de clientes</p></div>
         <span class="count">${invoiceRows.length} movimientos</span>
@@ -754,7 +763,7 @@ export async function renderCrm(context) {
       </div>
     </section>
 
-    <section class="card crm-revenue-card">
+    <section id="crmRevenue" class="card crm-revenue-card">
       <div class="card-head">
         <div><h2>Ingresos mensuales</h2><p>MRR facturado, cobrado y pendiente durante los últimos 6 meses</p></div>
         <span class="count">${collectionRate}% cobrado este mes</span>
@@ -784,7 +793,7 @@ export async function renderCrm(context) {
       <div class="crm-revenue-legend"><span><i class="paid"></i>Cobrado</span><span><i class="pending"></i>Pendiente</span></div>
     </section>
 
-    <section class="card crm-pipeline-card">
+    <section id="crmPipeline" class="card crm-pipeline-card">
       <div class="card-head">
         <div><h2>Pipeline comercial</h2><p>Prospecto → Demo → Propuesta → Cliente → Implementación → Activo</p></div>
         <button id="crmNewProspectButton" class="btn primary small" type="button">+ Nuevo prospecto</button>
@@ -823,7 +832,7 @@ export async function renderCrm(context) {
       ` : ""}
     </section>
 
-    <div class="crm-two-col">
+    <div id="crmActions" class="crm-two-col">
       <section class="card">
         <div class="card-head">
           <div><h2>Próximas acciones</h2><p>Seguimientos comerciales ordenados por fecha</p></div>
@@ -857,7 +866,7 @@ export async function renderCrm(context) {
       </section>
     </div>
 
-    <section class="card crm-clients-card">
+    <section id="crmClients" class="card crm-clients-card">
       <div class="card-head">
         <div><h2>Clientes, implementación y rentabilidad</h2><p>Economía real de cada cuenta NEXO</p></div>
         <span class="count">${clients.length} clientes</span>
@@ -907,6 +916,13 @@ export async function renderCrm(context) {
       </form>
     </section>
   `;
+
+  document.querySelectorAll("[data-crm-section]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const target = document.getElementById(button.dataset.crmSection);
+      target?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  });
 
   const byId = new Map(opportunityRows.map((row) => [row.id, row]));
   document.querySelectorAll("[data-prospect-id]").forEach((button) => {
