@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
-import { renderCrm } from "./crm.js?v=20260930-crm22";
+import { renderCrm } from "./crm.js?v=20260930-crm23";
 
 const SUPABASE_URL = "https://ixewnbjndguchunwcuhf.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_vFnLRe9cmnOcyz2Fivprhw_8UjBaRGL";
@@ -970,6 +970,65 @@ async function renderOverview() {
     const watchClients = clientRows.filter((row) => row.health.tone === "watch").length;
     const riskClients = clientRows.filter((row) => row.health.tone === "risk").length;
 
+    const [{data:commandProspects},{data:commandInvoices},{data:commandCommercials}] = await Promise.all([
+      supabase.from("demo_requests").select("*").in("stage",["prospecto","demo","propuesta"]).order("created_at",{ascending:false}).limit(50),
+      supabase.from("client_invoices").select("*").in("status",["pending","overdue"]).order("due_date",{ascending:true}).limit(50),
+      supabase.from("organization_commercials").select("*"),
+    ]);
+
+    const commandTasks=[];
+    const nowMs=Date.now();
+    const sevenDays=7*86400000;
+    const thirtyDays=30*86400000;
+
+    attentionRows.forEach((row)=>commandTasks.push({
+      priority:100,tone:"risk",page:"operations",orgId:row.organization_id,
+      title:"Atender conversación",detail:`${clientName(row.organization_id)} · ${row.name||"Contacto WhatsApp"}`,
+      meta:dateTime(row.last_message_at)
+    }));
+
+    (commandProspects||[]).forEach((row)=>{
+      const next=row.next_action_at?new Date(row.next_action_at).getTime():null;
+      const created=new Date(row.created_at).getTime();
+      if(next && next<nowMs){
+        commandTasks.push({priority:95,tone:"risk",page:"crm",title:"Seguimiento comercial vencido",detail:`${row.business_name||row.full_name} · ${row.stage}`,meta:dateTime(row.next_action_at)});
+      } else if(created>nowMs-86400000){
+        commandTasks.push({priority:78,tone:"info",page:"crm",title:"Prospecto nuevo",detail:`${row.business_name||row.full_name} · revisar y definir próxima acción`,meta:shortDate(row.created_at)});
+      }
+    });
+
+    (commandInvoices||[]).forEach((row)=>{
+      const due=new Date(String(row.due_date)+"T23:59:59-05:00").getTime();
+      const overdue=row.status==="overdue"||due<nowMs;
+      if(overdue || due<=nowMs+sevenDays){
+        commandTasks.push({
+          priority:overdue?92:70,tone:overdue?"risk":"watch",page:"crm",orgId:row.organization_id,
+          title:overdue?"Cobro vencido":"Cobro próximo",
+          detail:`${clientName(row.organization_id)} · ${row.invoice_number||"Cuenta de cobro"} · ${money(row.amount_cop)}`,
+          meta:shortDate(row.due_date)
+        });
+      }
+    });
+
+    (commandCommercials||[]).forEach((row)=>{
+      if(["attention","pending","partial"].includes(row.integration_status) && state.commercialStages[row.organization_id]==="activo"){
+        commandTasks.push({
+          priority:72,tone:row.integration_status==="attention"?"risk":"watch",page:"settings",orgId:row.organization_id,
+          title:"Integración por revisar",detail:`${clientName(row.organization_id)} · ${row.integration_status}`,meta:"Configuración"
+        });
+      }
+      if(row.renewal_date){
+        const renewal=new Date(String(row.renewal_date)+"T23:59:59-05:00").getTime();
+        if(renewal>=nowMs && renewal<=nowMs+thirtyDays){
+          commandTasks.push({
+            priority:60,tone:"watch",page:"crm",orgId:row.organization_id,
+            title:"Renovación próxima",detail:clientName(row.organization_id),meta:shortDate(row.renewal_date)
+          });
+        }
+      }
+    });
+    commandTasks.sort((a,b)=>b.priority-a.priority);
+
     $("pageTitle").textContent = "NEXO, en una sola vista.";
     $("pageSubtitle").textContent = "Rendimiento consolidado de todos los clientes activos. Visible solo para Platform Admin.";
 
@@ -980,6 +1039,23 @@ async function renderOverview() {
         ${metricCard("Leads generados", m.leadCount, `${m.leadRate}% de conversaciones`, m.delta?.leads)}
         ${metricCard("Citas confirmadas", m.confirmed, money(m.value) + " estimados", m.delta?.confirmed)}
       </div>
+
+      <section class="card command-today-card">
+        <div class="card-head">
+          <div><span class="eyebrow">PRIORIDAD EJECUTIVA</span><h2>Qué necesita Juan hoy</h2><p>Acciones ordenadas por urgencia. Menos monitoreo manual, más ejecución.</p></div>
+          <span class="count">${commandTasks.length} pendiente${commandTasks.length===1?"":"s"}</span>
+        </div>
+        <div class="command-task-list">
+          ${commandTasks.length?commandTasks.slice(0,10).map((task,index)=>`
+            <button class="command-task ${task.tone}" type="button" data-command-index="${index}">
+              <i></i>
+              <div><b>${esc(task.title)}</b><span>${esc(task.detail)}</span></div>
+              <small>${esc(task.meta||"")}</small>
+              <em>→</em>
+            </button>
+          `).join(""):`<div class="command-empty"><span>✓</span><div><b>Todo bajo control</b><p>No hay acciones prioritarias detectadas en este momento.</p></div></div>`}
+        </div>
+      </section>
 
       <div class="executive-strip">
         <div><span>Automatización</span><b>${m.automated}%</b><small>sin intervención humana</small></div>
@@ -1041,6 +1117,16 @@ async function renderOverview() {
         </div>
       </section>
     `;
+    document.querySelectorAll("[data-command-index]").forEach((button)=>{
+      button.addEventListener("click",async()=>{
+        const task=commandTasks[Number(button.dataset.commandIndex)];
+        if(!task)return;
+        if(task.page==="settings" && task.orgId) state.settingsOrgId=task.orgId;
+        state.page=task.page||"overview";
+        persistUiState();
+        await render();
+      });
+    });
     bindAlertNavigation();
     document.querySelectorAll("[data-assistant-settings-org]").forEach((button)=>button.addEventListener("click",async()=>{
       state.settingsOrgId=button.dataset.assistantSettingsOrg;
@@ -1628,7 +1714,7 @@ async function renderClients() {
             const setting=settingsMap.get(org.id)||{};
             return `<tr>
               <td><b>${esc(org.name)}</b><br><span class="muted">${esc(org.sector||"Sin sector")}</span></td>
-              <td>${esc(org.assistant||"—")}</td>
+              <td><div class="client-assistant-cell">${assistantAvatarHtml(assistantForOrg(org.id),org,"assistant-mini")}<span><b>${esc(org.assistant||"—")}</b><small>${esc(assistantForOrg(org.id)?.status==="active"?"Activo":assistantForOrg(org.id)?.status||"—")}</small></span></div></td>
               <td>${esc(commercial.plan_name||"Por definir")}</td>
               <td>${pill(commercial.lifecycle_stage||org.status||"—")}</td>
               <td>${esc(commercial.implementation_status||"—")}</td>
