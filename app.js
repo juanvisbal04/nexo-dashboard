@@ -1227,7 +1227,7 @@ async function renderAdmin() {
   }
 
   const clients = clientOrganizations({ activeOnly: false });
-  const activeClients = clients.filter((org) => org.status === "active");
+  const activeClients = clientOrganizations();
   const internal = state.organizations.find((org) => org.name === "NEXO Internal");
   const totals = internal ? await getMetrics(internal.id, currentDays(), { comparison: false }) : null;
 
