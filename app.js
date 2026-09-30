@@ -123,7 +123,7 @@ async function getMetrics(orgId = currentOrgId(), days = currentDays()) {
   if (!orgId) return {
     conversations: [], leads: [], appointments: [], followups: [],
     chats: 0, leadCount: 0, confirmed: 0, requested: 0, attention: 0,
-    conversion: 0, automated: 0, response: 0, value: 0, recovered: 0,
+    conversion: 0, automated: 0, response: 0, value: 0, recovered: 0, cancelled: 0, noShow: 0,
   };
 
   const [conversations, leads, appointments, followups] = await Promise.all([
@@ -148,6 +148,8 @@ async function getMetrics(orgId = currentOrgId(), days = currentDays()) {
     response: chats ? conversations.reduce((sum, row) => sum + Number(row.response_seconds || 0), 0) / chats : 0,
     value: confirmedRows.reduce((sum, row) => sum + Number(row.value || 0), 0),
     recovered: followups.filter((row) => row.status === "Recuperado").length,
+    cancelled: appointments.filter((row) => row.status === "Cancelada").length,
+    noShow: appointments.filter((row) => row.status === "No asistió").length,
   };
 }
 
@@ -265,43 +267,198 @@ function filterRows(rows, query) {
   const needle = query.trim().toLowerCase();
   if (!needle) return rows;
   return rows.filter((row) =>
-    [row.name, row.service, row.source, row.status, row.stage]
+    [row.name, row.service, row.source, row.status, row.stage, row.phone, row.contacts?.phone]
       .filter(Boolean).join(" ").toLowerCase().includes(needle)
   );
 }
 
-async function renderTablePage(type) {
+async function fetchDetailedRows(type) {
+  const orgId = currentOrgId();
+  const days = currentDays();
+  if (!orgId) return [];
+
+  const since = sinceIso(days);
   const table = type === "appointments" ? "appointments" : type === "followups" ? "followups" : type;
   const order = type === "appointments" ? "starts_at" : type === "followups" ? "due_at" : type === "conversations" ? "last_message_at" : "created_at";
-  const rows = await fetchRows(table, { order, ascending: type === "appointments" || type === "followups" });
-  state.currentRows = rows;
+  const ascending = type === "appointments" || type === "followups";
+
+  let select = "*";
+  if (["conversations", "leads", "appointments", "followups"].includes(type)) {
+    select = "*, contacts(id,name,phone,email)";
+  }
+
+  let request = supabase
+    .from(table)
+    .select(select)
+    .eq("organization_id", orgId)
+    .gte("created_at", since)
+    .order(order, { ascending })
+    .limit(1000);
+
+  const { data, error } = await request;
+  if (error) throw error;
+  return (data || []).map((row) => ({
+    ...row,
+    phone: row.contacts?.phone || "",
+    contact_name: row.contacts?.name || row.name || "",
+  }));
+}
+
+function phoneCell(row) {
+  const phone = row.phone || row.contacts?.phone || "";
+  if (!phone) return '<span class="muted">Sin número</span>';
+  const digits = String(phone).replace(/\D/g, "");
+  return `<div class="phone-cell"><b>${esc(phone)}</b><a href="https://wa.me/${digits}" target="_blank" rel="noopener">WhatsApp</a></div>`;
+}
+
+function chatAction(row) {
+  if (!row.contact_id) return '<span class="muted">—</span>';
+  return `<button class="chat-button" data-contact-id="${row.contact_id}" data-conversation-id="${row.id || ""}">Ver chat</button>`;
+}
+
+async function openContactChat(contactId) {
+  try {
+    let modal = document.getElementById("chatModal");
+    if (!modal) {
+      modal = document.createElement("div");
+      modal.id = "chatModal";
+      modal.className = "chat-modal hidden";
+      modal.innerHTML = `
+        <div class="chat-backdrop" data-close-chat></div>
+        <section class="chat-panel">
+          <div class="chat-header">
+            <div>
+              <span class="eyebrow">HISTORIAL DEL CONTACTO</span>
+              <h2 id="chatTitle">Conversación</h2>
+              <div id="chatPhone" class="chat-phone"></div>
+            </div>
+            <button class="chat-close" data-close-chat aria-label="Cerrar">×</button>
+          </div>
+          <div id="chatBody" class="chat-body"><div class="empty">Cargando conversación…</div></div>
+        </section>
+      `;
+      document.body.appendChild(modal);
+      modal.querySelectorAll("[data-close-chat]").forEach((el) => el.addEventListener("click", () => modal.classList.add("hidden")));
+    }
+
+    modal.classList.remove("hidden");
+    document.body.classList.add("modal-open");
+
+    const [{ data: contact, error: contactError }, { data: conversations, error: convError }] = await Promise.all([
+      supabase.from("contacts").select("id,name,phone,email").eq("id", contactId).single(),
+      supabase.from("conversations").select("id,created_at,last_message_at").eq("organization_id", currentOrgId()).eq("contact_id", contactId).order("created_at", { ascending: true }),
+    ]);
+    if (contactError) throw contactError;
+    if (convError) throw convError;
+
+    const ids = (conversations || []).map((row) => row.id);
+    let messages = [];
+    if (ids.length) {
+      const result = await supabase.from("messages").select("id,conversation_id,sender,content,created_at").in("conversation_id", ids).order("created_at", { ascending: true }).limit(5000);
+      if (result.error) throw result.error;
+      messages = result.data || [];
+    }
+
+    $("chatTitle").textContent = contact?.name || "Contacto";
+    const phone = contact?.phone || "";
+    const digits = String(phone).replace(/\D/g, "");
+    $("chatPhone").innerHTML = phone
+      ? `<span>${esc(phone)}</span><a href="https://wa.me/${digits}" target="_blank" rel="noopener">Abrir WhatsApp</a>`
+      : '<span>Sin número registrado</span>';
+
+    $("chatBody").innerHTML = messages.length
+      ? messages.map((msg) => {
+          const side = msg.sender === "contact" ? "in" : msg.sender === "human" ? "human" : "out";
+          const label = msg.sender === "contact" ? "Cliente" : msg.sender === "human" ? "Humano" : msg.sender === "system" ? "Sistema" : "Lía";
+          return `
+            <div class="chat-message ${side}">
+              <div class="bubble">
+                <small>${esc(label)}</small>
+                <p>${esc(msg.content)}</p>
+                <time>${dateTime(msg.created_at)}</time>
+              </div>
+            </div>
+          `;
+        }).join("")
+      : emptyState("No hay mensajes guardados.", "Este contacto aún no tiene historial disponible.");
+
+    $("chatBody").scrollTop = $("chatBody").scrollHeight;
+  } catch (error) {
+    showError(error.message || "No pudimos abrir el historial del contacto.");
+  }
+}
+
+function bindChatButtons() {
+  document.querySelectorAll(".chat-button").forEach((button) => {
+    button.addEventListener("click", () => openContactChat(button.dataset.contactId));
+  });
+}
+
+async function renderTablePage(type) {
+  const rows = await fetchDetailedRows(type);
+  state.currentRows = rows.map((row) => ({
+    ...row,
+    phone: row.phone || row.contacts?.phone || "",
+  }));
 
   const config = {
     conversations: {
       title: "Conversaciones",
-      cols: ["Contacto", "Consulta", "Origen", "Estado", "Actividad"],
-      cells: (row) => [`<b>${esc(row.name)}</b>`, esc(row.service), esc(row.source), pill(row.status), dateTime(row.last_message_at)],
+      cols: ["Contacto", "Teléfono", "Consulta", "Origen", "Estado", "Actividad", "Chat"],
+      cells: (row) => [
+        `<b>${esc(row.contact_name || row.name)}</b>`,
+        phoneCell(row),
+        esc(row.service),
+        esc(row.source),
+        pill(row.status),
+        dateTime(row.last_message_at),
+        chatAction(row),
+      ],
     },
     leads: {
       title: "Leads",
-      cols: ["Contacto", "Servicio", "Origen", "Etapa", "Valor estimado"],
-      cells: (row) => [`<b>${esc(row.name)}</b>`, esc(row.service), esc(row.source), leadStageSelect(row), money(row.value)],
+      cols: ["Contacto", "Teléfono", "Servicio", "Origen", "Etapa", "Valor", "Chat"],
+      cells: (row) => [
+        `<b>${esc(row.contact_name || row.name)}</b>`,
+        phoneCell(row),
+        esc(row.service),
+        esc(row.source),
+        leadStageSelect(row),
+        money(row.value),
+        chatAction(row),
+      ],
     },
     appointments: {
       title: "Citas y reservas",
-      cols: ["Contacto", "Servicio", "Fecha", "Estado", "Valor estimado"],
-      cells: (row) => [`<b>${esc(row.name)}</b>`, esc(row.service), dateTime(row.starts_at), appointmentStatusSelect(row), money(row.value)],
+      cols: ["Contacto", "Teléfono", "Servicio", "Fecha", "Estado", "Valor", "Chat"],
+      cells: (row) => [
+        `<b>${esc(row.contact_name || row.name)}</b>`,
+        phoneCell(row),
+        esc(row.service),
+        dateTime(row.starts_at),
+        appointmentStatusSelect(row),
+        money(row.value),
+        chatAction(row),
+      ],
     },
     followups: {
       title: "Seguimientos",
-      cols: ["Contacto", "Servicio", "Fecha objetivo", "Estado", "Creado"],
-      cells: (row) => [`<b>${esc(row.name)}</b>`, esc(row.service), dateTime(row.due_at), followupStatusSelect(row), shortDate(row.created_at)],
+      cols: ["Contacto", "Teléfono", "Servicio", "Fecha objetivo", "Estado", "Creado", "Chat"],
+      cells: (row) => [
+        `<b>${esc(row.contact_name || row.name)}</b>`,
+        phoneCell(row),
+        esc(row.service),
+        dateTime(row.due_at),
+        followupStatusSelect(row),
+        shortDate(row.created_at),
+        chatAction(row),
+      ],
     },
   }[type];
 
   $("content").innerHTML = `
     <div class="table-toolbar">
-      <label class="search"><input id="tableSearch" type="search" placeholder="Buscar contacto o servicio" /></label>
+      <label class="search"><input id="tableSearch" type="search" placeholder="Buscar nombre, teléfono o servicio" /></label>
       <span class="muted" id="rowCount">${rows.length} registros</span>
     </div>
     <section class="card">
@@ -323,6 +480,7 @@ async function renderTablePage(type) {
       </div>
     ` : emptyState();
     bindStatusControls(type);
+    bindChatButtons();
   };
 
   draw(rows);
@@ -377,6 +535,7 @@ async function renderMetrics() {
 
   const services = Object.entries(countBy(m.conversations, "service")).sort((a, b) => b[1] - a[1]).slice(0, 8);
   const sources = Object.entries(countBy(m.conversations, "source")).sort((a, b) => b[1] - a[1]);
+  const appointmentStatuses = Object.entries(countBy(m.appointments, "status")).sort((a, b) => b[1] - a[1]);
 
   const ranking = (items, total) => items.length ? items.map(([label, value]) => `
     <div>
@@ -392,6 +551,12 @@ async function renderMetrics() {
       ${statCard("Automatización", m.automated + "%", "Conversaciones atendidas automáticamente")}
       ${statCard("Conversión", m.conversion + "%", "Citas confirmadas / leads", true)}
     </div>
+    <div class="stats-grid">
+      ${statCard("Citas confirmadas", m.confirmed, money(m.value) + " estimados")}
+      ${statCard("Canceladas", m.cancelled, "Citas canceladas")}
+      ${statCard("No asistió", m.noShow, "Ausencias registradas")}
+      ${statCard("Recuperados", m.recovered, "Seguimientos recuperados", true)}
+    </div>
     <div class="grid-two">
       <section class="card">
         <div class="card-head"><div><h2>Consultas más frecuentes</h2><p>Servicios preguntados por tus contactos</p></div></div>
@@ -400,6 +565,20 @@ async function renderMetrics() {
       <section class="card">
         <div class="card-head"><div><h2>Origen de conversaciones</h2><p>Canales que generan actividad</p></div></div>
         <div class="metric-list">${ranking(sources, m.chats)}</div>
+      </section>
+    </div>
+    <div class="grid-two">
+      <section class="card">
+        <div class="card-head"><div><h2>Estado de citas</h2><p>Distribución de reservas del período</p></div></div>
+        <div class="metric-list">${ranking(appointmentStatuses, m.appointments.length)}</div>
+      </section>
+      <section class="card">
+        <div class="card-head"><div><h2>Rendimiento de Lía</h2><p>Indicadores operativos</p></div></div>
+        <div class="rows">
+          <div class="item-row"><div><strong>Automatización</strong><small>Conversaciones sin intervención humana</small></div><div class="muted">${m.automated}%</div><div></div><div></div></div>
+          <div class="item-row"><div><strong>Respuesta media</strong><small>Promedio registrado</small></div><div class="muted">${m.response.toFixed(1)} s</div><div></div><div></div></div>
+          <div class="item-row"><div><strong>Escalaciones humanas</strong><small>Conversaciones que requirieron atención</small></div><div class="muted">${m.attention}</div><div></div><div></div></div>
+        </div>
       </section>
     </div>
   `;
