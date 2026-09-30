@@ -96,4 +96,66 @@ async function openProspectEditor(prospect) {
       <div class="crm-form-grid">
         <label>Contacto<input id="crmProspectName" value="${esc(prospect.full_name || "")}" required></label>
         <label>Negocio<input id="crmProspectBusiness" value="${esc(prospect.business_name || "")}" required></label>
-        <label>WhatsApp<input id="crmProspectPhone" value="${esc(prospect.p
+        <label>WhatsApp<input id="crmProspectPhone" value="${esc(prospect.phone || "")}"></label>
+        <label>Correo<input id="crmProspectEmail" type="email" value="${esc(prospect.email || "")}"></label>
+        <label>Sector<input id="crmProspectIndustry" value="${esc(prospect.industry || "")}"></label>
+        <label>Etapa
+          <select id="crmProspectStage">
+            ${CRM_STAGES.map(([value, label]) => `<option value="${value}" ${prospect.stage === value ? "selected" : ""}>${label}</option>`).join("")}
+          </select>
+        </label>
+        <label>MRR esperado<input id="crmProspectMrr" type="number" min="0" step="1000" value="${prospect.expected_mrr ?? ""}"></label>
+        <label>Setup esperado<input id="crmProspectSetup" type="number" min="0" step="1000" value="${prospect.expected_setup_fee ?? ""}"></label>
+        <label>Próxima acción<input id="crmProspectNext" type="datetime-local" value="${inputDateTime(prospect.next_action_at)}"></label>
+        <label>Demo<input id="crmProspectDemo" type="datetime-local" value="${inputDateTime(prospect.demo_at)}"></label>
+        <label>Propuesta enviada<input id="crmProspectProposal" type="datetime-local" value="${inputDateTime(prospect.proposal_sent_at)}"></label>
+        <label>Motivo perdido<input id="crmProspectLostReason" value="${esc(prospect.lost_reason || "")}" placeholder="Solo si se pierde"></label>
+        <label class="wide">Notas CRM<textarea id="crmProspectNotes" rows="4">${esc(prospect.crm_notes || "")}</textarea></label>
+      </div>
+      <div class="crm-form-actions">
+        <button class="btn primary" type="submit">Guardar prospecto</button>
+      </div>
+    </form>
+
+    ${!prospect.organization_id ? `
+      <div class="crm-convert-box">
+        <div>
+          <span class="eyebrow">CONVERTIR A CLIENTE</span>
+          <h3>Crear empresa desde este prospecto</h3>
+          <p>La oportunidad pasa a Implementación y queda vinculada a una organización real de NEXO.</p>
+        </div>
+        <div class="crm-convert-grid">
+          <label>Nombre del asistente<input id="crmConvertAssistant" placeholder="Ej. Luna"></label>
+          <label>Plan inicial<input id="crmConvertPlan" placeholder="Ej. Assistant + Booking"></label>
+          <label>Costo mensual base<input id="crmConvertCost" type="number" min="0" step="1000" placeholder="0"></label>
+          <button id="crmConvertButton" class="btn primary" type="button">Convertir a cliente</button>
+        </div>
+      </div>
+    ` : `
+      <div class="crm-linked">
+        <span>✓</span>
+        <div><b>Vinculado a un cliente NEXO</b><p>Organization ID: ${esc(prospect.organization_id)}</p></div>
+      </div>
+    `}
+
+    <div class="crm-activity-box">
+      <div class="crm-section-head">
+        <div><span class="eyebrow">ACTIVIDAD</span><h3>Registrar nota o seguimiento</h3></div>
+      </div>
+      <form id="crmActivityForm" class="crm-activity-form">
+        <select id="crmActivityType">
+          <option value="note">Nota</option>
+          <option value="call">Llamada</option>
+          <option value="demo">Demo</option>
+          <option value="proposal">Propuesta</option>
+          <option value="followup">Seguimiento</option>
+        </select>
+        <input id="crmActivityTitle" placeholder="Título" required>
+        <input id="crmActivityDue" type="datetime-local">
+        <textarea id="crmActivityDetails" rows="3" placeholder="Detalle"></textarea>
+        <button class="btn" type="submit">Registrar actividad</button>
+      </form>
+    </div>
+  `;
+
+  const { modal, close } = crmMo
