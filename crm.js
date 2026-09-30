@@ -74,6 +74,27 @@ function crmModal(title, body) {
   return { modal, close };
 }
 
+async function refreshCrmView({ preserveScroll = true } = {}) {
+  const x = window.scrollX;
+  const y = window.scrollY;
+  document.getElementById("crmModal")?.remove();
+  document.body.classList.remove("modal-open");
+  document.body.classList.remove("sidebar-open");
+  try {
+    await renderCrm(C);
+  } finally {
+    document.getElementById("crmModal")?.remove();
+    document.body.classList.remove("modal-open");
+    document.body.classList.remove("sidebar-open");
+  }
+  if (preserveScroll) {
+    requestAnimationFrame(() => {
+      const maxY = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+      window.scrollTo({ left: x, top: Math.min(y, maxY), behavior: "auto" });
+    });
+  }
+}
+
 function commercialProfit(commercial, integrationCost = 0) {
   const mrr = Number(commercial?.mrr || 0);
   const baseCost = Number(commercial?.monthly_cost || 0);
@@ -206,7 +227,7 @@ async function openProspectEditor(prospect, plans = []) {
     }
     C.showToast("Prospecto actualizado.");
     close();
-    await renderCrm();
+    await refreshCrmView();
   });
 
   modal.querySelector("#crmActivityForm").addEventListener("submit", async (event) => {
@@ -304,7 +325,7 @@ async function openProspectEditor(prospect, plans = []) {
       C.showToast("Cliente creado y vinculado al CRM.");
       close();
       await C.loadOrganizations();
-      await renderCrm();
+      await refreshCrmView();
     } catch (error) {
       C.showError(error.message || "No pudimos convertir el prospecto.");
       convert.disabled = false;
@@ -343,6 +364,12 @@ async function openCommercialEditor(org, commercial, integrations, plans = []) {
         <label>Renovación<input id="crmRenewalDate" type="date" value="${inputDate(commercial?.renewal_date)}"></label>
         <label>Facturación
           <select id="crmBillingStatus">${["pending","active","past_due","paused","cancelled"].map((value) => `<option value="${value}" ${commercial?.billing_status === value ? "selected" : ""}>${value}</option>`).join("")}</select>
+        </label>
+        <label>Contacto de facturación
+          <input id="crmBillingContactName" value="${esc(commercial?.billing_contact_name || "")}" placeholder="Nombre del contacto">
+        </label>
+        <label>Correo de facturación
+          <input id="crmBillingEmail" type="email" value="${esc(commercial?.billing_email || "")}" placeholder="facturacion@cliente.com">
         </label>
         <label>Día de cobro mensual
           <input id="crmBillingDay" type="number" min="1" max="28" value="${commercial?.billing_day ?? ""}" placeholder="Ej. 5">
@@ -411,6 +438,8 @@ async function openCommercialEditor(org, commercial, integrations, plans = []) {
       go_live_date: modal.querySelector("#crmGoLiveDate").value || null,
       renewal_date: modal.querySelector("#crmRenewalDate").value || null,
       billing_status: modal.querySelector("#crmBillingStatus").value,
+      billing_contact_name: modal.querySelector("#crmBillingContactName").value.trim() || null,
+      billing_email: modal.querySelector("#crmBillingEmail").value.trim().toLowerCase() || null,
       billing_day: nullableNumber(modal.querySelector("#crmBillingDay").value),
       auto_invoice: modal.querySelector("#crmAutoInvoice").checked,
       implementation_status: modal.querySelector("#crmImplementationStatus").value,
@@ -423,7 +452,7 @@ async function openCommercialEditor(org, commercial, integrations, plans = []) {
     if (error) return C.showError(error.message);
     C.showToast("Ficha comercial actualizada.");
     close();
-    await renderCrm();
+    await refreshCrmView();
   });
 
   modal.querySelectorAll(".crm-integration-status").forEach((select) => {
@@ -450,7 +479,7 @@ async function openCommercialEditor(org, commercial, integrations, plans = []) {
     if (error) return C.showError(error.message);
     C.showToast("Integración agregada.");
     close();
-    await renderCrm();
+    await refreshCrmView();
   });
 }
 
@@ -665,22 +694,34 @@ export async function renderCrm(context) {
       </form>
       <div class="table-wrap crm-billing-table">
         <table>
-          <thead><tr><th>Cliente</th><th>Tipo</th><th>Valor</th><th>Vence</th><th>Estado</th><th>Pago</th><th>Referencia</th><th></th></tr></thead>
+          <thead><tr><th>Número</th><th>Cliente</th><th>Tipo</th><th>Valor</th><th>Vence</th><th>Estado</th><th>Correo</th><th>Pago</th><th>Referencia</th><th></th></tr></thead>
           <tbody>
             ${invoiceRows.length ? invoiceRows.slice(0,30).map((row)=>{
               const org=clients.find((item)=>item.id===row.organization_id);
               const derived = row.status === "pending" && new Date(row.due_date + "T23:59:59").getTime() < Date.now() ? "overdue" : row.status;
+              const commercial = commercialMap.get(row.organization_id);
+              const billingEmail = commercial?.billing_email || "";
+              const emailLabel = row.email_status === "sent"
+                ? "Enviado"
+                : row.email_status === "failed"
+                  ? "Error"
+                  : billingEmail ? "Pendiente" : "Sin correo";
               return `<tr>
-                <td><b>${esc(org?.name || "Cliente")}</b></td>
+                <td><b>${esc(row.invoice_number || "—")}</b></td>
+                <td><b>${esc(org?.name || "Cliente")}</b><br><span class="muted">${esc(billingEmail || "Sin correo de facturación")}</span></td>
                 <td>${esc(row.invoice_type)}</td>
                 <td><b>${money(row.amount_cop)}</b></td>
                 <td>${shortDate(row.due_date)}</td>
                 <td><span class="pill ${derived==="paid"?"green":derived==="overdue"?"orange":""}">${esc(derived)}</span></td>
+                <td><span class="pill ${row.email_status==="sent"?"green":row.email_status==="failed"?"orange":""}">${esc(emailLabel)}</span>${row.email_sent_at ? `<br><span class="muted">${dateTime(row.email_sent_at)}</span>` : ""}</td>
                 <td>${row.paid_at ? dateTime(row.paid_at) : "—"}</td>
                 <td>${esc(row.reference || "—")}</td>
-                <td>${derived==="pending"||derived==="overdue" ? `<button class="crm-invoice-paid btn small" data-id="${row.id}" type="button">Marcar pagado</button>` : ""}</td>
+                <td class="crm-invoice-actions">
+                  ${derived==="pending"||derived==="overdue" ? `<button class="crm-invoice-paid btn small" data-id="${row.id}" type="button">Marcar pagado</button>` : ""}
+                  ${billingEmail ? `<button class="crm-invoice-email btn small" data-id="${row.id}" type="button">${row.email_status==="sent"?"Reenviar":"Enviar correo"}</button>` : ""}
+                </td>
               </tr>`;
-            }).join("") : `<tr><td colspan="8">${C.emptyState("Sin cobros todavía.", "Crea el primer cobro cuando corresponda.")}</td></tr>`}
+            }).join("") : `<tr><td colspan="10">${C.emptyState("Sin cobros todavía.", "Crea el primer cobro cuando corresponda.")}</td></tr>`}
           </tbody>
         </table>
       </div>
@@ -824,17 +865,51 @@ export async function renderCrm(context) {
 
   $("crmInvoiceForm")?.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const { error } = await C.supabase.from("client_invoices").insert({
-      organization_id: $("crmInvoiceOrg").value,
-      invoice_type: $("crmInvoiceType").value,
-      amount_cop: nullableNumber($("crmInvoiceAmount").value) || 0,
-      due_date: $("crmInvoiceDue").value,
-      reference: $("crmInvoiceReference").value.trim() || null,
-      status: "pending",
+    const form = event.currentTarget;
+    const button = form.querySelector('button[type="submit"]');
+    button.disabled = true;
+    button.textContent = "Creando…";
+    try {
+      const { error } = await C.supabase.from("client_invoices").insert({
+        organization_id: $("crmInvoiceOrg").value,
+        invoice_type: $("crmInvoiceType").value,
+        amount_cop: nullableNumber($("crmInvoiceAmount").value) || 0,
+        due_date: $("crmInvoiceDue").value,
+        reference: $("crmInvoiceReference").value.trim() || null,
+        status: "pending",
+        email_status: "pending",
+      });
+      if (error) throw error;
+      C.showToast("Cobro creado y puesto en cola de correo.");
+      form.reset();
+      await refreshCrmView();
+    } catch (error) {
+      C.showError(error.message || "No pudimos crear el cobro.");
+      button.disabled = false;
+      button.textContent = "Crear cobro";
+    }
+  });
+
+  document.querySelectorAll(".crm-invoice-email").forEach((button) => {
+    button.addEventListener("click", async () => {
+      button.disabled = true;
+      button.textContent = "En cola…";
+      try {
+        const { error } = await C.supabase.from("client_invoices").update({
+          email_status: "pending",
+          email_sent_at: null,
+          email_error: null,
+          updated_at: new Date().toISOString(),
+        }).eq("id", button.dataset.id);
+        if (error) throw error;
+        C.showToast("Cuenta de cobro puesta en cola de envío.");
+        await refreshCrmView();
+      } catch (error) {
+        button.disabled = false;
+        button.textContent = "Enviar correo";
+        C.showError(error.message || "No pudimos poner el correo en cola.");
+      }
     });
-    if (error) return C.showError(error.message);
-    C.showToast("Cobro creado.");
-    await renderCrm();
   });
 
   document.querySelectorAll(".crm-invoice-paid").forEach((button) => {
@@ -850,7 +925,7 @@ export async function renderCrm(context) {
         return C.showError(error.message);
       }
       C.showToast("Pago registrado.");
-      await renderCrm();
+      await refreshCrmView();
     });
   });
 
@@ -863,7 +938,7 @@ export async function renderCrm(context) {
         return C.showError(error.message);
       }
       C.showToast("Gasto desactivado.");
-      await renderCrm();
+      await refreshCrmView();
     });
   });
 
@@ -880,7 +955,7 @@ export async function renderCrm(context) {
     });
     if (error) return C.showError(error.message);
     C.showToast("Gasto agregado.");
-    await renderCrm();
+    await refreshCrmView();
   });
 
   $("crmNewProspectButton")?.addEventListener("click", () => {
@@ -908,6 +983,6 @@ export async function renderCrm(context) {
     const { error } = await C.supabase.from("demo_requests").insert(payload);
     if (error) return C.showError(error.message);
     C.showToast("Prospecto creado.");
-    await renderCrm();
+    await refreshCrmView();
   });
 }
