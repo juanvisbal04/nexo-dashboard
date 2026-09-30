@@ -736,11 +736,12 @@ async function renderOverview() {
         <div class="card-head"><div><h2>Rendimiento por cliente</h2><p>Comparativa operativa de organizaciones activas</p></div></div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Cliente</th><th>Asistente</th><th>Conversaciones</th><th>Leads</th><th>Conversión</th><th>Automatización</th><th>Respuesta</th><th>Valor</th><th>Atención</th></tr></thead>
+            <thead><tr><th>Cliente</th><th>Estado</th><th>Asistente</th><th>Conversaciones</th><th>Leads</th><th>Conversión</th><th>Automatización</th><th>Respuesta</th><th>Valor</th><th>Atención</th></tr></thead>
             <tbody>
-              ${clientRows.map(({ org, metrics }) => `
+              ${clientRows.map(({ org, metrics, health }) => `
                 <tr>
                   <td><b>${esc(org.name)}</b><br><span class="muted">${esc(org.sector)}</span></td>
+                  <td>${healthBadge(health, true)}</td>
                   <td>${esc(org.assistant || "—")}</td>
                   <td>${metrics.chats}</td>
                   <td>${metrics.leadCount}</td>
@@ -756,6 +757,7 @@ async function renderOverview() {
         </div>
       </section>
     `;
+    bindAlertNavigation();
     return;
   }
 
