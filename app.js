@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
+import { renderCrm } from "./crm.js?v=20260930-crm1";
 
 const SUPABASE_URL = "https://ixewnbjndguchunwcuhf.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_vFnLRe9cmnOcyz2Fivprhw_8UjBaRGL";
@@ -1637,7 +1638,7 @@ async function render() {
     else if (["conversations", "leads", "appointments", "followups"].includes(state.page)) await renderTablePage(state.page);
     else if (state.page === "metrics") await renderMetrics();
     else if (state.page === "team") await renderTeam();
-    else if (state.page === "crm") await renderCrm();
+    else if (state.page === "crm") await renderCrm({ supabase, state, $, esc, money, dateTime, shortDate, metricCard, emptyState, showError, showToast, clientOrganizations, loadOrganizations });
     else if (state.page === "admin") await renderAdmin();
   } catch (error) {
     showError(error.message || "No pudimos cargar la información.");
