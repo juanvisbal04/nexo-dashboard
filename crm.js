@@ -657,13 +657,14 @@ export async function renderCrm(context) {
       <div><span>Vencidas</span><b>${overdueInvoices.length}</b></div>
     </div>
 
-    <nav class="crm-section-nav" aria-label="Secciones del CRM">
-      <button type="button" data-crm-section="crmPipeline">Pipeline</button>
-      <button type="button" data-crm-section="crmBilling">Cartera</button>
-      <button type="button" data-crm-section="crmRevenue">Ingresos</button>
-      <button type="button" data-crm-section="crmClients">Clientes</button>
-      <button type="button" data-crm-section="crmPlans">Planes & costos</button>
-      <button type="button" data-crm-section="crmActions">Actividad</button>
+    <nav class="crm-section-nav" aria-label="Secciones de Ventas y Finanzas">
+      <span class="crm-section-nav-label">Ir a</span>
+      <button type="button" data-crm-section="crmPlans"><b>01</b> Planes & costos</button>
+      <button type="button" data-crm-section="crmBilling"><b>02</b> Cartera</button>
+      <button type="button" data-crm-section="crmRevenue"><b>03</b> Ingresos</button>
+      <button type="button" data-crm-section="crmPipeline"><b>04</b> Pipeline</button>
+      <button type="button" data-crm-section="crmActions"><b>05</b> Actividad</button>
+      <button type="button" data-crm-section="crmClients"><b>06</b> Clientes</button>
     </nav>
 
     <div id="crmPlans" class="crm-two-col crm-foundation-grid">
@@ -920,7 +921,11 @@ export async function renderCrm(context) {
   document.querySelectorAll("[data-crm-section]").forEach((button) => {
     button.addEventListener("click", () => {
       const target = document.getElementById(button.dataset.crmSection);
-      target?.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (!target) return;
+      document.querySelectorAll("[data-crm-section]").forEach((item) => item.classList.remove("active"));
+      button.classList.add("active");
+      const top = target.getBoundingClientRect().top + window.scrollY - 96;
+      window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
     });
   });
 
