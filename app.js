@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
-import { renderCrm } from "./crm.js?v=20260930-crm10";
+import { renderCrm } from "./crm.js?v=20260930-crm11";
 
 const SUPABASE_URL = "https://ixewnbjndguchunwcuhf.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_vFnLRe9cmnOcyz2Fivprhw_8UjBaRGL";
@@ -69,6 +69,7 @@ const pageMeta = {
   appointments: ["Citas y reservas", "NEXO BOOKING", "Tu agenda, bajo control.", "Solicitudes, citas y valor estimado."],
   followups: ["Seguimientos", "NEXO RECOVERY", "El siguiente paso importa.", "Oportunidades que necesitan una nueva acción."],
   metrics: ["Métricas", "NEXO ANALYTICS", "Entiende tus resultados.", "Conversión, automatización, respuesta, demanda y valor en una sola vista."],
+  billing: ["Facturación", "NEXO BILLING", "Tus cobros y pagos, claros.", "Consulta cuentas de cobro, vencimientos, pagos y descarga tus documentos en PDF."],
   team: ["Usuarios", "CONTROL DE ACCESO", "Tu equipo, con el acceso correcto.", "Invita y administra usuarios de este dashboard."],
   crm: ["CRM & Finanzas", "NEXO INTERNAL CRM", "Tu negocio, de prospecto a cliente activo.", "Pipeline, MRR, costos, implementación e integraciones en un solo lugar."],
   admin: ["Platform Admin", "NEXO COMMAND CENTER", "Control total de la plataforma.", "Clientes activos, accesos y configuración de NEXO."],
@@ -1463,6 +1464,184 @@ async function renderAdmin() {
   });
 }
 
+
+function invoiceTypeLabel(value) {
+  return ({ monthly: "Mensualidad", setup: "Setup", other: "Otro" }[value] || value || "Cobro");
+}
+
+function invoiceStatusLabel(value) {
+  return ({ pending: "Pendiente", paid: "Pagado", overdue: "Vencido", waived: "Exonerado", cancelled: "Cancelado" }[value] || value || "Pendiente");
+}
+
+function derivedInvoiceStatus(invoice) {
+  if (invoice.status !== "pending") return invoice.status;
+  const due = new Date(String(invoice.due_date) + "T23:59:59-05:00").getTime();
+  return due < Date.now() ? "overdue" : "pending";
+}
+
+function downloadInvoicePdf(invoice, organizationName = "Cliente NEXO") {
+  const jsPDF = window.jspdf?.jsPDF;
+  if (!jsPDF) {
+    showError("El generador de PDF no terminó de cargar. Actualiza la página e inténtalo de nuevo.");
+    return;
+  }
+  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  const number = invoice.invoice_number || "NEXO";
+  const status = derivedInvoiceStatus(invoice);
+  const amount = money(invoice.amount_cop);
+  const concept = invoice.reference || invoiceTypeLabel(invoice.invoice_type);
+
+  doc.setFillColor(11,31,59);
+  doc.rect(0,0,210,42,"F");
+  doc.setTextColor(255,255,255);
+  doc.setFont("helvetica","bold");
+  doc.setFontSize(22);
+  doc.text("NEXO",18,20);
+  doc.setFontSize(9);
+  doc.setFont("helvetica","normal");
+  doc.text("by Juan Visbal",18,27);
+  doc.text("CUENTA DE COBRO",150,20);
+  doc.setFontSize(8);
+  doc.text(number,150,27);
+
+  doc.setTextColor(31,41,55);
+  doc.setFont("helvetica","bold");
+  doc.setFontSize(12);
+  doc.text("Cliente",18,58);
+  doc.setFont("helvetica","normal");
+  doc.setFontSize(10);
+  doc.text(String(organizationName),18,66);
+
+  doc.setFont("helvetica","bold");
+  doc.text("Estado",145,58);
+  doc.setFont("helvetica","normal");
+  doc.text(invoiceStatusLabel(status),145,66);
+
+  doc.setDrawColor(226,232,240);
+  doc.line(18,76,192,76);
+
+  const rows = [
+    ["Número", number],
+    ["Concepto", concept],
+    ["Tipo", invoiceTypeLabel(invoice.invoice_type)],
+    ["Valor", amount],
+    ["Vencimiento", invoice.due_date || "—"],
+    ["Periodo", invoice.billing_period_start && invoice.billing_period_end ? invoice.billing_period_start + " a " + invoice.billing_period_end : "—"],
+    ["Fecha de pago", invoice.paid_at ? dateTime(invoice.paid_at) : "—"],
+  ];
+
+  let y=88;
+  rows.forEach(([label,value])=>{
+    doc.setFont("helvetica","bold");
+    doc.setFontSize(8);
+    doc.setTextColor(107,122,140);
+    doc.text(label.toUpperCase(),18,y);
+    doc.setFont("helvetica","normal");
+    doc.setFontSize(10);
+    doc.setTextColor(39,57,78);
+    const lines=doc.splitTextToSize(String(value),110);
+    doc.text(lines,62,y);
+    y += Math.max(10, lines.length*5+3);
+  });
+
+  doc.setFillColor(246,249,252);
+  doc.roundedRect(18,y+4,174,30,3,3,"F");
+  doc.setTextColor(42,66,93);
+  doc.setFont("helvetica","bold");
+  doc.setFontSize(9);
+  doc.text("TOTAL A PAGAR",26,y+16);
+  doc.setFontSize(18);
+  doc.text(amount,26,y+27);
+
+  const noteY=y+48;
+  doc.setFont("helvetica","normal");
+  doc.setFontSize(8);
+  doc.setTextColor(110,124,143);
+  const note="Documento de cobro emitido por NEXO by Juan Visbal. No constituye factura electrónica DIAN. Para inquietudes sobre este cobro escribe a nexobyjuanvisbal@gmail.com.";
+  doc.text(doc.splitTextToSize(note,174),18,noteY);
+  doc.text("nexobyjv.online  |  Medellín, Colombia",18,284);
+
+  doc.save("NEXO_Cuenta_de_Cobro_" + number.replace(/[^A-Za-z0-9_-]/g,"_") + ".pdf");
+}
+
+async function renderBillingPortal() {
+  const internalAggregate = state.isAdmin && isInternalOrg();
+  const orgIds = internalAggregate
+    ? clientOrganizations({ activeOnly: false }).map((org) => org.id)
+    : (currentOrgId() ? [currentOrgId()] : []);
+
+  if (!orgIds.length) {
+    $("content").innerHTML = emptyState("No hay una empresa seleccionada.", "Selecciona una empresa para consultar su facturación.");
+    return;
+  }
+
+  let request = supabase.from("client_invoices").select("*").order("due_date", { ascending: false }).limit(1000);
+  request = orgIds.length === 1 ? request.eq("organization_id", orgIds[0]) : request.in("organization_id", orgIds);
+  const { data: invoices, error } = await request;
+  if (error) throw error;
+
+  const rows = invoices || [];
+  const orgName = (id) => state.organizations.find((org) => org.id === id)?.name || "Cliente NEXO";
+  const pending = rows.filter((row) => ["pending","overdue"].includes(derivedInvoiceStatus(row)));
+  const overdue = rows.filter((row) => derivedInvoiceStatus(row) === "overdue");
+  const paid = rows.filter((row) => row.status === "paid");
+  const paidTotal = paid.reduce((sum,row)=>sum+Number(row.amount_cop||0),0);
+  const receivable = pending.reduce((sum,row)=>sum+Number(row.amount_cop||0),0);
+  const currentYear = new Date().getFullYear();
+  const paidThisYear = paid.filter((row)=>row.paid_at && new Date(row.paid_at).getFullYear()===currentYear)
+    .reduce((sum,row)=>sum+Number(row.amount_cop||0),0);
+
+  state.currentRows = rows;
+
+  $("content").innerHTML = `
+    <div class="billing-portal-kpis">
+      ${metricCard("Por pagar", money(receivable), `${pending.length} documento${pending.length===1?"":"s"} pendiente${pending.length===1?"":"s"}`, null, true)}
+      ${metricCard("Vencidos", overdue.length, overdue.length ? "Requieren atención" : "Sin vencimientos")}
+      ${metricCard("Pagado histórico", money(paidTotal), `${paid.length} pago${paid.length===1?"":"s"} registrado${paid.length===1?"":"s"}`)}
+      ${metricCard("Pagado " + currentYear, money(paidThisYear), "Acumulado del año")}
+    </div>
+
+    <section class="card billing-portal-card">
+      <div class="card-head">
+        <div><h2>${internalAggregate ? "Facturación de clientes" : "Mis cuentas de cobro"}</h2><p>Historial de cobros, vencimientos y pagos registrados en NEXO</p></div>
+        <span class="count">${rows.length} documento${rows.length===1?"":"s"}</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>${internalAggregate?"<th>Cliente</th>":""}<th>Número</th><th>Concepto</th><th>Valor</th><th>Vence</th><th>Estado</th><th>Pago</th><th>Documento</th></tr></thead>
+          <tbody>
+            ${rows.length ? rows.map((row)=>{
+              const status=derivedInvoiceStatus(row);
+              return `<tr>
+                ${internalAggregate?`<td><b>${esc(orgName(row.organization_id))}</b></td>`:""}
+                <td><b>${esc(row.invoice_number || "—")}</b></td>
+                <td>${esc(row.reference || invoiceTypeLabel(row.invoice_type))}<br><span class="muted">${esc(invoiceTypeLabel(row.invoice_type))}</span></td>
+                <td><b>${money(row.amount_cop)}</b></td>
+                <td>${shortDate(row.due_date)}</td>
+                <td><span class="pill ${status==="paid"?"green":status==="overdue"?"orange":status==="pending"?"amber":""}">${esc(invoiceStatusLabel(status))}</span></td>
+                <td>${row.paid_at ? dateTime(row.paid_at) : "—"}</td>
+                <td><button class="btn small billing-pdf-button" data-invoice-id="${row.id}" type="button">Descargar PDF</button></td>
+              </tr>`;
+            }).join("") : `<tr><td colspan="${internalAggregate?8:7}">${emptyState("Todavía no hay cuentas de cobro.", "Cuando exista un cobro aparecerá aquí automáticamente.")}</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+      <div class="billing-portal-note">
+        <b>Sobre estos documentos</b>
+        <p>Las cuentas de cobro muestran el estado registrado por NEXO. No corresponden a una factura electrónica DIAN.</p>
+      </div>
+    </section>
+  `;
+
+  const byId=new Map(rows.map((row)=>[row.id,row]));
+  document.querySelectorAll(".billing-pdf-button").forEach((button)=>{
+    button.addEventListener("click",()=>{
+      const invoice=byId.get(button.dataset.invoiceId);
+      downloadInvoicePdf(invoice,orgName(invoice.organization_id));
+    });
+  });
+}
+
 async function renderTeam() {
   if (!canManageCurrentOrgUsers() || isInternalOrg()) {
     $("content").innerHTML = emptyState("No puedes administrar usuarios aquí.", "Selecciona una organización de cliente donde tengas rol Owner o Admin.");
@@ -1642,7 +1821,7 @@ function pageUsesRealtimeTable(table) {
     leads: ["overview","leads","metrics"],
     appointments: ["overview","appointments","metrics"],
     followups: ["overview","followups","metrics"],
-    client_invoices: ["crm"],
+    client_invoices: ["crm","billing"],
     demo_requests: ["crm","admin"],
     crm_activities: ["crm"],
   };
@@ -1687,8 +1866,8 @@ async function render() {
   }
 
   persistUiState();
-  $("periodSelect").classList.toggle("hidden", state.page === "crm");
-  $("exportButton").textContent = state.page === "crm" ? "Exportar CRM" : "Exportar CSV";
+  $("periodSelect").classList.toggle("hidden", ["crm","billing"].includes(state.page));
+  $("exportButton").textContent = state.page === "crm" ? "Exportar CRM" : state.page === "billing" ? "Exportar cobros" : "Exportar CSV";
 
   $("breadcrumb").textContent = meta[0];
   $("pageEyebrow").textContent = meta[1];
@@ -1702,8 +1881,9 @@ async function render() {
     if (state.page === "overview") await renderOverview();
     else if (["conversations", "leads", "appointments", "followups"].includes(state.page)) await renderTablePage(state.page);
     else if (state.page === "metrics") await renderMetrics();
+    else if (state.page === "billing") await renderBillingPortal();
     else if (state.page === "team") await renderTeam();
-    else if (state.page === "crm") await renderCrm({ supabase, state, $, esc, money, dateTime, shortDate, metricCard, emptyState, showError, showToast, clientOrganizations, loadOrganizations, renderApp: render, persistUiState });
+    else if (state.page === "crm") await renderCrm({ supabase, state, $, esc, money, dateTime, shortDate, metricCard, emptyState, showError, showToast, clientOrganizations, loadOrganizations, renderApp: render, persistUiState, downloadInvoicePdf });
     else if (state.page === "admin") await renderAdmin();
   } catch (error) {
     showError(error.message || "No pudimos cargar la información.");
