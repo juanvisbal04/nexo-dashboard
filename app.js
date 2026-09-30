@@ -11,6 +11,7 @@ const $ = (id) => document.getElementById(id);
 const state = {
   page: "overview",
   organizations: [],
+  orgRoles: {},
   profile: null,
   isAdmin: false,
   session: null,
@@ -23,8 +24,9 @@ const pageMeta = {
   leads: ["Leads", "NEXO SALES", "Oportunidades en movimiento.", "Prospectos identificados y su etapa actual."],
   appointments: ["Citas y reservas", "NEXO BOOKING", "Tu agenda, bajo control.", "Solicitudes, citas y valor estimado."],
   followups: ["Seguimientos", "NEXO RECOVERY", "El siguiente paso importa.", "Oportunidades que necesitan una nueva acción."],
-  metrics: ["Métricas", "NEXO ANALYTICS", "Entiende tus resultados.", "Origen, servicios y conversión de tus conversaciones."],
-  admin: ["NEXO Admin", "NEXO COMMAND CENTER", "Una vista de todo NEXO.", "Operación agregada de los negocios autorizados."],
+  metrics: ["Métricas", "NEXO ANALYTICS", "Entiende tus resultados.", "Conversión, automatización, respuesta, demanda y valor en una sola vista."],
+  team: ["Usuarios", "CONTROL DE ACCESO", "Tu equipo, con el acceso correcto.", "Invita y administra usuarios de este dashboard."],
+  admin: ["NEXO Admin", "NEXO COMMAND CENTER", "Control total de la plataforma.", "Clientes activos, accesos y crecimiento de NEXO."],
 };
 
 function esc(value) {
@@ -95,6 +97,36 @@ function currentOrgId() {
   return $("orgSelect").value || null;
 }
 
+function currentOrg() {
+  return state.organizations.find((row) => row.id === currentOrgId()) || null;
+}
+
+function isInternalOrg(orgId = currentOrgId()) {
+  const org = state.organizations.find((row) => row.id === orgId);
+  return Boolean(org && org.name === "NEXO Internal");
+}
+
+function clientOrganizations({ activeOnly = true } = {}) {
+  return state.organizations.filter((org) =>
+    org.name !== "NEXO Internal" && (!activeOnly || org.status === "active")
+  );
+}
+
+function metricOrgIds(orgId = currentOrgId()) {
+  if (state.isAdmin && isInternalOrg(orgId)) return clientOrganizations().map((org) => org.id);
+  return orgId ? [orgId] : [];
+}
+
+function currentOrgRole() {
+  if (state.isAdmin) return "platform_admin";
+  return state.orgRoles[currentOrgId()] || null;
+}
+
+function canManageCurrentOrgUsers() {
+  if (state.isAdmin) return !isInternalOrg();
+  return ["owner", "admin"].includes(currentOrgRole());
+}
+
 function currentDays() {
   return Number($("periodSelect").value || 30);
 }
@@ -154,13 +186,41 @@ async function getMetrics(orgId = currentOrgId(), days = currentDays()) {
 }
 
 async function loadOrganizations() {
+  const previous = $("orgSelect").value || null;
   const { data, error } = await supabase.from("organizations").select("*").order("created_at");
   if (error) throw error;
-  state.organizations = data || [];
+  state.organizations = (data || []).sort((a, b) => {
+    if (a.name === "NEXO Internal") return -1;
+    if (b.name === "NEXO Internal") return 1;
+    return String(a.name).localeCompare(String(b.name), "es");
+  });
+
+  const { data: memberships, error: membershipError } = await supabase
+    .from("organization_members")
+    .select("organization_id,role")
+    .eq("user_id", state.session.user.id);
+  if (membershipError) throw membershipError;
+  state.orgRoles = Object.fromEntries((memberships || []).map((row) => [row.organization_id, row.role]));
+
   $("orgSelect").innerHTML = state.organizations.length
     ? state.organizations.map((org) => `<option value="${org.id}">${esc(org.name)}</option>`).join("")
     : '<option value="">Sin negocios asignados</option>';
+
+  const validPrevious = previous && state.organizations.some((org) => org.id === previous);
+  if (validPrevious) {
+    $("orgSelect").value = previous;
+  } else if (state.isAdmin) {
+    const internal = state.organizations.find((org) => org.name === "NEXO Internal");
+    if (internal) $("orgSelect").value = internal.id;
+  }
+
   updateOrgBadge();
+  updateNavigationAccess();
+}
+
+function updateNavigationAccess() {
+  const teamNav = $("teamNav");
+  if (teamNav) teamNav.classList.toggle("hidden", !canManageCurrentOrgUsers());
 }
 
 function updateOrgBadge() {
