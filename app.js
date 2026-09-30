@@ -13,6 +13,7 @@ const state = {
   page: "overview",
   organizations: [],
   orgRoles: {},
+  commercialStages: {},
   profile: null,
   isAdmin: false,
   session: null,
@@ -109,9 +110,14 @@ function isInternalOrg(orgId = currentOrgId()) {
 }
 
 function clientOrganizations({ activeOnly = true } = {}) {
-  return state.organizations.filter((org) =>
-    org.name !== "NEXO Internal" && (!activeOnly || org.status === "active")
-  );
+  return state.organizations.filter((org) => {
+    if (org.name === "NEXO Internal") return false;
+    if (!activeOnly) return true;
+    if (state.isAdmin && Object.keys(state.commercialStages).length) {
+      return state.commercialStages[org.id] === "activo";
+    }
+    return org.status === "active";
+  });
 }
 
 function metricOrgIds(orgId = currentOrgId()) {
@@ -598,6 +604,15 @@ async function loadOrganizations() {
     .eq("user_id", state.session.user.id);
   if (membershipError) throw membershipError;
   state.orgRoles = Object.fromEntries((memberships || []).map((row) => [row.organization_id, row.role]));
+
+  state.commercialStages = {};
+  if (state.isAdmin) {
+    const { data: commercialRows, error: commercialError } = await supabase
+      .from("organization_commercials")
+      .select("organization_id,lifecycle_stage");
+    if (commercialError) throw commercialError;
+    state.commercialStages = Object.fromEntries((commercialRows || []).map((row) => [row.organization_id, row.lifecycle_stage]));
+  }
 
   $("orgSelect").innerHTML = state.organizations.length
     ? state.organizations.map((org) => `<option value="${org.id}">${esc(org.name)}</option>`).join("")
