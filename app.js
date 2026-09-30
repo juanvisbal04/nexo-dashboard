@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
-import { renderCrm } from "./crm.js?v=20260930-crm17";
+import { renderCrm } from "./crm.js?v=20260930-crm18";
 
 const SUPABASE_URL = "https://ixewnbjndguchunwcuhf.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_vFnLRe9cmnOcyz2Fivprhw_8UjBaRGL";
@@ -691,7 +691,7 @@ function updateNavigationAccess() {
   $("clientNavWrap")?.classList.toggle("hidden", internalAdmin);
 
   const teamNav = $("teamNav");
-  if (teamNav) teamNav.classList.toggle("hidden", internalAdmin || !canManageCurrentOrgUsers());
+  if (teamNav) teamNav.classList.add("hidden");
 
   document.querySelectorAll(".client-mobile-nav-item").forEach((item) => item.classList.toggle("hidden", internalAdmin));
   document.querySelectorAll(".admin-mobile-nav-item").forEach((item) => item.classList.toggle("hidden", !internalAdmin));
