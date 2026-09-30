@@ -86,3 +86,10 @@
 .crm-check-label span{font-size:9px;color:#5f728b;font-weight:700}
 @media(max-width:1100px){.crm-invoice-form{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:720px){.crm-billing-kpis{grid-template-columns:1fr 1fr}.crm-invoice-form{grid-template-columns:1fr}.crm-billing-kpis>div:nth-child(2){border-right:0}.crm-billing-kpis>div:nth-child(n+3){border-top:1px solid #edf1f5}}
+
+.crm-invoice-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap;min-width:150px}
+.crm-invoice-actions .btn{white-space:nowrap}
+.crm-billing-table .muted{display:inline-block;margin-top:3px;font-size:8px}
+@media(max-width:720px){
+  .crm-invoice-actions{min-width:120px}
+}
