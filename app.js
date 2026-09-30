@@ -372,7 +372,7 @@ async function openContactChat(contactId) {
     $("chatBody").innerHTML = messages.length
       ? messages.map((msg) => {
           const side = msg.sender === "contact" ? "in" : msg.sender === "human" ? "human" : "out";
-          const label = msg.sender === "contact" ? "Cliente" : msg.sender === "human" ? "Humano" : msg.sender === "system" ? "Sistema" : "Lía";
+          const assistantName = (state.organizations.find((o) => o.id === currentOrgId()) || {}).assistant || "Asistente";\n          const label = msg.sender === "contact" ? "Cliente" : msg.sender === "human" ? "Humano" : msg.sender === "system" ? "Sistema" : assistantName;
           return `
             <div class="chat-message ${side}">
               <div class="bubble">
