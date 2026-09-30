@@ -1817,7 +1817,7 @@ document.querySelectorAll(".nav-item").forEach((button) => {
     if (button.dataset.page === "admin" && !state.isAdmin) return;
     if (button.dataset.page === "team" && !canManageCurrentOrgUsers()) return;
     state.page = button.dataset.page;
-    document.querySelectorAll(".nav-item").forEach((item) => item.classList.toggle("active", item === button));
+    document.querySelectorAll(".nav-item").forEach((item) => item.classList.toggle("active", item.dataset.page === state.page));
     document.body.classList.remove("sidebar-open");
     render();
   });
