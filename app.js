@@ -659,6 +659,24 @@ async function renderAdmin() {
         <div id="clientAccessResult" class="access-result hidden"></div>
       </section>
     </div>
+
+    <section class="card new-business-card">
+      <div class="card-head"><div><h2>Nuevo negocio</h2><p>Crea la empresa y su asistente base sin entrar a Supabase</p></div></div>
+      <form id="newBusinessForm" class="admin-form business-form">
+        <label>Nombre del negocio</label>
+        <input id="businessName" type="text" placeholder="Ej. Hotel Central Medellín" required />
+        <label>Sector</label>
+        <input id="businessSector" type="text" placeholder="Ej. Hotel, restaurante, estética" />
+        <label>Nombre del asistente</label>
+        <input id="assistantName" type="text" placeholder="Ej. Luna" required />
+        <label>Iniciales</label>
+        <input id="businessInitials" type="text" maxlength="3" placeholder="Ej. HC" />
+        <label>Color de marca</label>
+        <input id="businessColor" type="color" value="#316bff" />
+        <button id="createBusiness" class="btn primary" type="submit">Crear negocio</button>
+      </form>
+      <div id="businessResult" class="access-result hidden"></div>
+    </section>
   `;
 
   $("clientAccessForm")?.addEventListener("submit", async (event) => {
@@ -714,6 +732,42 @@ async function renderAdmin() {
       button.textContent = "Generar acceso";
     }
   });
+
+  $("newBusinessForm")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const button = $("createBusiness");
+    const resultBox = $("businessResult");
+    resultBox.className = "access-result hidden";
+    button.disabled = true;
+    button.textContent = "Creando…";
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-create-organization", {
+        body: {
+          name: $("businessName").value.trim(),
+          sector: $("businessSector").value.trim(),
+          assistant: $("assistantName").value.trim(),
+          initials: $("businessInitials").value.trim(),
+          color: $("businessColor").value,
+        },
+      });
+      if (error) throw error;
+      if (!data?.ok) throw new Error(data?.error || "No pudimos crear el negocio.");
+      resultBox.innerHTML = `<strong>Negocio creado</strong><p><b>${esc(data.organization.name)}</b> ya está disponible en NEXO con el asistente <b>${esc(data.organization.assistant)}</b>.</p>`;
+      resultBox.className = "access-result ok";
+      showToast("Negocio creado.");
+      await loadOrganizations();
+      await renderAdmin();
+    } catch (error) {
+      resultBox.innerHTML = `<strong>No pudimos crear el negocio</strong><p>${esc(error.message || "Inténtalo de nuevo.")}</p>`;
+      resultBox.className = "access-result error";
+    } finally {
+      if (button) {
+        button.disabled = false;
+        button.textContent = "Crear negocio";
+      }
+    }
+  });
+
 }
 
 async function render() {
