@@ -89,7 +89,7 @@ function crmNextActionLabel(value) {
   return `${overdue ? "Vencido · " : ""}${dateTime(value)}`;
 }
 
-async function openProspectEditor(prospect) {
+async function openProspectEditor(prospect, plans = []) {
   if (!prospect) return;
   const body = `
     <form id="crmProspectForm" class="crm-form">
@@ -126,7 +126,12 @@ async function openProspectEditor(prospect) {
         </div>
         <div class="crm-convert-grid">
           <label>Nombre del asistente<input id="crmConvertAssistant" placeholder="Ej. Luna"></label>
-          <label>Plan inicial<input id="crmConvertPlan" placeholder="Ej. Assistant + Booking"></label>
+          <label>Plan inicial
+            <select id="crmConvertPlan">
+              <option value="">Seleccionar plan</option>
+              ${plans.filter((plan) => plan.active).sort((a,b) => a.sort_order-b.sort_order).map((plan) => `<option value="${plan.id}">${esc(plan.name)} · ${plan.monthly_fee ? money(plan.monthly_fee) + "/mes" : "Cotización"}</option>`).join("")}
+            </select>
+          </label>
           <label>Costo mensual base<input id="crmConvertCost" type="number" min="0" step="1000" placeholder="0"></label>
           <button id="crmConvertButton" class="btn primary" type="button">Convertir a cliente</button>
         </div>
@@ -238,14 +243,18 @@ async function openProspectEditor(prospect) {
       const org = orgResult.organization;
       const expectedMrr = nullableNumber(modal.querySelector("#crmProspectMrr").value);
       const expectedSetup = nullableNumber(modal.querySelector("#crmProspectSetup").value);
+      const selectedPlanId = modal.querySelector("#crmConvertPlan").value || null;
+      const selectedPlan = plans.find((plan) => plan.id === selectedPlanId) || null;
 
       const { error: commercialError } = await C.supabase.from("organization_commercials").upsert({
         organization_id: org.id,
         lifecycle_stage: "implementacion",
-        plan_name: modal.querySelector("#crmConvertPlan").value.trim() || null,
-        mrr: expectedMrr,
+        plan_id: selectedPlanId,
+        plan_name: selectedPlan?.name || null,
+        pricing_type: "standard",
+        mrr: expectedMrr ?? selectedPlan?.monthly_fee ?? null,
         monthly_cost: nullableNumber(modal.querySelector("#crmConvertCost").value),
-        setup_fee: expectedSetup,
+        setup_fee: expectedSetup ?? selectedPlan?.setup_fee_min ?? null,
         billing_status: "pending",
         implementation_status: "discovery",
         integration_status: "pending",
@@ -284,7 +293,7 @@ async function openProspectEditor(prospect) {
   });
 }
 
-async function openCommercialEditor(org, commercial, integrations) {
+async function openCommercialEditor(org, commercial, integrations, plans = []) {
   if (!org) return;
   const body = `
     <form id="crmCommercialForm" class="crm-form">
@@ -294,7 +303,17 @@ async function openCommercialEditor(org, commercial, integrations) {
             ${["cliente","implementacion","activo","pausado","cancelado"].map((value) => `<option value="${value}" ${commercial?.lifecycle_stage === value ? "selected" : ""}>${crmStageLabel(value)}</option>`).join("")}
           </select>
         </label>
-        <label>Plan<input id="crmPlan" value="${esc(commercial?.plan_name || "")}" placeholder="Ej. NEXO Growth"></label>
+        <label>Plan
+          <select id="crmPlan">
+            <option value="">Por definir</option>
+            ${plans.filter((plan) => plan.active).sort((a,b) => a.sort_order-b.sort_order).map((plan) => `<option value="${plan.id}" ${commercial?.plan_id === plan.id ? "selected" : ""}>${esc(plan.name)}</option>`).join("")}
+          </select>
+        </label>
+        <label>Tipo de tarifa
+          <select id="crmPricingType">
+            ${[["standard","Estándar"],["founder","Founder"],["early_partner","Early Partner"],["custom","Personalizada"]].map(([value,label]) => `<option value="${value}" ${commercial?.pricing_type === value ? "selected" : ""}>${label}</option>`).join("")}
+          </select>
+        </label>
         <label>MRR / cuota mensual<input id="crmMrr" type="number" min="0" step="1000" value="${commercial?.mrr ?? ""}"></label>
         <label>Costo mensual base<input id="crmMonthlyCost" type="number" min="0" step="1000" value="${commercial?.monthly_cost ?? ""}"></label>
         <label>Setup cobrado<input id="crmSetupFee" type="number" min="0" step="1000" value="${commercial?.setup_fee ?? ""}"></label>
@@ -311,6 +330,7 @@ async function openCommercialEditor(org, commercial, integrations) {
         <label>Integraciones
           <select id="crmIntegrationStatus">${["pending","partial","connected","attention","paused"].map((value) => `<option value="${value}" ${commercial?.integration_status === value ? "selected" : ""}>${value}</option>`).join("")}</select>
         </label>
+        <label class="wide">Condición comercial<textarea id="crmPricingNotes" rows="2">${esc(commercial?.pricing_notes || "")}</textarea></label>
         <label class="wide">Notas comerciales<textarea id="crmCommercialNotes" rows="3">${esc(commercial?.commercial_notes || "")}</textarea></label>
         <label class="wide">Notas de integración<textarea id="crmIntegrationNotes" rows="3">${esc(commercial?.integration_notes || "")}</textarea></label>
       </div>
@@ -345,10 +365,17 @@ async function openCommercialEditor(org, commercial, integrations) {
 
   modal.querySelector("#crmCommercialForm").addEventListener("submit", async (event) => {
     event.preventDefault();
+    const selectedPlanId = modal.querySelector("#crmPlan").value || null;
+    const selectedPlan = plans.find((plan) => plan.id === selectedPlanId) || null;
+    const pricingType = modal.querySelector("#crmPricingType").value;
+    const planLabel = selectedPlan ? selectedPlan.name + (pricingType === "founder" ? " · Founder" : pricingType === "early_partner" ? " · Early Partner" : "") : null;
     const payload = {
       organization_id: org.id,
       lifecycle_stage: modal.querySelector("#crmLifecycle").value,
-      plan_name: modal.querySelector("#crmPlan").value.trim() || null,
+      plan_id: selectedPlanId,
+      plan_name: planLabel,
+      pricing_type: pricingType,
+      pricing_notes: modal.querySelector("#crmPricingNotes").value.trim() || null,
       mrr: nullableNumber(modal.querySelector("#crmMrr").value),
       monthly_cost: nullableNumber(modal.querySelector("#crmMonthlyCost").value),
       setup_fee: nullableNumber(modal.querySelector("#crmSetupFee").value),
@@ -411,22 +438,30 @@ export async function renderCrm(context) {
     { data: commercials, error: commercialError },
     { data: integrations, error: integrationError },
     { data: activities, error: activityError },
+    { data: plans, error: planError },
+    { data: expenses, error: expenseError },
   ] = await Promise.all([
     C.supabase.from("demo_requests").select("*").order("created_at", { ascending: false }).limit(500),
     C.supabase.from("organization_commercials").select("*"),
     C.supabase.from("crm_integrations").select("*"),
     C.supabase.from("crm_activities").select("*").order("created_at", { ascending: false }).limit(500),
+    C.supabase.from("nexo_plans").select("*").order("sort_order"),
+    C.supabase.from("nexo_expenses").select("*").order("created_at", { ascending: false }),
   ]);
 
   if (prospectError) throw prospectError;
   if (commercialError) throw commercialError;
   if (integrationError) throw integrationError;
   if (activityError) throw activityError;
+  if (planError) throw planError;
+  if (expenseError) throw expenseError;
 
   const opportunityRows = prospects || [];
   const commercialRows = commercials || [];
   const integrationRows = integrations || [];
   const activityRows = activities || [];
+  const planRows = plans || [];
+  const expenseRows = expenses || [];
 
   const commercialMap = new Map(commercialRows.map((row) => [row.organization_id, row]));
   const integrationsByOrg = new Map();
@@ -448,6 +483,15 @@ export async function renderCrm(context) {
   const monthlyCost = active.reduce((sum, row) => sum + row.economics.cost, 0);
   const grossProfit = activeMrr - monthlyCost;
   const grossMargin = activeMrr ? Math.round((grossProfit / activeMrr) * 100) : 0;
+  const sharedMonthlyExpenses = expenseRows
+    .filter((row) => row.active && row.shared_cost)
+    .reduce((sum, row) => {
+      if (row.frequency === "annual") return sum + Number(row.amount_cop || 0) / 12;
+      if (row.frequency === "one_time") return sum;
+      return sum + Number(row.amount_cop || 0);
+    }, 0);
+  const netOperatingProfit = grossProfit - sharedMonthlyExpenses;
+  const netOperatingMargin = activeMrr ? Math.round((netOperatingProfit / activeMrr) * 100) : 0;
   const arr = activeMrr * 12;
   const pipelineStages = new Set(["prospecto", "demo", "propuesta"]);
   const pipelineMrr = opportunityRows
@@ -486,20 +530,54 @@ export async function renderCrm(context) {
   $("content").innerHTML = `
     <div class="crm-kpi-grid">
       ${C.metricCard("MRR activo", money(activeMrr), `ARR ${money(arr)}`, null, true)}
-      ${C.metricCard("Utilidad bruta mensual", money(grossProfit), `Margen ${grossMargin}%`)}
+      ${C.metricCard("Utilidad bruta clientes", money(grossProfit), `Margen bruto ${grossMargin}%`)}
+      ${C.metricCard("Gastos fijos NEXO", money(sharedMonthlyExpenses), "Software + APIs compartidas")}
+      ${C.metricCard("Resultado operativo", money(netOperatingProfit), activeMrr ? `Margen neto ${netOperatingMargin}%` : "Etapa de inversión")}
       ${C.metricCard("Pipeline MRR", money(pipelineMrr), "Prospecto + Demo + Propuesta")}
-      ${C.metricCard("Clientes activos", active.length, `${implementationCount} en implementación`)}
-      ${C.metricCard("Costo mensual", money(monthlyCost), "Base + integraciones")}
       ${C.metricCard("Seguimientos vencidos", overdue, `${nextActions.length} próximas acciones`)}
     </div>
 
     <div class="crm-finance-strip">
       <div><span>MRR activo</span><b>${money(activeMrr)}</b></div>
       <div><span>ARR</span><b>${money(arr)}</b></div>
-      <div><span>Costos mensuales</span><b>${money(monthlyCost)}</b></div>
-      <div><span>Utilidad bruta</span><b>${money(grossProfit)}</b></div>
-      <div><span>Margen bruto</span><b>${grossMargin}%</b></div>
-      <div><span>Integraciones pendientes</span><b>${integrationAttention}</b></div>
+      <div><span>Costos directos</span><b>${money(monthlyCost)}</b></div>
+      <div><span>Gastos compartidos</span><b>${money(sharedMonthlyExpenses)}</b></div>
+      <div><span>Resultado operativo</span><b>${money(netOperatingProfit)}</b></div>
+      <div><span>Clientes activos</span><b>${active.length}</b></div>
+    </div>
+
+    <div class="crm-two-col crm-foundation-grid">
+      <section class="card crm-plans-card">
+        <div class="card-head"><div><h2>Planes oficiales NEXO</h2><p>Tarifa estándar de referencia para nuevas propuestas</p></div><span class="count">${planRows.filter((p)=>p.active).length} planes</span></div>
+        <div class="crm-plan-list">
+          ${planRows.filter((plan)=>plan.active).sort((a,b)=>a.sort_order-b.sort_order).map((plan)=>`
+            <article class="crm-plan-row">
+              <div><b>${esc(plan.name)}</b><small>${esc(plan.description || "")}</small></div>
+              <div><span>Setup</span><strong>${plan.setup_fee_min == null ? "Cotización" : "Desde " + money(plan.setup_fee_min)}</strong></div>
+              <div><span>Mantenimiento</span><strong>${plan.monthly_fee == null ? "Cotización" : "Desde " + money(plan.monthly_fee) + "/mes"}</strong></div>
+            </article>
+          `).join("")}
+        </div>
+      </section>
+
+      <section class="card crm-expenses-card">
+        <div class="card-head"><div><h2>Gastos fijos y compartidos</h2><p>Costos de NEXO que no se cargan completos a un solo cliente</p></div><span class="count">${money(sharedMonthlyExpenses)}/mes</span></div>
+        <div class="crm-expense-list">
+          ${expenseRows.filter((row)=>row.active).map((row)=>`
+            <div class="crm-expense-row">
+              <div><b>${esc(row.expense_name)}</b><small>${esc(row.category)} · ${esc(row.frequency)}</small></div>
+              <span>${money(row.amount_cop)}</span>
+              <button class="crm-expense-disable" data-id="${row.id}" type="button">Desactivar</button>
+            </div>
+          `).join("") || '<div class="muted crm-empty-line">Sin gastos registrados.</div>'}
+        </div>
+        <form id="crmExpenseForm" class="crm-mini-form crm-expense-form">
+          <input id="crmExpenseName" placeholder="Nuevo gasto" required>
+          <select id="crmExpenseCategory"><option value="software">Software</option><option value="api">API</option><option value="hosting">Hosting</option><option value="marketing">Marketing</option><option value="other">Otro</option></select>
+          <input id="crmExpenseAmount" type="number" min="0" step="1000" placeholder="COP/mes" required>
+          <button class="btn" type="submit">Agregar</button>
+        </form>
+      </section>
     </div>
 
     <section class="card crm-pipeline-card">
@@ -627,14 +705,43 @@ export async function renderCrm(context) {
 
   const byId = new Map(opportunityRows.map((row) => [row.id, row]));
   document.querySelectorAll("[data-prospect-id]").forEach((button) => {
-    button.addEventListener("click", () => openProspectEditor(byId.get(button.dataset.prospectId)));
+    button.addEventListener("click", () => openProspectEditor(byId.get(button.dataset.prospectId), planRows));
   });
 
   document.querySelectorAll(".crm-edit-client").forEach((button) => {
     button.addEventListener("click", () => {
       const org = clients.find((row) => row.id === button.dataset.orgId);
-      openCommercialEditor(org, commercialMap.get(org.id) || null, integrationsByOrg.get(org.id) || []);
+      openCommercialEditor(org, commercialMap.get(org.id) || null, integrationsByOrg.get(org.id) || [], planRows);
     });
+  });
+
+  document.querySelectorAll(".crm-expense-disable").forEach((button) => {
+    button.addEventListener("click", async () => {
+      button.disabled = true;
+      const { error } = await C.supabase.from("nexo_expenses").update({ active: false, updated_at: new Date().toISOString() }).eq("id", button.dataset.id);
+      if (error) {
+        button.disabled = false;
+        return C.showError(error.message);
+      }
+      C.showToast("Gasto desactivado.");
+      await renderCrm();
+    });
+  });
+
+  $("crmExpenseForm")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const { error } = await C.supabase.from("nexo_expenses").insert({
+      expense_name: $("crmExpenseName").value.trim(),
+      category: $("crmExpenseCategory").value,
+      amount_cop: nullableNumber($("crmExpenseAmount").value) || 0,
+      frequency: "monthly",
+      shared_cost: true,
+      active: true,
+      effective_from: new Date().toISOString().slice(0,10),
+    });
+    if (error) return C.showError(error.message);
+    C.showToast("Gasto agregado.");
+    await renderCrm();
   });
 
   $("crmNewProspectButton")?.addEventListener("click", () => {
