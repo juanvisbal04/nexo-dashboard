@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
-import { renderCrm } from "./crm.js?v=20260930-crm13";
+import { renderCrm } from "./crm.js?v=20260930-crm14";
 
 const SUPABASE_URL = "https://ixewnbjndguchunwcuhf.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_vFnLRe9cmnOcyz2Fivprhw_8UjBaRGL";
@@ -19,6 +19,7 @@ const state = {
   session: null,
   currentRows: [],
   pendingRealtimeRefresh: false,
+  notifications: [],
 };
 let realtimeChannel = null;
 let realtimeTimer = null;
@@ -1896,9 +1897,148 @@ function startRealtime() {
     "conversations","messages","leads","appointments","followups",
     "client_invoices","demo_requests","crm_activities"
   ].forEach((table) => {
-    realtimeChannel.on("postgres_changes", { event: "*", schema: "public", table }, () => scheduleRealtimeRefresh(table));
+    realtimeChannel.on("postgres_changes", { event: "*", schema: "public", table }, () => {
+      scheduleRealtimeRefresh(table);
+      refreshNotifications().catch(()=>{});
+    });
   });
   realtimeChannel.subscribe();
+}
+
+
+function notificationOrgIds() {
+  if (state.isAdmin && isInternalOrg()) return clientOrganizations({ activeOnly: false }).map((org) => org.id);
+  return currentOrgId() ? [currentOrgId()] : [];
+}
+
+function notificationOrgName(orgId) {
+  return state.organizations.find((org) => org.id === orgId)?.name || "NEXO";
+}
+
+async function refreshNotifications() {
+  if (!state.session) return;
+  const orgIds = notificationOrgIds();
+  const items = [];
+  const scoped = (query) => {
+    if (!orgIds.length) return query.eq("organization_id", "00000000-0000-0000-0000-000000000000");
+    return orgIds.length === 1 ? query.eq("organization_id", orgIds[0]) : query.in("organization_id", orgIds);
+  };
+
+  const tasks = [
+    scoped(supabase.from("conversations").select("id,organization_id,name,status,last_message_at").eq("status","Requiere atención").order("last_message_at",{ascending:false}).limit(12)),
+    scoped(supabase.from("appointments").select("id,organization_id,name,status,appointment_at,created_at").in("status",["Solicitada","Pendiente"]).order("created_at",{ascending:false}).limit(12)),
+    scoped(supabase.from("client_invoices").select("id,organization_id,invoice_number,status,due_date,amount_cop,reference").in("status",["pending","overdue"]).order("due_date",{ascending:true}).limit(20)),
+  ];
+
+  const [conversationResult, appointmentResult, invoiceResult] = await Promise.all(tasks);
+
+  (conversationResult.data || []).forEach((row) => items.push({
+    tone:"risk", priority:100, page:"conversations", orgId:row.organization_id,
+    title:"Chat requiere atención",
+    detail:(row.name || "Conversación") + " · " + notificationOrgName(row.organization_id),
+    date:row.last_message_at,
+  }));
+
+  (appointmentResult.data || []).forEach((row) => items.push({
+    tone:"watch", priority:80, page:"appointments", orgId:row.organization_id,
+    title:"Cita pendiente de confirmar",
+    detail:(row.name || "Solicitud") + " · " + notificationOrgName(row.organization_id),
+    date:row.appointment_at || row.created_at,
+  }));
+
+  (invoiceResult.data || []).forEach((row) => {
+    const overdue = row.status === "overdue" || new Date(String(row.due_date)+"T23:59:59-05:00").getTime() < Date.now();
+    items.push({
+      tone:overdue?"risk":"watch", priority:overdue?95:65, page:"billing", orgId:row.organization_id,
+      title:overdue?"Cobro vencido":"Cobro pendiente",
+      detail:(row.invoice_number || "Cuenta de cobro") + " · " + money(row.amount_cop) + " · " + notificationOrgName(row.organization_id),
+      date:row.due_date,
+    });
+  });
+
+  if (state.isAdmin && isInternalOrg()) {
+    const [{data:prospects},{data:commercials}] = await Promise.all([
+      supabase.from("demo_requests").select("id,business_name,full_name,stage,status,next_action_at,created_at").in("stage",["prospecto","demo","propuesta"]).order("created_at",{ascending:false}).limit(20),
+      supabase.from("organization_commercials").select("organization_id,integration_status,renewal_date,lifecycle_stage").neq("lifecycle_stage","cancelado"),
+    ]);
+
+    (prospects || []).forEach((row) => {
+      const stale = row.next_action_at && new Date(row.next_action_at).getTime() < Date.now();
+      items.push({
+        tone:stale?"risk":"info", priority:stale?90:70, page:"crm", orgId:null,
+        title:stale?"Seguimiento comercial vencido":"Nuevo prospecto en pipeline",
+        detail:(row.business_name || row.full_name || "Prospecto") + " · " + (row.stage || "prospecto"),
+        date:row.next_action_at || row.created_at,
+      });
+    });
+
+    (commercials || []).forEach((row) => {
+      if (["attention","pending","partial"].includes(row.integration_status)) {
+        items.push({
+          tone:row.integration_status==="attention"?"risk":"watch", priority:75, page:"crm", orgId:row.organization_id,
+          title:"Integración por revisar",
+          detail:notificationOrgName(row.organization_id) + " · " + row.integration_status,
+          date:null,
+        });
+      }
+      if (row.renewal_date) {
+        const renewal = new Date(String(row.renewal_date)+"T23:59:59-05:00").getTime();
+        if (renewal >= Date.now() && renewal <= Date.now()+30*86400000) {
+          items.push({
+            tone:"watch", priority:60, page:"crm", orgId:row.organization_id,
+            title:"Renovación próxima",
+            detail:notificationOrgName(row.organization_id) + " · " + shortDate(row.renewal_date),
+            date:row.renewal_date,
+          });
+        }
+      }
+    });
+  }
+
+  items.sort((a,b)=>b.priority-a.priority || String(b.date||"").localeCompare(String(a.date||"")));
+  state.notifications = items;
+
+  const badge=$("notificationBadge");
+  if (badge) {
+    badge.textContent=String(Math.min(items.length,99));
+    badge.classList.toggle("hidden",!items.length);
+  }
+
+  const list=$("notificationList");
+  if (!list) return;
+  list.innerHTML=items.length ? items.slice(0,20).map((item,index)=>`
+    <button class="notification-item ${item.tone}" type="button" data-notification-index="${index}">
+      <i></i>
+      <div><b>${esc(item.title)}</b><span>${esc(item.detail)}</span>${item.date?`<small>${esc(shortDate(item.date))}</small>`:""}</div>
+      <em>→</em>
+    </button>
+  `).join("") : `
+    <div class="notification-empty"><span>✓</span><b>Todo al día</b><p>No hay alertas activas en este momento.</p></div>
+  `;
+
+  list.querySelectorAll("[data-notification-index]").forEach((button)=>{
+    button.addEventListener("click",async()=>{
+      const item=items[Number(button.dataset.notificationIndex)];
+      if (!item) return;
+      if (item.orgId && state.organizations.some((org)=>org.id===item.orgId)) $("orgSelect").value=item.orgId;
+      state.page=item.page||"overview";
+      document.querySelectorAll(".nav-item").forEach((el)=>el.classList.toggle("active",el.dataset.page===state.page));
+      persistUiState();
+      $("notificationPanel")?.classList.add("hidden");
+      $("notificationButton")?.setAttribute("aria-expanded","false");
+      await render();
+    });
+  });
+}
+
+function toggleNotificationPanel(force) {
+  const panel=$("notificationPanel");
+  const button=$("notificationButton");
+  if (!panel || !button) return;
+  const open=typeof force==="boolean" ? force : panel.classList.contains("hidden");
+  panel.classList.toggle("hidden",!open);
+  button.setAttribute("aria-expanded",String(open));
+  if (open) refreshNotifications().catch((error)=>console.warn("NEXO_NOTIFICATIONS",error));
 }
 
 async function render() {
@@ -1937,6 +2077,8 @@ async function render() {
   } catch (error) {
     showError(error.message || "No pudimos cargar la información.");
     $("content").innerHTML = emptyState("No pudimos cargar esta vista.", "Revisa la conexión e inténtalo de nuevo.");
+  } finally {
+    refreshNotifications().catch((error)=>console.warn("NEXO_NOTIFICATIONS",error));
   }
 }
 
@@ -2162,6 +2304,14 @@ document.querySelectorAll(".nav-item").forEach((button) => {
   });
 });
 
+$("notificationButton")?.addEventListener("click",(event)=>{
+  event.stopPropagation();
+  toggleNotificationPanel();
+});
+$("notificationClose")?.addEventListener("click",()=>toggleNotificationPanel(false));
+$("notificationPanel")?.addEventListener("click",(event)=>event.stopPropagation());
+document.addEventListener("click",()=>toggleNotificationPanel(false));
+
 $("menuButton").addEventListener("click", () => document.body.classList.toggle("sidebar-open"));
 
 function repairUiLocks() {
@@ -2207,6 +2357,8 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     closeContactChat();
     document.getElementById("crmModal")?.remove();
+    $("notificationPanel")?.classList.add("hidden");
+    $("notificationButton")?.setAttribute("aria-expanded","false");
     document.body.classList.remove("modal-open");
     document.body.classList.remove("sidebar-open");
   }
