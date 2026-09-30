@@ -23,6 +23,12 @@ begin
   end if;
 end $$;
 
+drop policy if exists "platform admins can insert demo requests" on public.demo_requests;
+create policy "platform admins can insert demo requests"
+on public.demo_requests
+for insert to authenticated
+with check (private.is_platform_admin());
+
 create index if not exists demo_requests_stage_idx on public.demo_requests(stage);
 create index if not exists demo_requests_next_action_idx on public.demo_requests(next_action_at);
 create index if not exists demo_requests_org_idx on public.demo_requests(organization_id);
