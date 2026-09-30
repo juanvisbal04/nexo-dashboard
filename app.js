@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
-import { renderCrm } from "./crm.js?v=20260930-crm19";
+import { renderCrm } from "./crm.js?v=20260930-crm20";
 
 const SUPABASE_URL = "https://ixewnbjndguchunwcuhf.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_vFnLRe9cmnOcyz2Fivprhw_8UjBaRGL";
@@ -22,6 +22,8 @@ const state = {
   notifications: [],
   searchIndex: [],
   settingsOrgId: null,
+  assistantProfiles: {},
+  alertAckKeys: new Set(),
 };
 let realtimeChannel = null;
 let realtimeTimer = null;
@@ -83,6 +85,7 @@ const pageMeta = {
   operations: ["Operaciones", "NEXO OPERATIONS", "Lo que está pasando ahora.", "Conversaciones, oportunidades y agenda que requieren seguimiento."],
   settings: ["Configuración", "NEXO SETTINGS", "Cada negocio, bien configurado.", "Identidad, contacto, asistente, notificaciones y preferencias."],
   audit: ["Audit Log", "NEXO GOVERNANCE", "Cada cambio deja rastro.", "Historial administrativo de configuración, accesos, cobros e integraciones."],
+  profile: ["Mi perfil", "CUENTA NEXO", "Tu perfil, bajo tu control.", "Foto, datos de contacto e información personal de tu acceso."],
   admin: ["Clientes", "NEXO CRM", "Tu cartera de clientes, organizada.", "Empresas, planes, accesos e implementación."],
 };
 
@@ -660,6 +663,12 @@ async function loadOrganizations() {
   if (membershipError) throw membershipError;
   state.orgRoles = Object.fromEntries((memberships || []).map((row) => [row.organization_id, row.role]));
 
+  const { data: assistantRows, error: assistantError } = await supabase
+    .from("assistants")
+    .select("*");
+  if (assistantError) throw assistantError;
+  state.assistantProfiles = Object.fromEntries((assistantRows || []).map((row) => [row.organization_id, row]));
+
   state.commercialStages = {};
   if (state.isAdmin) {
     const { data: commercialRows, error: commercialError } = await supabase
@@ -721,7 +730,7 @@ function updateOrgBadge() {
 async function loadIdentity() {
   const { data: profileData, error: profileError } = await supabase
     .from("profiles")
-    .select("full_name, platform_role")
+    .select("full_name, platform_role, contact_email, phone, job_title, avatar_url, bio")
     .single();
 
   if (profileError && profileError.code !== "PGRST116") throw profileError;
@@ -735,8 +744,139 @@ async function loadIdentity() {
   $("profileName").textContent = displayName;
   $("profileRole").textContent = state.isAdmin ? "Super Admin" : "Cliente NEXO";
   const initials = displayName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase() || "").join("") || "NX";
-  if ($("profileAvatar")) $("profileAvatar").textContent = initials;
+  if ($("profileAvatar")) {
+    $("profileAvatar").innerHTML = state.profile?.avatar_url
+      ? `<img src="${esc(state.profile.avatar_url)}" alt="${esc(displayName)}">`
+      : esc(initials);
+  }
   updateNavigationAccess();
+}
+
+
+function assistantForOrg(orgId = currentOrgId()) {
+  return state.assistantProfiles[orgId] || null;
+}
+
+function initialsFor(value = "NX") {
+  const parts=String(value||"NX").trim().split(/\s+/).filter(Boolean);
+  return (parts.slice(0,2).map((part)=>part[0]?.toUpperCase()||"").join("")||"NX");
+}
+
+function assistantAvatarHtml(assistant, org, className = "assistant-avatar") {
+  const label=assistant?.name || org?.assistant || "Asistente NEXO";
+  if (assistant?.avatar_url) {
+    return `<span class="${className} has-image"><img src="${esc(assistant.avatar_url)}" alt="${esc(label)}"></span>`;
+  }
+  return `<span class="${className}" style="--assistant-color:${esc(org?.color||"#316bff")}">${esc(initialsFor(label))}</span>`;
+}
+
+function assistantProfileCardHtml(orgId = currentOrgId(), { compact = false } = {}) {
+  const org=state.organizations.find((item)=>item.id===orgId);
+  const assistant=assistantForOrg(orgId);
+  if (!org || !assistant) return "";
+  const capabilities=Array.isArray(assistant.capabilities)?assistant.capabilities:[];
+  return `
+    <section class="card assistant-profile-card ${compact?"compact":""}">
+      <div class="assistant-profile-main">
+        ${assistantAvatarHtml(assistant,org,"assistant-profile-avatar")}
+        <div class="assistant-profile-copy">
+          <div class="assistant-profile-label"><span>ASISTENTE VIRTUAL NEXO</span><i class="${assistant.status==="active"?"online":""}"></i>${assistant.status==="active"?"Activo":esc(assistant.status||"—")}</div>
+          <h2>${esc(assistant.name||org.assistant||"Asistente NEXO")}</h2>
+          <b>${esc(assistant.role_label||("Asistente virtual de "+org.name))}</b>
+          <p>${esc(assistant.description||"Asistente configurado para apoyar la atención y operación de este negocio.")}</p>
+        </div>
+      </div>
+      ${compact?"":`
+        <div class="assistant-profile-meta">
+          <div><span>Canal</span><b>${esc(assistant.channel||"WhatsApp")}</b></div>
+          <div><span>Tono</span><b>${esc(assistant.tone||"Configurado por NEXO")}</b></div>
+          <div class="wide"><span>Contexto</span><p>${esc(assistant.context_summary||"Contexto del negocio administrado desde NEXO.")}</p></div>
+        </div>
+        <div class="assistant-capabilities">${capabilities.map((item)=>`<span>${esc(item)}</span>`).join("")}</div>
+        <button class="assistant-settings-link btn small" type="button" data-assistant-settings-org="${orgId}">Ver configuración del asistente</button>
+      `}
+    </section>
+  `;
+}
+
+async function uploadMediaImage(file, folder, ownerId) {
+  if (!file) return null;
+  if (!["image/jpeg","image/png","image/webp"].includes(file.type)) throw new Error("Usa una imagen JPG, PNG o WEBP.");
+  if (file.size > 5 * 1024 * 1024) throw new Error("La imagen debe pesar máximo 5 MB.");
+  const extension=(file.name.split(".").pop()||"jpg").toLowerCase().replace(/[^a-z0-9]/g,"");
+  const path=`${folder}/${ownerId}/avatar-${Date.now()}.${extension}`;
+  const {error}=await supabase.storage.from("nexo-media").upload(path,file,{cacheControl:"3600",upsert:false,contentType:file.type});
+  if(error) throw error;
+  const {data}=supabase.storage.from("nexo-media").getPublicUrl(path);
+  return data.publicUrl;
+}
+
+async function renderProfile() {
+  const profile=state.profile||{};
+  const displayName=profile.full_name||"Usuario NEXO";
+  const loginEmail=state.session?.user?.email||"";
+  $("content").innerHTML=`
+    <div class="profile-page-grid">
+      <section class="card profile-photo-card">
+        <div class="profile-photo-large" id="profilePhotoPreview">
+          ${profile.avatar_url?`<img src="${esc(profile.avatar_url)}" alt="${esc(displayName)}">`:esc(initialsFor(displayName))}
+        </div>
+        <h2>${esc(displayName)}</h2>
+        <p>${esc(profile.job_title || (state.isAdmin?"NEXO Platform Admin":"Cliente NEXO"))}</p>
+        <label class="btn profile-upload-button">
+          Cambiar foto
+          <input id="profilePhotoInput" type="file" accept="image/jpeg,image/png,image/webp" hidden>
+        </label>
+        <small>JPG, PNG o WEBP · máximo 5 MB</small>
+      </section>
+
+      <form id="profileForm" class="card profile-edit-card">
+        <div class="card-head"><div><h2>Información de tu perfil</h2><p>Estos datos pertenecen a tu usuario, no al negocio.</p></div></div>
+        <div class="profile-form-grid">
+          <label>Nombre completo<input id="profileFullName" value="${esc(profile.full_name||"")}" required></label>
+          <label>Correo de acceso<input value="${esc(loginEmail)}" disabled><small>El correo de inicio de sesión se administra desde Auth.</small></label>
+          <label>Correo de contacto<input id="profileContactEmail" type="email" value="${esc(profile.contact_email||loginEmail)}"></label>
+          <label>Teléfono<input id="profilePhone" value="${esc(profile.phone||"")}"></label>
+          <label>Cargo / rol<input id="profileJobTitle" value="${esc(profile.job_title||"")}"></label>
+          <label class="wide">Acerca de ti<textarea id="profileBio" rows="4" placeholder="Una breve descripción de tu rol o responsabilidades.">${esc(profile.bio||"")}</textarea></label>
+        </div>
+        <div class="profile-form-actions"><button class="btn primary" type="submit">Guardar perfil</button></div>
+      </form>
+    </div>
+  `;
+
+  let pendingAvatar=null;
+  $("profilePhotoInput")?.addEventListener("change",(event)=>{
+    const file=event.target.files?.[0];
+    if(!file)return;
+    pendingAvatar=file;
+    const url=URL.createObjectURL(file);
+    $("profilePhotoPreview").innerHTML=`<img src="${url}" alt="Vista previa">`;
+  });
+
+  $("profileForm")?.addEventListener("submit",async(event)=>{
+    event.preventDefault();
+    const button=event.currentTarget.querySelector('button[type="submit"]');
+    button.disabled=true;button.textContent="Guardando…";
+    try{
+      let avatarUrl=profile.avatar_url||null;
+      if(pendingAvatar) avatarUrl=await uploadMediaImage(pendingAvatar,"profiles",state.session.user.id);
+      const payload={
+        full_name:$("profileFullName").value.trim(),
+        contact_email:$("profileContactEmail").value.trim()||null,
+        phone:$("profilePhone").value.trim()||null,
+        job_title:$("profileJobTitle").value.trim()||null,
+        bio:$("profileBio").value.trim()||null,
+        avatar_url:avatarUrl,
+        updated_at:new Date().toISOString(),
+      };
+      const {error}=await supabase.from("profiles").update(payload).eq("id",state.session.user.id);
+      if(error)throw error;
+      showToast("Perfil actualizado.");
+      await loadIdentity();
+      await renderProfile();
+    }catch(error){showError(error.message||"No pudimos actualizar tu perfil.");button.disabled=false;button.textContent="Guardar perfil";}
+  });
 }
 
 function emptyState(title = "Todavía no hay datos reales en esta sección.", detail = "Los registros aparecerán aquí cuando conectemos el negocio.") {
@@ -2687,6 +2827,7 @@ async function render() {
     else if (state.page === "operations") await renderOperations();
     else if (state.page === "settings") await renderSettings();
     else if (state.page === "audit") await renderAudit();
+    else if (state.page === "profile") await renderProfile();
   } catch (error) {
     showError(error.message || "No pudimos cargar la información.");
     $("content").innerHTML = emptyState("No pudimos cargar esta vista.", "Revisa la conexión e inténtalo de nuevo.");
@@ -2880,6 +3021,8 @@ async function performLogout(sourceButton = null) {
     showError(error.message || "No pudimos cerrar la sesión.");
   }
 }
+
+$("profileButton")?.addEventListener("click",()=>{state.page="profile";document.body.classList.remove("sidebar-open");persistUiState();render();});
 
 $("logoutButton")?.addEventListener("click", () => performLogout($("logoutButton")));
 $("logoutTopButton")?.addEventListener("click", () => performLogout($("logoutTopButton")));
