@@ -122,3 +122,18 @@
 .crm-revenue-legend span{display:flex;align-items:center;gap:5px}
 .crm-revenue-legend i{width:8px;height:8px;border-radius:2px}.crm-revenue-legend i.paid{background:#4b8a6b}.crm-revenue-legend i.pending{background:#d4a14a}
 @media(max-width:800px){.crm-revenue-summary{grid-template-columns:1fr 1fr}.crm-revenue-summary>div:nth-child(2){border-right:0}.crm-revenue-summary>div:nth-child(n+3){border-top:1px solid #edf1f5}.crm-revenue-months{grid-template-columns:repeat(6,110px)}}
+/* CRM section navigation */
+.crm-section-nav{
+  position:sticky;top:72px;z-index:18;display:flex;gap:7px;overflow-x:auto;
+  margin:0 0 18px;padding:8px;border:1px solid #e1e7ee;border-radius:11px;
+  background:rgba(255,255,255,.94);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  box-shadow:0 7px 22px rgba(21,45,74,.06);scrollbar-width:none
+}
+.crm-section-nav::-webkit-scrollbar{display:none}
+.crm-section-nav button{
+  border:1px solid transparent;background:transparent;color:#60738b;border-radius:8px;
+  padding:8px 11px;font-size:8px;font-weight:800;white-space:nowrap
+}
+.crm-section-nav button:hover{background:#f2f6fb;color:#315c94;border-color:#e2e9f1}
+#crmPipeline,#crmBilling,#crmRevenue,#crmClients,#crmPlans,#crmActions{scroll-margin-top:126px}
+@media(max-width:720px){.crm-section-nav{top:58px;margin-left:-2px;margin-right:-2px}}
