@@ -38,7 +38,7 @@
 <script>
 const SUPABASE_URL = "https://ixewnbjndguchunwcuhf.supabase.co";
 const KEY = "sb_publishable_vFnLRe9cmnOcyz2Fivprhw_8UjBaRGL";
-const token = new URLSearchParams(location.search).get("token");
+const token = new URLSearchParams(location.hash.slice(1)).get("token") || new URLSearchParams(location.search).get("token");
 const form = document.getElementById("activateForm");
 const message = document.getElementById("message");
 const button = document.getElementById("submit");
