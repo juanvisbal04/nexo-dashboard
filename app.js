@@ -339,7 +339,8 @@ function localHour(value) {
   const hour = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/Bogota", hour: "2-digit", hour12: false,
   }).format(new Date(value));
-  return Number(hour);
+  const numeric = Number(hour);
+  return numeric === 24 ? 0 : numeric;
 }
 
 function localWeekday(value) {
