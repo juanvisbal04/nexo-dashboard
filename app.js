@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
-import { renderCrm } from "./crm.js?v=20260930-crm1";
+import { renderCrm } from "./crm.js?v=20260930-crm2";
 
 const SUPABASE_URL = "https://ixewnbjndguchunwcuhf.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_vFnLRe9cmnOcyz2Fivprhw_8UjBaRGL";
@@ -1221,15 +1221,6 @@ async function renderAdmin() {
     return { org, metrics, health: operationalHealth(metrics) };
   }));
 
-  const { data: demoRequests, error: demoError } = await supabase
-    .from("demo_requests")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(100);
-  if (demoError) throw demoError;
-  const webProspects = demoRequests || [];
-  const newWebProspects = webProspects.filter((row) => row.status === "Nuevo").length;
-
   state.currentRows = rows.map(({ org, metrics, health }) => ({
     organization: org.name,
     status: org.status,
@@ -1280,38 +1271,6 @@ async function renderAdmin() {
       </div>
     </section>
 
-    <section class="card admin-prospects-card">
-      <div class="card-head">
-        <div><h2>Prospectos desde la web</h2><p>Solicitudes de demo recibidas en nexobyjv.online</p></div>
-        <span class="count">${newWebProspects} nuevos</span>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Prospecto</th><th>Negocio</th><th>Sector</th><th>Contacto</th><th>Interés</th><th>Fecha</th><th>Estado</th></tr></thead>
-          <tbody>
-            ${webProspects.length ? webProspects.map((lead) => `
-              <tr>
-                <td><b>${esc(lead.full_name)}</b></td>
-                <td>${esc(lead.business_name)}</td>
-                <td>${esc(lead.industry || "—")}</td>
-                <td>
-                  ${lead.phone ? `<a class="inline-link" href="https://wa.me/${String(lead.phone).replace(/\D/g, "")}" target="_blank" rel="noopener">${esc(lead.phone)}</a>` : ""}
-                  ${lead.email ? `<br><a class="inline-link" href="mailto:${esc(lead.email)}">${esc(lead.email)}</a>` : ""}
-                </td>
-                <td class="prospect-message">${esc(lead.message || "—")}</td>
-                <td>${dateTime(lead.created_at)}</td>
-                <td>
-                  <select class="status-select demo-status" data-id="${lead.id}">
-                    ${["Nuevo","Contactado","Calificado","Demo agendada","Cliente","Cerrado"].map((status) => `<option ${status === lead.status ? "selected" : ""}>${status}</option>`).join("")}
-                  </select>
-                </td>
-              </tr>
-            `).join("") : `<tr><td colspan="7">${emptyState("Todavía no hay solicitudes web.", "Cuando alguien complete la página de demo aparecerá aquí.")}</td></tr>`}
-          </tbody>
-        </table>
-      </div>
-    </section>
-
     <div class="grid-two admin-grid admin-actions-grid">
       <section class="card access-card">
         <div class="card-head"><div><h2>Crear acceso inicial</h2><p>Asigna al propietario o administrador de un cliente</p></div></div>
@@ -1354,21 +1313,6 @@ async function renderAdmin() {
       </section>
     </div>
   `;
-
-  document.querySelectorAll(".demo-status").forEach((select) => {
-    select.addEventListener("change", async () => {
-      select.disabled = true;
-      try {
-        const { error } = await supabase.from("demo_requests").update({ status: select.value, updated_at: new Date().toISOString() }).eq("id", select.dataset.id);
-        if (error) throw error;
-        showToast("Estado del prospecto actualizado.");
-      } catch (err) {
-        showError(err.message || "No pudimos actualizar el prospecto.");
-      } finally {
-        select.disabled = false;
-      }
-    });
-  });
 
   $("clientAccessForm")?.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -1622,6 +1566,8 @@ async function renderTeam() {
 
 async function render() {
   closeContactChat();
+  document.getElementById("crmModal")?.remove();
+  document.body.classList.remove("modal-open");
   document.body.classList.remove("sidebar-open");
   clearError();
   const meta = pageMeta[state.page];
@@ -1841,12 +1787,16 @@ $("menuButton").addEventListener("click", () => document.body.classList.toggle("
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     closeContactChat();
+    document.getElementById("crmModal")?.remove();
+    document.body.classList.remove("modal-open");
     document.body.classList.remove("sidebar-open");
   }
 });
 
 window.addEventListener("pageshow", () => {
   closeContactChat();
+  document.getElementById("crmModal")?.remove();
+  document.body.classList.remove("modal-open");
   document.body.classList.remove("sidebar-open");
 });
 
