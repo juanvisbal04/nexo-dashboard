@@ -141,6 +141,52 @@ function statCard(label, value, detail, accent = false) {
   `;
 }
 
+function trendChip(delta) {
+  if (!delta) return "";
+  const cls = delta.direction === "up" ? "positive" : delta.direction === "down" ? "negative" : "neutral";
+  const arrow = delta.direction === "up" ? "↗" : delta.direction === "down" ? "↘" : "→";
+  return `<span class="trend-chip ${cls}">${arrow} ${esc(delta.label)}</span>`;
+}
+
+function metricCard(label, value, detail, delta = null, accent = false) {
+  return `
+    <section class="card stat-card metric-card ${accent ? "accent" : ""}">
+      <div class="stat-label"><span>${esc(label)}</span>${trendChip(delta)}</div>
+      <div class="stat-value">${esc(value)}</div>
+      <small>${esc(detail)}</small>
+    </section>
+  `;
+}
+
+function activityChart(series) {
+  if (!series?.length) return emptyState("Aún no hay actividad suficiente.", "La tendencia aparecerá cuando existan registros en el período.");
+  const max = Math.max(1, ...series.map((row) => Math.max(row.conversations, row.leads, row.appointments)));
+  return `
+    <div class="activity-chart">
+      ${series.map((row) => `
+        <div class="activity-day" title="${esc(row.date)} · ${row.conversations} conversaciones · ${row.leads} leads · ${row.appointments} citas">
+          <div class="activity-bars">
+            <i class="bar conversations" style="height:${Math.max(4, (row.conversations / max) * 100)}%"></i>
+            <i class="bar leads" style="height:${Math.max(4, (row.leads / max) * 100)}%"></i>
+            <i class="bar appointments" style="height:${Math.max(4, (row.appointments / max) * 100)}%"></i>
+          </div>
+          <span>${esc(row.date.slice(5))}</span>
+        </div>
+      `).join("")}
+    </div>
+    <div class="chart-legend"><span><i class="dot conversations"></i>Conversaciones</span><span><i class="dot leads"></i>Leads</span><span><i class="dot appointments"></i>Citas</span></div>
+  `;
+}
+
+function rankingHtml(items, total) {
+  return items.length ? items.map(([label, value]) => `
+    <div>
+      <div class="metric-line"><span>${esc(label)}</span><b>${value}</b></div>
+      <div class="metric-track"><i style="width:${total ? Math.min(100, (value / total) * 100) : 0}%"></i></div>
+    </div>
+  `).join("") : emptyState();
+}
+
 function periodWindow(days, previous = false) {
   const currentStart = new Date(sinceIso(days));
   const now = new Date();
@@ -407,6 +453,85 @@ async function renderOverview() {
   const m = await getMetrics();
   state.currentRows = m.conversations;
 
+  if (state.isAdmin && isInternalOrg()) {
+    const clients = clientOrganizations();
+    const clientRows = await Promise.all(clients.map(async (org) => ({
+      org,
+      metrics: await getMetrics(org.id, currentDays(), { comparison: false }),
+    })));
+
+    const clientName = (id) => clients.find((org) => org.id === id)?.name || "Cliente NEXO";
+    const attentionRows = m.conversations
+      .filter((row) => row.status === "Requiere atención")
+      .sort((a, b) => String(b.last_message_at).localeCompare(String(a.last_message_at)))
+      .slice(0, 8);
+
+    $("pageTitle").textContent = "NEXO, en una sola vista.";
+    $("pageSubtitle").textContent = "Rendimiento consolidado de todos los clientes activos. Visible solo para Platform Admin.";
+
+    $("content").innerHTML = `
+      <div class="stats-grid">
+        ${metricCard("Clientes activos", clients.length, `${m.activeClientCount} con actividad en el período`, null, true)}
+        ${metricCard("Conversaciones", m.chats, "Todas las organizaciones activas", m.delta?.chats)}
+        ${metricCard("Leads generados", m.leadCount, `${m.leadRate}% de conversaciones`, m.delta?.leads)}
+        ${metricCard("Citas confirmadas", m.confirmed, money(m.value) + " estimados", m.delta?.confirmed)}
+      </div>
+
+      <div class="executive-strip">
+        <div><span>Automatización</span><b>${m.automated}%</b><small>sin intervención humana</small></div>
+        <div><span>Conversión lead → cita</span><b>${m.conversion}%</b><small>${m.leadCount} leads · ${m.confirmed} citas</small></div>
+        <div><span>Respuesta media</span><b>${m.response.toFixed(1)} s</b><small>mediana ${m.medianResponse.toFixed(1)} s</small></div>
+        <div><span>Requieren atención</span><b>${m.attention}</b><small>${m.escalationRate}% de conversaciones</small></div>
+        <div><span>Valor confirmado</span><b>${money(m.value)}</b><small>ticket medio ${money(m.avgTicket)}</small></div>
+      </div>
+
+      <div class="grid-two executive-grid">
+        <section class="card">
+          <div class="card-head"><div><h2>Actividad de la red NEXO</h2><p>Conversaciones, leads y citas por día</p></div></div>
+          <div class="chart-wrap">${activityChart(m.activitySeries)}</div>
+        </section>
+        <section class="card">
+          <div class="card-head"><div><h2>Atención requerida</h2><p>Casos abiertos entre todos los clientes</p></div><span class="count">${m.attention} pendientes</span></div>
+          <div class="rows compact-rows">
+            ${attentionRows.length ? attentionRows.map((row) => `
+              <div class="item-row">
+                <div><strong>${esc(row.name)}</strong><small>${esc(clientName(row.organization_id))} · ${esc(row.service)}</small></div>
+                <div class="muted">${esc(row.source)}</div>
+                <div>${pill(row.status)}</div>
+                <div class="muted">${dateTime(row.last_message_at)}</div>
+              </div>
+            `).join("") : emptyState("Nada requiere atención.", "No hay conversaciones escaladas en este período.")}
+          </div>
+        </section>
+      </div>
+
+      <section class="card">
+        <div class="card-head"><div><h2>Rendimiento por cliente</h2><p>Comparativa operativa de organizaciones activas</p></div></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Cliente</th><th>Asistente</th><th>Conversaciones</th><th>Leads</th><th>Conversión</th><th>Automatización</th><th>Respuesta</th><th>Valor</th><th>Atención</th></tr></thead>
+            <tbody>
+              ${clientRows.map(({ org, metrics }) => `
+                <tr>
+                  <td><b>${esc(org.name)}</b><br><span class="muted">${esc(org.sector)}</span></td>
+                  <td>${esc(org.assistant || "—")}</td>
+                  <td>${metrics.chats}</td>
+                  <td>${metrics.leadCount}</td>
+                  <td><b>${metrics.conversion}%</b></td>
+                  <td>${metrics.automated}%</td>
+                  <td>${metrics.response.toFixed(1)} s</td>
+                  <td>${money(metrics.value)}</td>
+                  <td>${metrics.attention ? `<span class="count">${metrics.attention}</span>` : '<span class="pill green">0</span>'}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    `;
+    return;
+  }
+
   const attentionRows = m.conversations
     .filter((row) => row.status === "Requiere atención")
     .sort((a, b) => String(b.last_message_at).localeCompare(String(a.last_message_at)))
@@ -420,32 +545,26 @@ async function renderOverview() {
 
   $("content").innerHTML = `
     <div class="stats-grid">
-      ${statCard("Conversaciones", m.chats, `${m.automated}% con atención automática`)}
-      ${statCard("Nuevos leads", m.leadCount, "Oportunidades identificadas")}
-      ${statCard("Citas confirmadas", m.confirmed, `${m.requested} solicitudes por confirmar`)}
-      ${statCard("Conversión a cita", m.conversion + "%", "Citas confirmadas / leads", true)}
+      ${metricCard("Conversaciones", m.chats, `${m.messageCount} mensajes registrados`, m.delta?.chats)}
+      ${metricCard("Nuevos leads", m.leadCount, `${m.leadRate}% de captura desde conversación`, m.delta?.leads)}
+      ${metricCard("Citas confirmadas", m.confirmed, `${m.requested} solicitudes pendientes`, m.delta?.confirmed)}
+      ${metricCard("Conversión", m.conversion + "%", "Citas confirmadas / leads", m.delta?.conversion, true)}
+    </div>
+
+    <div class="executive-strip client-strip">
+      <div><span>Automatización</span><b>${m.automated}%</b><small>${m.escalationRate}% escalado</small></div>
+      <div><span>Respuesta media</span><b>${m.response.toFixed(1)} s</b><small>mediana ${m.medianResponse.toFixed(1)} s</small></div>
+      <div><span>Contactos activos</span><b>${m.contactCount}</b><small>${m.messagesPerConversation.toFixed(1)} mensajes / conversación</small></div>
+      <div><span>Valor confirmado</span><b>${money(m.value)}</b><small>ticket medio ${money(m.avgTicket)}</small></div>
     </div>
 
     <div class="grid-two">
       <section class="card">
-        <div class="card-head">
-          <div><h2>Necesitan tu atención</h2><p>Conversaciones transferidas a una persona</p></div>
-          <span class="count">${m.attention} pendientes</span>
-        </div>
-        <div class="rows">
-          ${attentionRows.length ? attentionRows.map((row) => `
-            <div class="item-row">
-              <div><strong>${esc(row.name)}</strong><small>${esc(row.service)}</small></div>
-              <div class="muted">${esc(row.source)}</div>
-              <div>${pill(row.status)}</div>
-              <div class="muted">${dateTime(row.last_message_at)}</div>
-            </div>
-          `).join("") : emptyState("No hay conversaciones pendientes.", "Cuando un asistente necesite intervención humana aparecerá aquí.")}
-        </div>
+        <div class="card-head"><div><h2>Actividad del período</h2><p>Conversaciones, leads y citas registradas</p></div></div>
+        <div class="chart-wrap">${activityChart(m.activitySeries)}</div>
       </section>
-
       <section class="card">
-        <div class="card-head"><div><h2>De conversación a cita</h2><p>Así avanzan tus oportunidades</p></div></div>
+        <div class="card-head"><div><h2>De conversación a cita</h2><p>Embudo operativo</p></div></div>
         <div class="funnel">
           ${funnel.map(([label, value, width]) => `
             <div class="funnel-step">
@@ -454,19 +573,21 @@ async function renderOverview() {
             </div>
           `).join("")}
         </div>
-        <div class="value-box"><span>Valor estimado de citas confirmadas</span><strong>${money(m.value)}</strong></div>
+        <div class="value-box"><span>Valor estimado confirmado</span><strong>${money(m.value)}</strong></div>
       </section>
     </div>
 
     <section class="card">
-      <div class="card-head"><div><h2>Resumen operativo</h2><p>Indicadores del período seleccionado</p></div></div>
+      <div class="card-head"><div><h2>Necesitan tu atención</h2><p>Conversaciones transferidas al equipo</p></div><span class="count">${m.attention} pendientes</span></div>
       <div class="rows">
-        <div class="item-row">
-          <div><strong>Respuesta media</strong><small>Primera respuesta registrada</small></div>
-          <div class="muted">${m.response.toFixed(1)} segundos</div>
-          <div>${pill(m.automated + "% automático")}</div>
-          <div class="muted">${m.recovered} recuperados</div>
-        </div>
+        ${attentionRows.length ? attentionRows.map((row) => `
+          <div class="item-row">
+            <div><strong>${esc(row.name)}</strong><small>${esc(row.service)}</small></div>
+            <div class="muted">${esc(row.source)}</div>
+            <div>${pill(row.status)}</div>
+            <div class="muted">${dateTime(row.last_message_at)}</div>
+          </div>
+        `).join("") : emptyState("No hay conversaciones pendientes.", "Cuando el asistente necesite intervención humana aparecerá aquí.")}
       </div>
     </section>
   `;
@@ -737,58 +858,67 @@ async function renderMetrics() {
   const m = await getMetrics();
   state.currentRows = m.conversations;
 
-  const countBy = (rows, field) => rows.reduce((acc, row) => {
-    const key = row[field] || "Sin clasificar";
-    acc[key] = (acc[key] || 0) + 1;
-    return acc;
-  }, {});
-
-  const services = Object.entries(countBy(m.conversations, "service")).sort((a, b) => b[1] - a[1]).slice(0, 8);
-  const sources = Object.entries(countBy(m.conversations, "source")).sort((a, b) => b[1] - a[1]);
-  const appointmentStatuses = Object.entries(countBy(m.appointments, "status")).sort((a, b) => b[1] - a[1]);
-
-  const ranking = (items, total) => items.length ? items.map(([label, value]) => `
-    <div>
-      <div class="metric-line"><span>${esc(label)}</span><b>${value}</b></div>
-      <div class="metric-track"><i style="width:${total ? Math.min(100, (value / total) * 100) : 0}%"></i></div>
-    </div>
-  `).join("") : emptyState();
+  const services = Object.entries(m.services).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const sources = Object.entries(m.sources).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const appointmentStatuses = Object.entries(m.appointmentStatuses).sort((a, b) => b[1] - a[1]);
+  const leadStages = Object.entries(m.leadStages).sort((a, b) => b[1] - a[1]);
+  const assistantLabel = state.isAdmin && isInternalOrg()
+    ? "red de asistentes"
+    : (currentOrg()?.assistant || "tu asistente");
 
   $("content").innerHTML = `
-    <div class="stats-grid">
-      ${statCard("Conversaciones", m.chats, "Iniciadas en el período")}
-      ${statCard("Leads", m.leadCount, "Registrados en el período")}
-      ${statCard("Automatización", m.automated + "%", "Conversaciones atendidas automáticamente")}
-      ${statCard("Conversión", m.conversion + "%", "Citas confirmadas / leads", true)}
+    <div class="metrics-hero card">
+      <div>
+        <span class="eyebrow">NEXO ANALYTICS · ${currentDays()} DÍAS</span>
+        <h2>Rendimiento de ${esc(assistantLabel)}</h2>
+        <p>Una lectura completa de demanda, conversión, automatización, velocidad y valor.</p>
+      </div>
+      <div class="metric-score">
+        <small>Conversión lead → cita</small>
+        <strong>${m.conversion}%</strong>
+        ${trendChip(m.delta?.conversion)}
+      </div>
     </div>
+
     <div class="stats-grid">
-      ${statCard("Citas confirmadas", m.confirmed, money(m.value) + " estimados")}
-      ${statCard("Canceladas", m.cancelled, "Citas canceladas")}
-      ${statCard("No asistió", m.noShow, "Ausencias registradas")}
-      ${statCard("Recuperados", m.recovered, "Seguimientos recuperados", true)}
+      ${metricCard("Conversaciones", m.chats, `${m.messageCount} mensajes`, m.delta?.chats)}
+      ${metricCard("Leads", m.leadCount, `${m.leadRate}% de captura`, m.delta?.leads)}
+      ${metricCard("Citas confirmadas", m.confirmed, `${m.confirmationRate}% de confirmación`, m.delta?.confirmed)}
+      ${metricCard("Valor confirmado", money(m.value), `Ticket medio ${money(m.avgTicket)}`, m.delta?.value, true)}
     </div>
-    <div class="grid-two">
+
+    <div class="kpi-grid">
+      <section class="card kpi-detail"><span>Automatización</span><b>${m.automated}%</b><small>Conversaciones sin intervención humana</small></section>
+      <section class="card kpi-detail"><span>Escalamiento</span><b>${m.escalationRate}%</b><small>${m.attention} conversaciones requieren atención</small></section>
+      <section class="card kpi-detail"><span>Respuesta media</span><b>${m.response.toFixed(1)} s</b><small>Mediana ${m.medianResponse.toFixed(1)} s</small></section>
+      <section class="card kpi-detail"><span>Mensajes / conversación</span><b>${m.messagesPerConversation.toFixed(1)}</b><small>${m.inboundMessages} mensajes de clientes</small></section>
+      <section class="card kpi-detail"><span>Cancelación</span><b>${m.cancellationRate}%</b><small>${m.cancelled} citas canceladas</small></section>
+      <section class="card kpi-detail"><span>No-show</span><b>${m.noShowRate}%</b><small>${m.noShow} ausencias registradas</small></section>
+      <section class="card kpi-detail"><span>Recuperación</span><b>${m.recoveryRate}%</b><small>${m.recovered} seguimientos recuperados</small></section>
+      <section class="card kpi-detail"><span>Pipeline potencial</span><b>${money(m.pipelineValue)}</b><small>Valor registrado en leads</small></section>
+    </div>
+
+    <section class="card analytics-chart-card">
+      <div class="card-head"><div><h2>Tendencia de actividad</h2><p>Hasta 30 puntos diarios del período seleccionado</p></div></div>
+      <div class="chart-wrap">${activityChart(m.activitySeries)}</div>
+    </section>
+
+    <div class="analytics-grid">
       <section class="card">
-        <div class="card-head"><div><h2>Consultas más frecuentes</h2><p>Servicios preguntados por tus contactos</p></div></div>
-        <div class="metric-list">${ranking(services, m.chats)}</div>
+        <div class="card-head"><div><h2>Servicios consultados</h2><p>Qué genera más conversación</p></div></div>
+        <div class="metric-list">${rankingHtml(services, m.chats)}</div>
       </section>
       <section class="card">
         <div class="card-head"><div><h2>Origen de conversaciones</h2><p>Canales que generan actividad</p></div></div>
-        <div class="metric-list">${ranking(sources, m.chats)}</div>
-      </section>
-    </div>
-    <div class="grid-two">
-      <section class="card">
-        <div class="card-head"><div><h2>Estado de citas</h2><p>Distribución de reservas del período</p></div></div>
-        <div class="metric-list">${ranking(appointmentStatuses, m.appointments.length)}</div>
+        <div class="metric-list">${rankingHtml(sources, m.chats)}</div>
       </section>
       <section class="card">
-        <div class="card-head"><div><h2>Rendimiento de ${esc((state.organizations.find((o) => o.id === currentOrgId()) || {}).assistant || "tu asistente")}</h2><p>Indicadores operativos</p></div></div>
-        <div class="rows">
-          <div class="item-row"><div><strong>Automatización</strong><small>Conversaciones sin intervención humana</small></div><div class="muted">${m.automated}%</div><div></div><div></div></div>
-          <div class="item-row"><div><strong>Respuesta media</strong><small>Promedio registrado</small></div><div class="muted">${m.response.toFixed(1)} s</div><div></div><div></div></div>
-          <div class="item-row"><div><strong>Escalaciones humanas</strong><small>Conversaciones que requirieron atención</small></div><div class="muted">${m.attention}</div><div></div><div></div></div>
-        </div>
+        <div class="card-head"><div><h2>Etapas de leads</h2><p>Distribución del pipeline</p></div></div>
+        <div class="metric-list">${rankingHtml(leadStages, m.leadCount)}</div>
+      </section>
+      <section class="card">
+        <div class="card-head"><div><h2>Estado de citas</h2><p>Distribución de reservas</p></div></div>
+        <div class="metric-list">${rankingHtml(appointmentStatuses, m.appointmentCount)}</div>
       </section>
     </div>
   `;
