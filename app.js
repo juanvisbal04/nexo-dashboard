@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
-import { renderCrm } from "./crm.js?v=20260930-crm20";
+import { renderCrm } from "./crm.js?v=20260930-crm21";
 
 const SUPABASE_URL = "https://ixewnbjndguchunwcuhf.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_vFnLRe9cmnOcyz2Fivprhw_8UjBaRGL";
@@ -261,19 +261,24 @@ function alertCenterHtml(alerts, title = "Centro de alertas") {
   }
   return `
     <section class="card alert-center">
-      <div class="card-head"><div><h2>${esc(title)}</h2><p>Priorizadas por impacto operativo</p></div><span class="count">${alerts.length} alerta${alerts.length === 1 ? "" : "s"}</span></div>
+      <div class="card-head"><div><h2>${esc(title)}</h2><p>Priorizadas por impacto operativo · puedes completar una alerta cuando ya fue revisada</p></div><span class="count">${alerts.length} alerta${alerts.length === 1 ? "" : "s"}</span></div>
       <div class="alert-list">
         ${alerts.slice(0, 8).map((alert) => `
-          <button class="alert-item ${alert.tone}" type="button" data-alert-page="${esc(alert.page || "overview")}">
+          <div class="alert-item ${alert.tone}">
             <i></i>
-            <div><b>${esc(alert.title)}</b><span>${esc(alert.detail)}</span></div>
-            <em>→</em>
-          </button>
+            <div class="alert-item-copy"><b>${esc(alert.title)}</b><span>${esc(alert.detail)}</span></div>
+            <div class="alert-item-actions">
+              <button class="alert-open btn small" type="button" data-alert-page="${esc(alert.page || "overview")}" data-alert-org="${esc(alert.organization_id||"")}">Ver</button>
+              <button class="alert-complete btn small" type="button"
+                data-alert-org="${esc(alert.organization_id||"")}"
+                data-alert-key="${esc(alert.alert_key||"")}"
+                data-alert-type="${esc(alert.alert_type||"operational")}">Completar</button>
+            </div>
+          </div>
         `).join("")}
       </div>
     </section>
   `;
-  bindAlertNavigation();
 }
 
 function demandHeatmap(hourly) {
@@ -311,13 +316,40 @@ function weekdayBars(days) {
 }
 
 function bindAlertNavigation() {
-  document.querySelectorAll("[data-alert-page]").forEach((button) => {
-    button.addEventListener("click", () => {
+  document.querySelectorAll(".alert-open[data-alert-page]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const orgId=button.dataset.alertOrg;
+      if(orgId && state.isAdmin && state.organizations.some((org)=>org.id===orgId) && !isInternalOrg(orgId)) {
+        $("orgSelect").value=orgId;
+        updateNavigationAccess();
+      }
       const page = button.dataset.alertPage || "overview";
       state.page = page;
       document.querySelectorAll(".nav-item").forEach((item) => item.classList.toggle("active", item.dataset.page === page));
       persistUiState();
-      render();
+      await render();
+    });
+  });
+
+  document.querySelectorAll(".alert-complete").forEach((button)=>{
+    button.addEventListener("click",async()=>{
+      const orgId=button.dataset.alertOrg||currentOrgId();
+      const alertKey=button.dataset.alertKey;
+      if(!orgId||!alertKey)return;
+      button.disabled=true;button.textContent="Guardando…";
+      try{
+        const {error}=await supabase.from("alert_acknowledgements").upsert({
+          organization_id:orgId,
+          alert_key:alertKey,
+          alert_type:button.dataset.alertType||"operational",
+          status:"completed",
+          resolved_by:state.session.user.id,
+          resolved_at:new Date().toISOString(),
+        },{onConflict:"organization_id,alert_key"});
+        if(error)throw error;
+        showToast("Alerta completada.");
+        await render();
+      }catch(error){showError(error.message||"No pudimos completar la alerta.");button.disabled=false;button.textContent="Completar";}
     });
   });
 }
@@ -472,42 +504,70 @@ function operationalHealth(metrics) {
   return { score, level, tone, reasons };
 }
 
-function buildOperationalAlerts(metrics, organizationName = "") {
+function buildOperationalAlerts(metrics, organizationName = "", organizationId = currentOrgId()) {
   const alerts = [];
   const prefix = organizationName ? organizationName + " · " : "";
+  const period = currentDays();
+  const pushAlert = (type, payload) => alerts.push({
+    organization_id: organizationId,
+    alert_type: type,
+    alert_key: payload.alert_key,
+    ...payload,
+  });
 
-  if (metrics.attention > 0) alerts.push({
+  if (metrics.attention > 0) pushAlert("attention", {
+    alert_key: `${period}:attention:${metrics.attention}`,
     priority: 3, tone: "risk", title: prefix + "Atención humana pendiente",
     detail: `${metrics.attention} conversación${metrics.attention === 1 ? "" : "es"} requiere${metrics.attention === 1 ? "" : "n"} intervención.`,
     page: "conversations",
   });
-  if (metrics.requested > 0) alerts.push({
+  if (metrics.requested > 0) pushAlert("appointments_pending", {
+    alert_key: `${period}:appointments-pending:${metrics.requested}`,
     priority: 2, tone: "watch", title: prefix + "Citas por confirmar",
     detail: `${metrics.requested} solicitud${metrics.requested === 1 ? "" : "es"} todavía pendiente${metrics.requested === 1 ? "" : "s"}.`,
     page: "appointments",
   });
-  if (metrics.noShow > 0) alerts.push({
+  if (metrics.noShow > 0) pushAlert("no_show", {
+    alert_key: `${period}:no-show:${metrics.noShow}`,
     priority: 2, tone: "watch", title: prefix + "No-show detectado",
     detail: `${metrics.noShow} ausencia${metrics.noShow === 1 ? "" : "s"} registrada${metrics.noShow === 1 ? "" : "s"} en el período.`,
     page: "appointments",
   });
-  if (metrics.cancellationRate >= 20 && metrics.appointmentCount >= 3) alerts.push({
+  if (metrics.cancellationRate >= 20 && metrics.appointmentCount >= 3) pushAlert("cancellation_rate", {
+    alert_key: `${period}:cancel:${metrics.cancelled}:${metrics.appointmentCount}`,
     priority: 2, tone: "watch", title: prefix + "Cancelación elevada",
     detail: `${metrics.cancellationRate}% de las citas registradas están canceladas.`,
-    page: "metrics",
+    page: "appointments",
   });
-  if (metrics.response > 120 && metrics.chats >= 3) alerts.push({
+  if (metrics.response > 120 && metrics.chats >= 3) pushAlert("response_time", {
+    alert_key: `${period}:response:${Math.round(metrics.response)}:${metrics.chats}`,
     priority: 1, tone: "info", title: prefix + "Respuesta más lenta",
     detail: `La respuesta media está en ${metrics.response.toFixed(1)} segundos.`,
-    page: "metrics",
+    page: "conversations",
   });
-  if (!metrics.chats) alerts.push({
+  if (!metrics.chats) pushAlert("inactivity", {
+    alert_key: `${period}:inactive:0`,
     priority: 1, tone: "neutral", title: prefix + "Sin actividad",
     detail: "No hay conversaciones registradas en el período seleccionado.",
     page: "overview",
   });
 
   return alerts.sort((a, b) => b.priority - a.priority);
+}
+
+async function loadAlertAcknowledgements(orgIds) {
+  state.alertAckKeys = new Set();
+  const ids=(orgIds||[]).filter(Boolean);
+  if(!ids.length)return;
+  let request=supabase.from("alert_acknowledgements").select("organization_id,alert_key,status");
+  request=ids.length===1?request.eq("organization_id",ids[0]):request.in("organization_id",ids);
+  const {data,error}=await request;
+  if(error)throw error;
+  state.alertAckKeys=new Set((data||[]).filter((row)=>row.status==="completed"||row.status==="dismissed").map((row)=>`${row.organization_id}:${row.alert_key}`));
+}
+
+function visibleOperationalAlerts(alerts) {
+  return (alerts||[]).filter((alert)=>!state.alertAckKeys.has(`${alert.organization_id}:${alert.alert_key}`));
 }
 
 function busiestLabel(hourly) {
@@ -895,7 +955,7 @@ async function renderOverview() {
         org,
         metrics,
         health: operationalHealth(metrics),
-        alerts: buildOperationalAlerts(metrics, org.name),
+        alerts: buildOperationalAlerts(metrics, org.name, org.id),
       };
     }));
 
@@ -904,7 +964,8 @@ async function renderOverview() {
       .filter((row) => row.status === "Requiere atención")
       .sort((a, b) => String(b.last_message_at).localeCompare(String(a.last_message_at)))
       .slice(0, 8);
-    const networkAlerts = clientRows.flatMap((row) => row.alerts).sort((a, b) => b.priority - a.priority);
+    await loadAlertAcknowledgements(clients.map((org)=>org.id));
+    const networkAlerts = visibleOperationalAlerts(clientRows.flatMap((row) => row.alerts)).sort((a, b) => b.priority - a.priority);
     const stableClients = clientRows.filter((row) => row.health.tone === "good").length;
     const watchClients = clientRows.filter((row) => row.health.tone === "watch").length;
     const riskClients = clientRows.filter((row) => row.health.tone === "risk").length;
@@ -938,7 +999,7 @@ async function renderOverview() {
         <div class="portfolio-health-cards">
           ${clientRows.map(({ org, metrics, health }) => `
             <article class="portfolio-account">
-              <div class="portfolio-account-top"><span class="org-mini" style="--org-color:${esc(org.color || "#316bff")}">${esc(org.initials || "NX")}</span>${healthBadge(health)}</div>
+              <div class="portfolio-account-top">${assistantAvatarHtml(assistantForOrg(org.id),org,"org-mini assistant-mini")}${healthBadge(health)}</div>
               <b>${esc(org.name)}</b>
               <small>${esc(org.assistant || "Asistente")} · ${metrics.chats} conversaciones</small>
               <p>${esc(health.reasons[0])}</p>
@@ -981,6 +1042,12 @@ async function renderOverview() {
       </section>
     `;
     bindAlertNavigation();
+    document.querySelectorAll("[data-assistant-settings-org]").forEach((button)=>button.addEventListener("click",async()=>{
+      state.settingsOrgId=button.dataset.assistantSettingsOrg;
+      state.page="settings";
+      persistUiState();
+      await render();
+    }));
     return;
   }
 
@@ -989,7 +1056,8 @@ async function renderOverview() {
     .sort((a, b) => String(b.last_message_at).localeCompare(String(a.last_message_at)))
     .slice(0, 6);
   const health = operationalHealth(m);
-  const alerts = buildOperationalAlerts(m);
+  await loadAlertAcknowledgements([currentOrgId()]);
+  const alerts = visibleOperationalAlerts(buildOperationalAlerts(m, "", currentOrgId()));
 
   const funnel = [
     ["Conversaciones", m.chats, 100],
@@ -998,6 +1066,7 @@ async function renderOverview() {
   ];
 
   $("content").innerHTML = `
+    ${assistantProfileCardHtml(currentOrgId())}
     <div class="stats-grid">
       ${metricCard("Conversaciones", m.chats, `${m.messageCount} mensajes registrados`, m.delta?.chats)}
       ${metricCard("Nuevos leads", m.leadCount, `${m.leadRate}% de captura desde conversación`, m.delta?.leads)}
@@ -1049,16 +1118,23 @@ async function renderOverview() {
       <div class="card-head"><div><h2>Necesitan tu atención</h2><p>Conversaciones transferidas al equipo</p></div><span class="count">${m.attention} pendientes</span></div>
       <div class="rows">
         ${attentionRows.length ? attentionRows.map((row) => `
-          <div class="item-row">
-            <div><strong>${esc(row.name)}</strong><small>${esc(row.service)}</small></div>
-            <div class="muted">${esc(row.source)}</div>
-            <div>${pill(row.status)}</div>
+          <div class="item-row attention-item-row">
+            <div><strong>${esc(row.name||"Contacto WhatsApp")}</strong><small>${esc(row.service||row.source||"WhatsApp")}</small></div>
             <div class="muted">${dateTime(row.last_message_at)}</div>
+            <div class="attention-row-controls">${attentionActionHtml(row)}</div>
           </div>
         `).join("") : emptyState("No hay conversaciones pendientes.", "Cuando el asistente necesite intervención humana aparecerá aquí.")}
       </div>
     </section>
   `;
+  bindAlertNavigation();
+  bindAttentionActions();
+  document.querySelectorAll("[data-assistant-settings-org]").forEach((button)=>button.addEventListener("click",async()=>{
+    state.settingsOrgId=button.dataset.assistantSettingsOrg;
+    state.page="settings";
+    persistUiState();
+    await render();
+  }));
 }
 
 function filterRows(rows, query) {
@@ -1222,7 +1298,7 @@ async function renderTablePage(type) {
         phoneCell(row),
         esc(row.service),
         esc(row.source),
-        pill(row.status),
+        conversationStatusSelect(row),
         dateTime(row.last_message_at),
         chatAction(row),
       ],
@@ -1302,6 +1378,35 @@ async function renderTablePage(type) {
   $("tableSearch").addEventListener("input", (event) => draw(filterRows(rows, event.target.value)));
 }
 
+function conversationStatusSelect(row) {
+  const statuses=["Activa","Requiere atención","Resuelta","Cerrada"];
+  return `<select class="status-select status-control" data-type="conversations" data-id="${row.id}">${statuses.map((status)=>`<option ${status===row.status?"selected":""}>${status}</option>`).join("")}</select>`;
+}
+
+function attentionActionHtml(row) {
+  return `<div class="attention-actions">
+    ${conversationStatusSelect(row)}
+    <button class="btn small complete-conversation" data-conversation-id="${row.id}" type="button">Resolver</button>
+    ${chatAction(row)}
+  </div>`;
+}
+
+function bindAttentionActions() {
+  bindStatusControls("conversations");
+  bindChatButtons();
+  document.querySelectorAll(".complete-conversation").forEach((button)=>{
+    button.addEventListener("click",async()=>{
+      button.disabled=true;button.textContent="Resolviendo…";
+      try{
+        const {error}=await supabase.from("conversations").update({status:"Resuelta"}).eq("id",button.dataset.conversationId);
+        if(error)throw error;
+        showToast("Conversación marcada como resuelta.");
+        await render();
+      }catch(error){showError(error.message||"No pudimos resolver la conversación.");button.disabled=false;button.textContent="Resolver";}
+    });
+  });
+}
+
 function leadStageSelect(row) {
   const stages = ["Nuevo", "Calificado", "En seguimiento", "Reservado", "Perdido"];
   return `<select class="status-select status-control" data-type="leads" data-id="${row.id}">${stages.map((stage) => `<option ${stage === row.stage ? "selected" : ""}>${stage}</option>`).join("")}</select>`;
@@ -1350,7 +1455,8 @@ async function renderMetrics() {
     ? "red de asistentes"
     : (currentOrg()?.assistant || "tu asistente");
   const health = operationalHealth(m);
-  const alerts = buildOperationalAlerts(m);
+  await loadAlertAcknowledgements(metricOrgIds());
+  const alerts = visibleOperationalAlerts(buildOperationalAlerts(m, "", currentOrgId()));
 
   $("content").innerHTML = `
     <div class="metrics-hero card">
@@ -1658,7 +1764,7 @@ async function renderOperations() {
         ${attention.slice(0,12).map((row)=>`<div class="operations-row">
           <div><b>${esc(row.name||"Conversación")}</b><small>${esc(orgName(row.organization_id))} · ${esc(row.service||row.channel||"WhatsApp")}</small></div>
           <span>${dateTime(row.last_message_at)}</span>
-          <button class="btn small chat-button" data-contact-id="${row.contact_id}" data-org-id="${row.organization_id}" type="button">Ver chat</button>
+          <div class="operations-row-actions">${attentionActionHtml(row)}</div>
         </div>`).join("") || emptyState("Sin handoffs pendientes.","La red de asistentes no tiene conversaciones escaladas ahora mismo.")}
       </div>
     </section>
@@ -1675,7 +1781,7 @@ async function renderOperations() {
       </section>
     </div>
   `;
-  bindChatButtons();
+  bindAttentionActions();
 }
 
 async function renderSettings() {
