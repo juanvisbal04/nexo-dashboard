@@ -349,4 +349,79 @@ async function openCommercialEditor(org, commercial, integrations) {
       organization_id: org.id,
       lifecycle_stage: modal.querySelector("#crmLifecycle").value,
       plan_name: modal.querySelector("#crmPlan").value.trim() || null,
-      mrr: nullableNum
+      mrr: nullableNumber(modal.querySelector("#crmMrr").value),
+      monthly_cost: nullableNumber(modal.querySelector("#crmMonthlyCost").value),
+      setup_fee: nullableNumber(modal.querySelector("#crmSetupFee").value),
+      implementation_cost: nullableNumber(modal.querySelector("#crmImplementationCost").value),
+      contract_start_date: modal.querySelector("#crmStartDate").value || null,
+      go_live_date: modal.querySelector("#crmGoLiveDate").value || null,
+      renewal_date: modal.querySelector("#crmRenewalDate").value || null,
+      billing_status: modal.querySelector("#crmBillingStatus").value,
+      implementation_status: modal.querySelector("#crmImplementationStatus").value,
+      integration_status: modal.querySelector("#crmIntegrationStatus").value,
+      commercial_notes: modal.querySelector("#crmCommercialNotes").value.trim() || null,
+      integration_notes: modal.querySelector("#crmIntegrationNotes").value.trim() || null,
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await C.supabase.from("organization_commercials").upsert(payload, { onConflict: "organization_id" });
+    if (error) return C.showError(error.message);
+    C.showToast("Ficha comercial actualizada.");
+    close();
+    await renderCrm();
+  });
+
+  modal.querySelectorAll(".crm-integration-status").forEach((select) => {
+    select.addEventListener("change", async () => {
+      select.disabled = true;
+      const { error } = await C.supabase.from("crm_integrations").update({
+        status: select.value,
+        updated_at: new Date().toISOString(),
+      }).eq("id", select.dataset.id);
+      select.disabled = false;
+      if (error) C.showError(error.message); else C.showToast("Integración actualizada.");
+    });
+  });
+
+  modal.querySelector("#crmIntegrationForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const { error } = await C.supabase.from("crm_integrations").insert({
+      organization_id: org.id,
+      integration_name: modal.querySelector("#crmIntegrationName").value.trim(),
+      provider: modal.querySelector("#crmIntegrationProvider").value.trim() || null,
+      monthly_cost: nullableNumber(modal.querySelector("#crmIntegrationCost").value),
+      status: "pending",
+    });
+    if (error) return C.showError(error.message);
+    C.showToast("Integración agregada.");
+    close();
+    await renderCrm();
+  });
+}
+
+export async function renderCrm(context) {
+  C = context;
+  if (!C.state.isAdmin) {
+    $("content").innerHTML = C.emptyState("Tu cuenta no tiene acceso al CRM interno.", "Esta vista está reservada para NEXO Platform Admin.");
+    return;
+  }
+
+  const clients = C.clientOrganizations({ activeOnly: false });
+  const [
+    { data: prospects, error: prospectError },
+    { data: commercials, error: commercialError },
+    { data: integrations, error: integrationError },
+    { data: activities, error: activityError },
+  ] = await Promise.all([
+    C.supabase.from("demo_requests").select("*").order("created_at", { ascending: false }).limit(500),
+    C.supabase.from("organization_commercials").select("*"),
+    C.supabase.from("crm_integrations").select("*"),
+    C.supabase.from("crm_activities").select("*").order("created_at", { ascending: false }).limit(500),
+  ]);
+
+  if (prospectError) throw prospectError;
+  if (commercialError) throw commercialError;
+  if (integrationError) throw integrationError;
+  if (activityError) throw activityError;
+
+  const opportunityRows = prospects || [];
+  const commercialRows = com
