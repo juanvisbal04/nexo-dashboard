@@ -1,5 +1,7 @@
 function applyPlanFromUrl(){
-  const planParam=new URLSearchParams(window.location.search).get("plan");
+  const searchPlan=new URLSearchParams(window.location.search).get("plan");
+  const hashPlan=new URLSearchParams(window.location.hash.replace(/^#/,"")).get("plan");
+  const planParam=searchPlan||hashPlan;
   const planSelect=document.getElementById("demoPlan");
   if(planSelect&&["start","growth","pro","custom"].includes(planParam||"")){
     planSelect.value=planParam;
