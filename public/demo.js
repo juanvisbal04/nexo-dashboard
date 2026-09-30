@@ -1,3 +1,7 @@
+const planParam=new URLSearchParams(location.search).get("plan");
+const planSelect=document.getElementById("demoPlan");
+if(planSelect&&["start","growth","pro","custom"].includes(planParam||"")) planSelect.value=planParam;
+
 const form=document.getElementById("demoForm");
 const result=document.getElementById("demoResult");
 const button=document.getElementById("demoSubmit");
@@ -24,6 +28,7 @@ form?.addEventListener("submit",async(event)=>{
         business_name:document.getElementById("demoBusiness").value.trim(),
         phone,email,
         industry:document.getElementById("demoIndustry").value,
+        plan_interest:document.getElementById("demoPlan").value,
         message:document.getElementById("demoMessage").value.trim(),
         website:document.getElementById("demoWebsite").value,
         source:"nexobyjv.online/demo"
