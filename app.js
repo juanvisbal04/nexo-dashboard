@@ -286,14 +286,14 @@ function periodWindow(days, previous = false) {
   return { start: currentStart.toISOString(), end: now.toISOString() };
 }
 
-async function fetchMetricRows(table, orgIds, { start, end, order = "created_at", ascending = false } = {}) {
+async function fetchMetricRows(table, orgIds, { start, end, order = "created_at", ascending = false, timeField = "created_at" } = {}) {
   if (!orgIds.length) return [];
   let request = supabase.from(table).select("*");
   request = orgIds.length === 1
     ? request.eq("organization_id", orgIds[0])
     : request.in("organization_id", orgIds);
-  if (start) request = request.gte("created_at", start);
-  if (end) request = request.lt("created_at", end);
+  if (start) request = request.gte(timeField, start);
+  if (end) request = request.lt(timeField, end);
   request = request.order(order, { ascending }).limit(5000);
   const { data, error } = await request;
   if (error) throw error;
@@ -336,7 +336,7 @@ function buildActivitySeries(conversations, leads, appointments) {
     if (!map.has(key)) map.set(key, { date: key, conversations: 0, leads: 0, appointments: 0 });
     map.get(key)[field] += 1;
   };
-  conversations.forEach((row) => add(row.created_at, "conversations"));
+  conversations.forEach((row) => add(row.last_message_at || row.created_at, "conversations"));
   leads.forEach((row) => add(row.created_at, "leads"));
   appointments.forEach((row) => add(row.created_at, "appointments"));
   return [...map.values()].sort((a, b) => a.date.localeCompare(b.date)).slice(-30);
@@ -361,7 +361,7 @@ function localWeekday(value) {
 function distributionByHour(rows) {
   const counts = Array.from({ length: 24 }, (_, hour) => ({ hour, count: 0 }));
   rows.forEach((row) => {
-    const hour = localHour(row.created_at);
+    const hour = localHour(row.last_message_at || row.created_at);
     if (hour !== null && hour >= 0 && hour < 24) counts[hour].count += 1;
   });
   return counts;
@@ -371,7 +371,7 @@ function distributionByWeekday(rows) {
   const order = ["lun", "mar", "mié", "jue", "vie", "sáb", "dom"];
   const map = Object.fromEntries(order.map((day) => [day, 0]));
   rows.forEach((row) => {
-    const day = localWeekday(row.created_at);
+    const day = localWeekday(row.last_message_at || row.created_at);
     if (day in map) map[day] += 1;
   });
   return order.map((day) => ({ day, count: map[day] || 0 }));
@@ -551,7 +551,7 @@ async function getMetrics(orgId = currentOrgId(), days = currentDays(), { compar
   const orgIds = metricOrgIds(orgId);
   const current = periodWindow(days, false);
   const [conversations, leads, appointments, followups, messages] = await Promise.all([
-    fetchMetricRows("conversations", orgIds, current),
+    fetchMetricRows("conversations", orgIds, { ...current, order: "last_message_at", timeField: "last_message_at" }),
     fetchMetricRows("leads", orgIds, current),
     fetchMetricRows("appointments", orgIds, current),
     fetchMetricRows("followups", orgIds, current),
@@ -563,7 +563,7 @@ async function getMetrics(orgId = currentOrgId(), days = currentDays(), { compar
 
   const previousWindow = periodWindow(days, true);
   const [prevConversations, prevLeads, prevAppointments, prevFollowups, prevMessages] = await Promise.all([
-    fetchMetricRows("conversations", orgIds, previousWindow),
+    fetchMetricRows("conversations", orgIds, { ...previousWindow, order: "last_message_at", timeField: "last_message_at" }),
     fetchMetricRows("leads", orgIds, previousWindow),
     fetchMetricRows("appointments", orgIds, previousWindow),
     fetchMetricRows("followups", orgIds, previousWindow),
@@ -886,7 +886,8 @@ async function fetchDetailedRows(type) {
   request = orgIds.length === 1
     ? request.eq("organization_id", orgIds[0])
     : request.in("organization_id", orgIds);
-  request = request.gte("created_at", since).order(order, { ascending }).limit(5000);
+  const timeField = type === "conversations" ? "last_message_at" : "created_at";
+  request = request.gte(timeField, since).order(order, { ascending }).limit(5000);
 
   const { data, error } = await request;
   if (error) throw error;
