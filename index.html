@@ -6,6 +6,12 @@
   <meta name="robots" content="noindex,nofollow" />
   <meta name="theme-color" content="#111d35" />
   <title>NEXO Dashboard</title>
+  <script>
+    (function(){
+      var token = new URLSearchParams(window.location.search).get("setup");
+      if (token) window.location.replace("/activate.html?token=" + encodeURIComponent(token));
+    })();
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
