@@ -5,7 +5,7 @@
   --orange:#ad6439;--orangebg:#fff0e6;
 }
 *{box-sizing:border-box}
-html,body{margin:0;min-height:100%;font-family:"DM Sans",system-ui,sans-serif;background:var(--surface);color:var(--ink)}
+html,body{margin:0;min-height:100%;font-family:"DM Sans",system-ui,sans-serif;background:var(--surface);color:var(--ink)}\nhtml{overflow-x:clip}body{overflow-x:clip;touch-action:pan-y;-webkit-overflow-scrolling:touch}
 button,input,select{font:inherit}button,select{cursor:pointer}button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #80a8ff;outline-offset:2px}
 .hidden{display:none!important}
 h1,h2,h3,p{margin:0}
@@ -173,7 +173,7 @@ footer b{color:#77869c}footer b span{color:#4b82f2}
 .bubble small{display:block;font-size:9px;font-weight:800;letter-spacing:.5px;opacity:.65;margin-bottom:5px;text-transform:uppercase}
 .bubble p{font-size:13px;line-height:1.5;white-space:pre-wrap;word-break:break-word}
 .bubble time{display:block;font-size:9px;opacity:.55;margin-top:7px;text-align:right}
-.modal-open{overflow:hidden}
+body.modal-open{overflow:hidden;touch-action:none}
 
 .admin-grid{align-items:start}
 .access-card{overflow:visible}
@@ -340,3 +340,8 @@ footer b{color:#77869c}footer b span{color:#4b82f2}
   .demand-grid{grid-template-columns:1fr 1fr}
   .client-strip{grid-template-columns:1fr}
 }
+
+@supports not (overflow:clip){
+  html,body{overflow-x:hidden}
+}
+.chat-body{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
