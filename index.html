@@ -15,8 +15,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=20260930-crm13" />
-  <link rel="stylesheet" href="./crm.css?v=20260930-crm13" />
+  <link rel="stylesheet" href="./styles.css?v=20260930-crm14" />
+  <link rel="stylesheet" href="./crm.css?v=20260930-crm14" />
 </head>
 <body>
   <div id="loginView" class="login-screen">
@@ -111,6 +111,10 @@
             <span id="orgBadge" class="org-badge">NX</span>
             <select id="orgSelect" aria-label="Empresa"></select>
           </div>
+          <button id="notificationButton" class="notification-button" type="button" aria-label="Centro de atención" aria-expanded="false">
+            <span class="notification-icon">◎</span>
+            <span id="notificationBadge" class="notification-badge hidden">0</span>
+          </button>
           <span id="topEmail" class="top-email"></span>
           <button id="logoutTopButton" class="top-logout-button" type="button" aria-label="Cerrar sesión">Cerrar sesión</button>
         </div>
@@ -158,8 +162,15 @@
     <button class="nav-item mobile-nav-item" data-page="metrics"><span>◇</span><small>Métricas</small></button>
   </nav>
 
+  <aside id="notificationPanel" class="notification-panel hidden" aria-label="Centro de atención">
+    <div class="notification-panel-head">
+      <div><span class="eyebrow">NEXO LIVE</span><h2>Centro de atención</h2><p>Lo que merece revisión ahora.</p></div>
+      <button id="notificationClose" type="button" aria-label="Cerrar">×</button>
+    </div>
+    <div id="notificationList" class="notification-list"></div>
+  </aside>
   <div id="toast" class="toast hidden"></div>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-  <script type="module" src="./app.js?v=20260930-crm13"></script>
+  <script type="module" src="./app.js?v=20260930-crm14"></script>
 </body>
 </html>
