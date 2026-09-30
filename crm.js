@@ -694,6 +694,7 @@ export async function renderCrm(context) {
         <input id="crmInvoiceAmount" type="number" min="0" step="1000" placeholder="Valor COP" required>
         <input id="crmInvoiceDue" type="date" required>
         <input id="crmInvoiceReference" placeholder="Referencia / concepto">
+        <label class="crm-invoice-email-toggle"><input id="crmInvoiceSendEmail" type="checkbox" checked><span>Enviar por correo</span></label>
         <button class="btn primary" type="submit">Crear cobro</button>
       </form>
       <div class="table-wrap crm-billing-table">
@@ -709,7 +710,9 @@ export async function renderCrm(context) {
                 ? "Enviado"
                 : row.email_status === "failed"
                   ? "Error"
-                  : billingEmail ? "Pendiente" : "Sin correo";
+                  : row.email_status === "disabled"
+                    ? "No enviado"
+                    : billingEmail ? "Pendiente" : "Sin correo";
               return `<tr>
                 <td><b>${esc(row.invoice_number || "—")}</b></td>
                 <td><b>${esc(org?.name || "Cliente")}</b><br><span class="muted">${esc(billingEmail || "Sin correo de facturación")}</span></td>
@@ -881,7 +884,7 @@ export async function renderCrm(context) {
         due_date: $("crmInvoiceDue").value,
         reference: $("crmInvoiceReference").value.trim() || null,
         status: "pending",
-        email_status: "pending",
+        email_status: $("crmInvoiceSendEmail").checked ? "pending" : "disabled",
       });
       if (error) throw error;
       C.showToast("Cobro creado y puesto en cola de correo.");
