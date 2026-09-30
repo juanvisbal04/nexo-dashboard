@@ -80,8 +80,10 @@ async function refreshCrmView({ preserveScroll = true } = {}) {
   document.getElementById("crmModal")?.remove();
   document.body.classList.remove("modal-open");
   document.body.classList.remove("sidebar-open");
+  C.persistUiState?.();
   try {
-    await renderCrm(C);
+    if (typeof C.renderApp === "function") await C.renderApp();
+    else await renderCrm(C);
   } finally {
     document.getElementById("crmModal")?.remove();
     document.body.classList.remove("modal-open");
@@ -89,8 +91,10 @@ async function refreshCrmView({ preserveScroll = true } = {}) {
   }
   if (preserveScroll) {
     requestAnimationFrame(() => {
-      const maxY = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
-      window.scrollTo({ left: x, top: Math.min(y, maxY), behavior: "auto" });
+      requestAnimationFrame(() => {
+        const maxY = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+        window.scrollTo({ left: x, top: Math.min(y, maxY), behavior: "auto" });
+      });
     });
   }
 }
