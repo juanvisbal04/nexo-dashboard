@@ -774,3 +774,14 @@ body.modal-open{overflow:hidden;touch-action:none}
   .top-email{display:none}
   .top-logout-button{padding:7px 9px;font-size:8px}
 }
+
+/* Client billing portal */
+.billing-portal-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px}
+.billing-portal-card{margin-bottom:20px}
+.billing-portal-card .muted{font-size:8px;color:#91a0b1}
+.billing-pdf-button{white-space:nowrap}
+.billing-portal-note{margin:0 18px 18px;padding:14px 15px;border:1px solid #e3e9f0;background:#f8fafc;border-radius:10px;color:#677991}
+.billing-portal-note b{display:block;font-size:10px;color:#324d6a}
+.billing-portal-note p{margin:4px 0 0;font-size:8px;line-height:1.5}
+@media(max-width:900px){.billing-portal-kpis{grid-template-columns:1fr 1fr}}
+@media(max-width:560px){.billing-portal-kpis{grid-template-columns:1fr}}
