@@ -586,6 +586,24 @@ export async function renderCrm(context) {
       const renewal = new Date(row.renewal_date + "T23:59:59").getTime();
       return renewal >= Date.now() && renewal <= Date.now() + 30 * 86400000;
     });
+  const monthBuckets = Array.from({ length: 6 }, (_, index) => {
+    const d = new Date(today.getFullYear(), today.getMonth() - (5 - index), 1);
+    const key = d.toISOString().slice(0, 7);
+    const label = new Intl.DateTimeFormat("es-CO", { month: "short", year: "2-digit" }).format(d);
+    return { key, label, billed: 0, paid: 0, pending: 0 };
+  });
+  const bucketMap = new Map(monthBuckets.map((row) => [row.key, row]));
+  invoiceRows.filter((row) => row.invoice_type === "monthly").forEach((row) => {
+    const period = String(row.billing_period_start || row.due_date || "").slice(0, 7);
+    const bucket = bucketMap.get(period);
+    if (!bucket) return;
+    const amount = Number(row.amount_cop || 0);
+    bucket.billed += amount;
+    if (row.status === "paid") bucket.paid += amount;
+    else if (row.status === "pending" || row.status === "overdue") bucket.pending += amount;
+  });
+  const currentMonthBucket = monthBuckets[monthBuckets.length - 1] || { billed: 0, paid: 0, pending: 0 };
+  const collectionRate = currentMonthBucket.billed ? Math.round((currentMonthBucket.paid / currentMonthBucket.billed) * 100) : 0;
   const pipelineStages = new Set(["prospecto", "demo", "propuesta"]);
   const pipelineMrr = opportunityRows
     .filter((row) => pipelineStages.has(row.stage))
@@ -725,6 +743,7 @@ export async function renderCrm(context) {
                 <td>${esc(row.reference || "—")}</td>
                 <td class="crm-invoice-actions">
                   ${derived==="pending"||derived==="overdue" ? `<button class="crm-invoice-paid btn small" data-id="${row.id}" type="button">Marcar pagado</button>` : ""}
+                  ${C.downloadInvoicePdf ? `<button class="crm-invoice-pdf btn small" data-id="${row.id}" type="button">PDF</button>` : ""}
                   ${billingEmail ? `<button class="crm-invoice-email btn small" data-id="${row.id}" type="button">${row.email_status==="sent"?"Reenviar":"Enviar correo"}</button>` : ""}
                 </td>
               </tr>`;
@@ -732,6 +751,36 @@ export async function renderCrm(context) {
           </tbody>
         </table>
       </div>
+    </section>
+
+    <section class="card crm-revenue-card">
+      <div class="card-head">
+        <div><h2>Ingresos mensuales</h2><p>MRR facturado, cobrado y pendiente durante los últimos 6 meses</p></div>
+        <span class="count">${collectionRate}% cobrado este mes</span>
+      </div>
+      <div class="crm-revenue-summary">
+        <div><span>MRR facturado</span><b>${money(currentMonthBucket.billed)}</b></div>
+        <div><span>MRR cobrado</span><b>${money(currentMonthBucket.paid)}</b></div>
+        <div><span>MRR pendiente</span><b>${money(currentMonthBucket.pending)}</b></div>
+        <div><span>Tasa de recaudo</span><b>${collectionRate}%</b></div>
+      </div>
+      <div class="crm-revenue-months">
+        ${monthBuckets.map((row)=>{
+          const max=Math.max(1,row.billed,row.paid,row.pending);
+          const paidPct=Math.round((row.paid/max)*100);
+          const pendingPct=Math.round((row.pending/max)*100);
+          return `<article class="crm-revenue-month">
+            <span>${esc(row.label)}</span>
+            <div class="crm-revenue-bars">
+              <i class="paid" style="height:${Math.max(row.paid?5:0,paidPct)}%" title="Cobrado ${money(row.paid)}"></i>
+              <i class="pending" style="height:${Math.max(row.pending?5:0,pendingPct)}%" title="Pendiente ${money(row.pending)}"></i>
+            </div>
+            <b>${money(row.billed)}</b>
+            <small>${money(row.paid)} cobrado</small>
+          </article>`;
+        }).join("")}
+      </div>
+      <div class="crm-revenue-legend"><span><i class="paid"></i>Cobrado</span><span><i class="pending"></i>Pendiente</span></div>
     </section>
 
     <section class="card crm-pipeline-card">
@@ -895,6 +944,14 @@ export async function renderCrm(context) {
       button.disabled = false;
       button.textContent = "Crear cobro";
     }
+  });
+
+  document.querySelectorAll(".crm-invoice-pdf").forEach((button) => {
+    button.addEventListener("click", () => {
+      const invoice = invoiceRows.find((row) => row.id === button.dataset.id);
+      const org = clients.find((item) => item.id === invoice?.organization_id);
+      if (invoice && C.downloadInvoicePdf) C.downloadInvoicePdf(invoice, org?.name || "Cliente NEXO");
+    });
   });
 
   document.querySelectorAll(".crm-invoice-email").forEach((button) => {
