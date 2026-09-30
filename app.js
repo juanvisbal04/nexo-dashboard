@@ -573,7 +573,7 @@ async function renderMetrics() {
         <div class="metric-list">${ranking(appointmentStatuses, m.appointments.length)}</div>
       </section>
       <section class="card">
-        <div class="card-head"><div><h2>Rendimiento de Lía</h2><p>Indicadores operativos</p></div></div>
+        <div class="card-head"><div><h2>Rendimiento de ${esc((state.organizations.find((o) => o.id === currentOrgId()) || {}).assistant || "tu asistente")}</h2><p>Indicadores operativos</p></div></div>
         <div class="rows">
           <div class="item-row"><div><strong>Automatización</strong><small>Conversaciones sin intervención humana</small></div><div class="muted">${m.automated}%</div><div></div><div></div></div>
           <div class="item-row"><div><strong>Respuesta media</strong><small>Promedio registrado</small></div><div class="muted">${m.response.toFixed(1)} s</div><div></div><div></div></div>
@@ -609,29 +609,108 @@ async function renderAdmin() {
       ${statCard("Leads", totalLeads, "Oportunidades")}
       ${statCard("Citas confirmadas", totalAppointments, "Total del período", true)}
     </div>
-    <section class="card">
-      <div class="card-head"><div><h2>Negocios en NEXO</h2><p>Vista del administrador de plataforma</p></div></div>
-      ${rows.length ? `
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Negocio</th><th>Asistente</th><th>Conversaciones</th><th>Leads</th><th>Citas</th><th>Pendientes</th></tr></thead>
-            <tbody>
-              ${rows.map(({ org, metrics }) => `
-                <tr>
-                  <td><b>${esc(org.name)}</b><br><span class="muted">${esc(org.sector)}</span></td>
-                  <td>${esc(org.assistant)}</td>
-                  <td>${metrics.chats}</td>
-                  <td>${metrics.leadCount}</td>
-                  <td>${metrics.confirmed}</td>
-                  <td>${metrics.attention}</td>
-                </tr>
-              `).join("")}
-            </tbody>
-          </table>
-        </div>
-      ` : emptyState("No hay negocios creados.", "Cuando agreguemos clientes aparecerán aquí.")}
-    </section>
+
+    <div class="grid-two admin-grid">
+      <section class="card">
+        <div class="card-head"><div><h2>Negocios en NEXO</h2><p>Vista del administrador de plataforma</p></div></div>
+        ${rows.length ? `
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Negocio</th><th>Asistente</th><th>Conversaciones</th><th>Leads</th><th>Citas</th><th>Pendientes</th></tr></thead>
+              <tbody>
+                ${rows.map(({ org, metrics }) => `
+                  <tr>
+                    <td><b>${esc(org.name)}</b><br><span class="muted">${esc(org.sector)}</span></td>
+                    <td>${esc(org.assistant)}</td>
+                    <td>${metrics.chats}</td>
+                    <td>${metrics.leadCount}</td>
+                    <td>${metrics.confirmed}</td>
+                    <td>${metrics.attention}</td>
+                  </tr>
+                `).join("")}
+              </tbody>
+            </table>
+          </div>
+        ` : emptyState("No hay negocios creados.", "Cuando agreguemos clientes aparecerán aquí.")}
+      </section>
+
+      <section class="card access-card">
+        <div class="card-head"><div><h2>Crear acceso de cliente</h2><p>Genera un enlace privado sin depender de correos de Supabase</p></div></div>
+        <form id="clientAccessForm" class="admin-form">
+          <label>Nombre</label>
+          <input id="clientName" type="text" placeholder="Ej. Isabel Gómez" required />
+          <label>Correo</label>
+          <input id="clientEmail" type="email" placeholder="cliente@correo.com" required />
+          <label>Empresa</label>
+          <select id="clientOrg" required>
+            ${state.organizations.filter(o => o.name !== "NEXO Internal").map(o => `<option value="${o.id}">${esc(o.name)}</option>`).join("")}
+          </select>
+          <label>Rol</label>
+          <select id="clientRole">
+            <option value="owner">Propietario</option>
+            <option value="admin">Administrador</option>
+            <option value="viewer">Solo lectura</option>
+          </select>
+          <button id="createClientAccess" class="btn primary" type="submit">Generar acceso</button>
+        </form>
+        <div id="clientAccessResult" class="access-result hidden"></div>
+      </section>
+    </div>
   `;
+
+  $("clientAccessForm")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const button = $("createClientAccess");
+    const resultBox = $("clientAccessResult");
+    resultBox.className = "access-result hidden";
+    button.disabled = true;
+    button.textContent = "Creando…";
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-client-access", {
+        body: {
+          full_name: $("clientName").value.trim(),
+          email: $("clientEmail").value.trim(),
+          organization_id: $("clientOrg").value,
+          role: $("clientRole").value,
+        },
+      });
+      if (error) throw error;
+      if (!data?.ok) throw new Error(data?.error || "No pudimos crear el acceso.");
+
+      if (data.existing_user) {
+        resultBox.innerHTML = `
+          <strong>Acceso agregado</strong>
+          <p>${esc(data.email)} ya tenía una cuenta NEXO. Se le agregó acceso a <b>${esc(data.organization_name)}</b> sin cambiar su contraseña.</p>
+        `;
+      } else {
+        resultBox.innerHTML = `
+          <strong>Enlace de activación listo</strong>
+          <p>Envíaselo a <b>${esc(data.email)}</b>. Vence en 48 horas.</p>
+          <div class="setup-link-row">
+            <input id="generatedSetupLink" value="${esc(data.setup_url)}" readonly />
+            <button id="copySetupLink" class="btn small" type="button">Copiar</button>
+          </div>
+        `;
+        $("copySetupLink").addEventListener("click", async () => {
+          try {
+            await navigator.clipboard.writeText(data.setup_url);
+            showToast("Enlace copiado.");
+          } catch {
+            $("generatedSetupLink").select();
+            document.execCommand("copy");
+            showToast("Enlace copiado.");
+          }
+        });
+      }
+      resultBox.className = "access-result ok";
+    } catch (error) {
+      resultBox.innerHTML = `<strong>No pudimos crear el acceso</strong><p>${esc(error.message || "Inténtalo de nuevo.")}</p>`;
+      resultBox.className = "access-result error";
+    } finally {
+      button.disabled = false;
+      button.textContent = "Generar acceso";
+    }
+  });
 }
 
 async function render() {
@@ -677,6 +756,68 @@ function exportCsv() {
   URL.revokeObjectURL(url);
 }
 
+function renderSetupActivation(token) {
+  const card = document.querySelector(".login-card");
+  card.innerHTML = `
+    <div class="logo-wrap">
+      <div class="logo-word">NE<span>X</span>O</div>
+      <div class="logo-by">by Juan Visbal</div>
+    </div>
+    <div class="login-copy">
+      <span class="eyebrow">ACTIVAR ACCESO</span>
+      <h1>Crea tu contraseña.</h1>
+      <p>Este enlace es privado y de un solo uso. Tu contraseña no será visible para NEXO ni para ChatGPT.</p>
+    </div>
+    <form id="setupForm">
+      <label>Nueva contraseña</label>
+      <input id="setupPassword" type="password" minlength="10" autocomplete="new-password" required placeholder="Mínimo 10 caracteres" />
+      <label>Confirmar contraseña</label>
+      <input id="setupConfirm" type="password" minlength="10" autocomplete="new-password" required placeholder="Repite la contraseña" />
+      <button id="setupSubmit" class="btn primary" type="submit">Activar mi acceso</button>
+    </form>
+    <div id="setupMessage" class="message hidden"></div>
+    <p class="security-note">Enlace válido por 48 horas y utilizable una sola vez.</p>
+  `;
+
+  $("setupForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const password = $("setupPassword").value;
+    const confirm = $("setupConfirm").value;
+    const msg = $("setupMessage");
+    msg.className = "message hidden";
+    if (password !== confirm) {
+      msg.textContent = "Las contraseñas no coinciden.";
+      msg.className = "message error";
+      return;
+    }
+    const button = $("setupSubmit");
+    button.disabled = true;
+    button.textContent = "Activando…";
+    try {
+      const response = await fetch(SUPABASE_URL + "/functions/v1/activate-client-access", {
+        method: "POST",
+        headers: { "content-type": "application/json", "apikey": SUPABASE_PUBLISHABLE_KEY },
+        body: JSON.stringify({ token, password }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "No pudimos activar el acceso.");
+      msg.textContent = "Acceso activado. Ya puedes iniciar sesión con tu correo y esta contraseña.";
+      msg.className = "message ok";
+      button.textContent = "Ir al login";
+      button.disabled = false;
+      button.type = "button";
+      button.onclick = () => { window.location.href = window.location.origin; };
+      $("setupPassword").disabled = true;
+      $("setupConfirm").disabled = true;
+    } catch (error) {
+      msg.textContent = error.message || "No pudimos activar el acceso.";
+      msg.className = "message error";
+      button.disabled = false;
+      button.textContent = "Activar mi acceso";
+    }
+  });
+}
+
 async function enterApp(session) {
   state.session = session;
   $("loginView").classList.add("hidden");
@@ -688,6 +829,14 @@ async function enterApp(session) {
 }
 
 async function boot() {
+  const setupToken = new URLSearchParams(window.location.search).get("setup");
+  if (setupToken) {
+    $("loginView").classList.remove("hidden");
+    $("appView").classList.add("hidden");
+    renderSetupActivation(setupToken);
+    return;
+  }
+
   const { data: { session } } = await supabase.auth.getSession();
   if (session) {
     await enterApp(session);
