@@ -141,48 +141,194 @@ function statCard(label, value, detail, accent = false) {
   `;
 }
 
-async function fetchRows(table, { orgId = currentOrgId(), days = currentDays(), order = "created_at", ascending = false, allTime = false } = {}) {
+function periodWindow(days, previous = false) {
+  const currentStart = new Date(sinceIso(days));
+  const now = new Date();
+  const duration = Math.max(1, now.getTime() - currentStart.getTime());
+  if (previous) {
+    return {
+      start: new Date(currentStart.getTime() - duration).toISOString(),
+      end: currentStart.toISOString(),
+    };
+  }
+  return { start: currentStart.toISOString(), end: now.toISOString() };
+}
+
+async function fetchMetricRows(table, orgIds, { start, end, order = "created_at", ascending = false } = {}) {
+  if (!orgIds.length) return [];
   let request = supabase.from(table).select("*");
-  if (orgId) request = request.eq("organization_id", orgId);
-  if (!allTime) request = request.gte("created_at", sinceIso(days));
-  request = request.order(order, { ascending }).limit(1000);
+  request = orgIds.length === 1
+    ? request.eq("organization_id", orgIds[0])
+    : request.in("organization_id", orgIds);
+  if (start) request = request.gte("created_at", start);
+  if (end) request = request.lt("created_at", end);
+  request = request.order(order, { ascending }).limit(5000);
   const { data, error } = await request;
   if (error) throw error;
   return data || [];
 }
 
-async function getMetrics(orgId = currentOrgId(), days = currentDays()) {
-  if (!orgId) return {
-    conversations: [], leads: [], appointments: [], followups: [],
-    chats: 0, leadCount: 0, confirmed: 0, requested: 0, attention: 0,
-    conversion: 0, automated: 0, response: 0, value: 0, recovered: 0, cancelled: 0, noShow: 0,
+function percent(value, total) {
+  return total ? Math.round((Number(value || 0) / Number(total)) * 100) : 0;
+}
+
+function median(values) {
+  const nums = values.map(Number).filter((value) => Number.isFinite(value) && value >= 0).sort((a, b) => a - b);
+  if (!nums.length) return 0;
+  const middle = Math.floor(nums.length / 2);
+  return nums.length % 2 ? nums[middle] : (nums[middle - 1] + nums[middle]) / 2;
+}
+
+function countBy(rows, field) {
+  return rows.reduce((acc, row) => {
+    const key = row[field] || "Sin clasificar";
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+}
+
+function localDateKey(value) {
+  if (!value) return null;
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Bogota", year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(new Date(value));
+  const map = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${map.year}-${map.month}-${map.day}`;
+}
+
+function buildActivitySeries(conversations, leads, appointments) {
+  const map = new Map();
+  const add = (date, field) => {
+    const key = localDateKey(date);
+    if (!key) return;
+    if (!map.has(key)) map.set(key, { date: key, conversations: 0, leads: 0, appointments: 0 });
+    map.get(key)[field] += 1;
   };
+  conversations.forEach((row) => add(row.created_at, "conversations"));
+  leads.forEach((row) => add(row.created_at, "leads"));
+  appointments.forEach((row) => add(row.created_at, "appointments"));
+  return [...map.values()].sort((a, b) => a.date.localeCompare(b.date)).slice(-30);
+}
 
-  const [conversations, leads, appointments, followups] = await Promise.all([
-    fetchRows("conversations", { orgId, days }),
-    fetchRows("leads", { orgId, days }),
-    fetchRows("appointments", { orgId, days }),
-    fetchRows("followups", { orgId, days }),
-  ]);
-
-  const confirmedRows = appointments.filter((row) => row.status === "Confirmada");
+function summarizeMetricRows({ conversations, leads, appointments, followups, messages, orgIds }) {
+  const confirmedRows = appointments.filter((row) => ["Confirmada", "Completada"].includes(row.status));
+  const requestedRows = appointments.filter((row) => row.status === "Solicitada");
+  const cancelledRows = appointments.filter((row) => row.status === "Cancelada");
+  const noShowRows = appointments.filter((row) => row.status === "No asistió");
+  const recoveredRows = followups.filter((row) => row.status === "Recuperado");
+  const responseValues = conversations.map((row) => Number(row.response_seconds || 0)).filter((value) => value > 0);
   const chats = conversations.length;
   const leadCount = leads.length;
+  const appointmentCount = appointments.length;
+  const contactCount = new Set(conversations.map((row) => row.contact_id).filter(Boolean)).size;
+  const activeOrgIds = new Set(
+    [...conversations, ...leads, ...appointments, ...followups]
+      .map((row) => row.organization_id).filter(Boolean)
+  );
+  const messageCount = messages.length;
+  const inboundMessages = messages.filter((row) => row.sender === "contact").length;
+  const humanMessages = messages.filter((row) => row.sender === "human").length;
+  const assistantMessages = messages.filter((row) => !["contact", "human", "system"].includes(row.sender)).length;
+  const estimatedValue = confirmedRows.reduce((sum, row) => sum + Number(row.value || 0), 0);
+  const pipelineValue = leads.reduce((sum, row) => sum + Number(row.value || 0), 0);
+  const avgResponse = responseValues.length ? responseValues.reduce((a, b) => a + b, 0) / responseValues.length : 0;
+
   return {
-    conversations, leads, appointments, followups,
+    orgIds,
+    conversations, leads, appointments, followups, messages,
     chats,
+    messageCount,
+    inboundMessages,
+    humanMessages,
+    assistantMessages,
+    contactCount,
     leadCount,
     confirmed: confirmedRows.length,
-    requested: appointments.filter((row) => row.status === "Solicitada").length,
+    requested: requestedRows.length,
+    appointmentCount,
     attention: conversations.filter((row) => row.status === "Requiere atención").length,
-    conversion: leadCount ? Math.round((confirmedRows.length / leadCount) * 100) : 0,
-    automated: chats ? Math.round((conversations.filter((row) => row.automated).length / chats) * 100) : 0,
-    response: chats ? conversations.reduce((sum, row) => sum + Number(row.response_seconds || 0), 0) / chats : 0,
-    value: confirmedRows.reduce((sum, row) => sum + Number(row.value || 0), 0),
-    recovered: followups.filter((row) => row.status === "Recuperado").length,
-    cancelled: appointments.filter((row) => row.status === "Cancelada").length,
-    noShow: appointments.filter((row) => row.status === "No asistió").length,
+    conversion: percent(confirmedRows.length, leadCount),
+    leadRate: percent(leadCount, chats),
+    bookingRate: percent(confirmedRows.length, chats),
+    confirmationRate: percent(confirmedRows.length, appointmentCount),
+    automated: percent(conversations.filter((row) => row.automated).length, chats),
+    escalationRate: percent(conversations.filter((row) => row.status === "Requiere atención").length, chats),
+    response: avgResponse,
+    medianResponse: median(responseValues),
+    value: estimatedValue,
+    pipelineValue,
+    avgTicket: confirmedRows.length ? estimatedValue / confirmedRows.length : 0,
+    recovered: recoveredRows.length,
+    recoveryRate: percent(recoveredRows.length, followups.length),
+    cancelled: cancelledRows.length,
+    cancellationRate: percent(cancelledRows.length, appointmentCount),
+    noShow: noShowRows.length,
+    noShowRate: percent(noShowRows.length, appointmentCount),
+    messagesPerConversation: chats ? messageCount / chats : 0,
+    activeClientCount: activeOrgIds.size,
+    totalClientCount: orgIds.length,
+    services: countBy(conversations, "service"),
+    sources: countBy(conversations, "source"),
+    appointmentStatuses: countBy(appointments, "status"),
+    leadStages: countBy(leads, "stage"),
+    activitySeries: buildActivitySeries(conversations, leads, appointments),
   };
+}
+
+function metricDelta(current, previous, inverse = false) {
+  const cur = Number(current || 0);
+  const prev = Number(previous || 0);
+  if (!prev) return cur ? { value: null, direction: "up", label: "Nuevo" } : { value: 0, direction: "flat", label: "0%" };
+  const raw = ((cur - prev) / Math.abs(prev)) * 100;
+  const rounded = Math.round(raw);
+  const good = inverse ? rounded < 0 : rounded > 0;
+  const bad = inverse ? rounded > 0 : rounded < 0;
+  return {
+    value: rounded,
+    direction: good ? "up" : bad ? "down" : "flat",
+    label: `${rounded > 0 ? "+" : ""}${rounded}%`,
+  };
+}
+
+async function getMetrics(orgId = currentOrgId(), days = currentDays(), { comparison = true } = {}) {
+  const orgIds = metricOrgIds(orgId);
+  const current = periodWindow(days, false);
+  const [conversations, leads, appointments, followups, messages] = await Promise.all([
+    fetchMetricRows("conversations", orgIds, current),
+    fetchMetricRows("leads", orgIds, current),
+    fetchMetricRows("appointments", orgIds, current),
+    fetchMetricRows("followups", orgIds, current),
+    fetchMetricRows("messages", orgIds, current),
+  ]);
+  const result = summarizeMetricRows({ conversations, leads, appointments, followups, messages, orgIds });
+
+  if (!comparison) return result;
+
+  const previousWindow = periodWindow(days, true);
+  const [prevConversations, prevLeads, prevAppointments, prevFollowups, prevMessages] = await Promise.all([
+    fetchMetricRows("conversations", orgIds, previousWindow),
+    fetchMetricRows("leads", orgIds, previousWindow),
+    fetchMetricRows("appointments", orgIds, previousWindow),
+    fetchMetricRows("followups", orgIds, previousWindow),
+    fetchMetricRows("messages", orgIds, previousWindow),
+  ]);
+  const previous = summarizeMetricRows({
+    conversations: prevConversations, leads: prevLeads, appointments: prevAppointments,
+    followups: prevFollowups, messages: prevMessages, orgIds,
+  });
+
+  result.previous = previous;
+  result.delta = {
+    chats: metricDelta(result.chats, previous.chats),
+    leads: metricDelta(result.leadCount, previous.leadCount),
+    confirmed: metricDelta(result.confirmed, previous.confirmed),
+    conversion: metricDelta(result.conversion, previous.conversion),
+    value: metricDelta(result.value, previous.value),
+    response: metricDelta(result.response, previous.response, true),
+    attention: metricDelta(result.attention, previous.attention, true),
+    cancellation: metricDelta(result.cancellationRate, previous.cancellationRate, true),
+  };
+  return result;
 }
 
 async function loadOrganizations() {
