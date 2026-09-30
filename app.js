@@ -765,6 +765,8 @@ async function renderOverview() {
     .filter((row) => row.status === "Requiere atención")
     .sort((a, b) => String(b.last_message_at).localeCompare(String(a.last_message_at)))
     .slice(0, 6);
+  const health = operationalHealth(m);
+  const alerts = buildOperationalAlerts(m);
 
   const funnel = [
     ["Conversaciones", m.chats, 100],
