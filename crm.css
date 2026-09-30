@@ -93,3 +93,11 @@
 @media(max-width:720px){
   .crm-invoice-actions{min-width:120px}
 }
+
+.crm-invoice-email-toggle{
+  display:flex!important;align-items:center!important;gap:7px!important;
+  padding:7px 9px;border:1px solid #dfe5ed;border-radius:8px;background:#fbfcfe;
+  font-size:8px!important;font-weight:700!important;color:#5d7089!important;white-space:nowrap
+}
+.crm-invoice-email-toggle input{width:15px!important;height:15px!important;flex:0 0 auto}
+.crm-invoice-actions{display:flex;gap:6px;flex-wrap:wrap}
