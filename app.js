@@ -604,8 +604,9 @@ function filterRows(rows, query) {
 
 async function fetchDetailedRows(type) {
   const orgId = currentOrgId();
+  const orgIds = metricOrgIds(orgId);
   const days = currentDays();
-  if (!orgId) return [];
+  if (!orgIds.length) return [];
 
   const since = sinceIso(days);
   const table = type === "appointments" ? "appointments" : type === "followups" ? "followups" : type;
@@ -617,13 +618,11 @@ async function fetchDetailedRows(type) {
     select = "*, contacts(id,name,phone,email)";
   }
 
-  let request = supabase
-    .from(table)
-    .select(select)
-    .eq("organization_id", orgId)
-    .gte("created_at", since)
-    .order(order, { ascending })
-    .limit(1000);
+  let request = supabase.from(table).select(select);
+  request = orgIds.length === 1
+    ? request.eq("organization_id", orgIds[0])
+    : request.in("organization_id", orgIds);
+  request = request.gte("created_at", since).order(order, { ascending }).limit(5000);
 
   const { data, error } = await request;
   if (error) throw error;
@@ -631,6 +630,7 @@ async function fetchDetailedRows(type) {
     ...row,
     phone: row.contacts?.phone || "",
     contact_name: row.contacts?.name || row.name || "",
+    organization_name: state.organizations.find((org) => org.id === row.organization_id)?.name || "",
   }));
 }
 
@@ -643,10 +643,10 @@ function phoneCell(row) {
 
 function chatAction(row) {
   if (!row.contact_id) return '<span class="muted">—</span>';
-  return `<button class="chat-button" data-contact-id="${row.contact_id}" data-conversation-id="${row.id || ""}">Ver chat</button>`;
+  return `<button class="chat-button" data-contact-id="${row.contact_id}" data-org-id="${row.organization_id || ""}" data-conversation-id="${row.id || ""}">Ver chat</button>`;
 }
 
-async function openContactChat(contactId) {
+async function openContactChat(contactId, organizationId = currentOrgId()) {
   try {
     let modal = document.getElementById("chatModal");
     if (!modal) {
@@ -676,7 +676,7 @@ async function openContactChat(contactId) {
 
     const [{ data: contact, error: contactError }, { data: conversations, error: convError }] = await Promise.all([
       supabase.from("contacts").select("id,name,phone,email").eq("id", contactId).single(),
-      supabase.from("conversations").select("id,created_at,last_message_at").eq("organization_id", currentOrgId()).eq("contact_id", contactId).order("created_at", { ascending: true }),
+      supabase.from("conversations").select("id,created_at,last_message_at").eq("organization_id", organizationId).eq("contact_id", contactId).order("created_at", { ascending: true }),
     ]);
     if (contactError) throw contactError;
     if (convError) throw convError;
@@ -699,7 +699,7 @@ async function openContactChat(contactId) {
     $("chatBody").innerHTML = messages.length
       ? messages.map((msg) => {
           const side = msg.sender === "contact" ? "in" : msg.sender === "human" ? "human" : "out";
-          const assistantName = (state.organizations.find((o) => o.id === currentOrgId()) || {}).assistant || "Asistente";
+          const assistantName = (state.organizations.find((o) => o.id === organizationId) || {}).assistant || "Asistente";
           const label = msg.sender === "contact" ? "Cliente" : msg.sender === "human" ? "Humano" : msg.sender === "system" ? "Sistema" : assistantName;
           return `
             <div class="chat-message ${side}">
@@ -732,11 +732,13 @@ async function renderTablePage(type) {
     phone: row.phone || row.contacts?.phone || "",
   }));
 
+  const showOrganization = state.isAdmin && isInternalOrg();
   const config = {
     conversations: {
       title: "Conversaciones",
-      cols: ["Contacto", "Teléfono", "Consulta", "Origen", "Estado", "Actividad", "Chat"],
+      cols: [...(showOrganization ? ["Empresa"] : []), "Contacto", "Teléfono", "Consulta", "Origen", "Estado", "Actividad", "Chat"],
       cells: (row) => [
+        ...(showOrganization ? [`<b>${esc(row.organization_name)}</b>`] : []),
         `<b>${esc(row.contact_name || row.name)}</b>`,
         phoneCell(row),
         esc(row.service),
@@ -748,8 +750,9 @@ async function renderTablePage(type) {
     },
     leads: {
       title: "Leads",
-      cols: ["Contacto", "Teléfono", "Servicio", "Origen", "Etapa", "Valor", "Chat"],
+      cols: [...(showOrganization ? ["Empresa"] : []), "Contacto", "Teléfono", "Servicio", "Origen", "Etapa", "Valor", "Chat"],
       cells: (row) => [
+        ...(showOrganization ? [`<b>${esc(row.organization_name)}</b>`] : []),
         `<b>${esc(row.contact_name || row.name)}</b>`,
         phoneCell(row),
         esc(row.service),
@@ -761,8 +764,9 @@ async function renderTablePage(type) {
     },
     appointments: {
       title: "Citas y reservas",
-      cols: ["Contacto", "Teléfono", "Servicio", "Fecha", "Estado", "Valor", "Chat"],
+      cols: [...(showOrganization ? ["Empresa"] : []), "Contacto", "Teléfono", "Servicio", "Fecha", "Estado", "Valor", "Chat"],
       cells: (row) => [
+        ...(showOrganization ? [`<b>${esc(row.organization_name)}</b>`] : []),
         `<b>${esc(row.contact_name || row.name)}</b>`,
         phoneCell(row),
         esc(row.service),
@@ -774,8 +778,9 @@ async function renderTablePage(type) {
     },
     followups: {
       title: "Seguimientos",
-      cols: ["Contacto", "Teléfono", "Servicio", "Fecha objetivo", "Estado", "Creado", "Chat"],
+      cols: [...(showOrganization ? ["Empresa"] : []), "Contacto", "Teléfono", "Servicio", "Fecha objetivo", "Estado", "Creado", "Chat"],
       cells: (row) => [
+        ...(showOrganization ? [`<b>${esc(row.organization_name)}</b>`] : []),
         `<b>${esc(row.contact_name || row.name)}</b>`,
         phoneCell(row),
         esc(row.service),
