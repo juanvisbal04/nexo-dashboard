@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=20260930-5" />
+  <link rel="stylesheet" href="./styles.css?v=20260930-6" />
 </head>
 <body>
   <div id="loginView" class="login-screen">
@@ -143,7 +143,15 @@
     </div>
   </div>
 
+  <nav id="mobileNav" class="mobile-bottom-nav" aria-label="Navegación móvil">
+    <button class="nav-item mobile-nav-item active" data-page="overview"><span>⌂</span><small>Inicio</small></button>
+    <button class="nav-item mobile-nav-item" data-page="conversations"><span>◌</span><small>Chats</small></button>
+    <button class="nav-item mobile-nav-item" data-page="leads"><span>↗</span><small>Leads</small></button>
+    <button class="nav-item mobile-nav-item" data-page="appointments"><span>▣</span><small>Citas</small></button>
+    <button class="nav-item mobile-nav-item" data-page="metrics"><span>◇</span><small>Métricas</small></button>
+  </nav>
+
   <div id="toast" class="toast hidden"></div>
-  <script type="module" src="./app.js?v=20260930-5"></script>
+  <script type="module" src="./app.js?v=20260930-6"></script>
 </body>
 </html>
