@@ -666,16 +666,25 @@ async function renderOverview() {
 
   if (state.isAdmin && isInternalOrg()) {
     const clients = clientOrganizations();
-    const clientRows = await Promise.all(clients.map(async (org) => ({
-      org,
-      metrics: await getMetrics(org.id, currentDays(), { comparison: false }),
-    })));
+    const clientRows = await Promise.all(clients.map(async (org) => {
+      const metrics = await getMetrics(org.id, currentDays(), { comparison: false });
+      return {
+        org,
+        metrics,
+        health: operationalHealth(metrics),
+        alerts: buildOperationalAlerts(metrics, org.name),
+      };
+    }));
 
     const clientName = (id) => clients.find((org) => org.id === id)?.name || "Cliente NEXO";
     const attentionRows = m.conversations
       .filter((row) => row.status === "Requiere atención")
       .sort((a, b) => String(b.last_message_at).localeCompare(String(a.last_message_at)))
       .slice(0, 8);
+    const networkAlerts = clientRows.flatMap((row) => row.alerts).sort((a, b) => b.priority - a.priority);
+    const stableClients = clientRows.filter((row) => row.health.tone === "good").length;
+    const watchClients = clientRows.filter((row) => row.health.tone === "watch").length;
+    const riskClients = clientRows.filter((row) => row.health.tone === "risk").length;
 
     $("pageTitle").textContent = "NEXO, en una sola vista.";
     $("pageSubtitle").textContent = "Rendimiento consolidado de todos los clientes activos. Visible solo para Platform Admin.";
