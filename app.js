@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
-import { renderCrm } from "./crm.js?v=20260930-crm12";
+import { renderCrm } from "./crm.js?v=20260930-crm13";
 
 const SUPABASE_URL = "https://ixewnbjndguchunwcuhf.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_vFnLRe9cmnOcyz2Fivprhw_8UjBaRGL";
@@ -1553,7 +1553,15 @@ function downloadInvoicePdf(invoice, organizationName = "Cliente NEXO") {
   doc.setFontSize(18);
   doc.text(amount,26,y+27);
 
-  const noteY=y+48;
+  if (invoice.payment_url && ["pending","overdue"].includes(status)) {
+    doc.setFont("helvetica","bold");
+    doc.setFontSize(9);
+    doc.setTextColor(45,156,255);
+    if (doc.textWithLink) doc.textWithLink("Pagar en línea con Wompi",18,y+44,{url:invoice.payment_url});
+    else doc.text("Pagar en línea: " + invoice.payment_url,18,y+44);
+  }
+
+  const noteY=y+55;
   doc.setFont("helvetica","normal");
   doc.setFontSize(8);
   doc.setTextColor(110,124,143);
@@ -1562,6 +1570,37 @@ function downloadInvoicePdf(invoice, organizationName = "Cliente NEXO") {
   doc.text("nexobyjv.online  |  Medellín, Colombia",18,284);
 
   doc.save("NEXO_Cuenta_de_Cobro_" + number.replace(/[^A-Za-z0-9_-]/g,"_") + ".pdf");
+}
+
+async function startInvoicePayment(invoiceId, button = null) {
+  const original = button?.textContent || "Pagar ahora";
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Preparando pago…";
+  }
+  try {
+    const { data, error } = await supabase.functions.invoke("create-invoice-payment", {
+      body: { invoice_id: invoiceId },
+    });
+    if (error) throw error;
+    if (!data?.ok) {
+      if (data?.code === "WOMPI_NOT_CONFIGURED" || data?.setup_required) {
+        throw new Error("El pago en línea está preparado, pero Wompi aún no está activado por NEXO.");
+      }
+      throw new Error(data?.error || "No pudimos iniciar el pago.");
+    }
+    if (!data.url) throw new Error("No recibimos un enlace de pago.");
+    window.open(data.url, "_blank", "noopener,noreferrer");
+    showToast("Pago abierto en Wompi.");
+    setTimeout(() => render(), 1200);
+  } catch (error) {
+    showError(error.message || "No pudimos iniciar el pago.");
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = original;
+    }
+  }
 }
 
 async function renderBillingPortal() {
@@ -1608,7 +1647,7 @@ async function renderBillingPortal() {
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr>${internalAggregate?"<th>Cliente</th>":""}<th>Número</th><th>Concepto</th><th>Valor</th><th>Vence</th><th>Estado</th><th>Pago</th><th>Documento</th></tr></thead>
+          <thead><tr>${internalAggregate?"<th>Cliente</th>":""}<th>Número</th><th>Concepto</th><th>Valor</th><th>Vence</th><th>Estado</th><th>Pago</th><th>Pago online</th><th>Documento</th></tr></thead>
           <tbody>
             ${rows.length ? rows.map((row)=>{
               const status=derivedInvoiceStatus(row);
@@ -1620,9 +1659,15 @@ async function renderBillingPortal() {
                 <td>${shortDate(row.due_date)}</td>
                 <td><span class="pill ${status==="paid"?"green":status==="overdue"?"orange":status==="pending"?"amber":""}">${esc(invoiceStatusLabel(status))}</span></td>
                 <td>${row.paid_at ? dateTime(row.paid_at) : "—"}</td>
+                <td>
+                  ${["pending","overdue"].includes(status)
+                    ? `<button class="btn primary small billing-pay-button" data-invoice-id="${row.id}" type="button">Pagar ahora</button>
+                       <span class="billing-payment-state">${row.payment_status === "pending" ? "Link generado" : row.payment_status === "declined" ? "Pago rechazado" : row.payment_status === "error" ? "Error de pago" : ""}</span>`
+                    : row.payment_status === "approved" ? '<span class="pill green">Pago confirmado</span>' : "—"}
+                </td>
                 <td><button class="btn small billing-pdf-button" data-invoice-id="${row.id}" type="button">Descargar PDF</button></td>
               </tr>`;
-            }).join("") : `<tr><td colspan="${internalAggregate?8:7}">${emptyState("Todavía no hay cuentas de cobro.", "Cuando exista un cobro aparecerá aquí automáticamente.")}</td></tr>`}
+            }).join("") : `<tr><td colspan="${internalAggregate?9:8}">${emptyState("Todavía no hay cuentas de cobro.", "Cuando exista un cobro aparecerá aquí automáticamente.")}</td></tr>`}
           </tbody>
         </table>
       </div>
@@ -1634,6 +1679,10 @@ async function renderBillingPortal() {
   `;
 
   const byId=new Map(rows.map((row)=>[row.id,row]));
+  document.querySelectorAll(".billing-pay-button").forEach((button)=>{
+    button.addEventListener("click",()=>startInvoicePayment(button.dataset.invoiceId,button));
+  });
+
   document.querySelectorAll(".billing-pdf-button").forEach((button)=>{
     button.addEventListener("click",()=>{
       const invoice=byId.get(button.dataset.invoiceId);
