@@ -705,24 +705,31 @@ async function renderOverview() {
         <div><span>Valor confirmado</span><b>${money(m.value)}</b><small>ticket medio ${money(m.avgTicket)}</small></div>
       </div>
 
+      <div class="portfolio-health">
+        <div class="portfolio-health-summary">
+          <span>Salud operativa de clientes</span>
+          <div><b class="health-dot good"></b>${stableClients} estables</div>
+          <div><b class="health-dot watch"></b>${watchClients} por monitorear</div>
+          <div><b class="health-dot risk"></b>${riskClients} requieren atención</div>
+        </div>
+        <div class="portfolio-health-cards">
+          ${clientRows.map(({ org, metrics, health }) => `
+            <article class="portfolio-account">
+              <div class="portfolio-account-top"><span class="org-mini" style="--org-color:${esc(org.color || "#316bff")}">${esc(org.initials || "NX")}</span>${healthBadge(health)}</div>
+              <b>${esc(org.name)}</b>
+              <small>${esc(org.assistant || "Asistente")} · ${metrics.chats} conversaciones</small>
+              <p>${esc(health.reasons[0])}</p>
+            </article>
+          `).join("")}
+        </div>
+      </div>
+
       <div class="grid-two executive-grid">
         <section class="card">
           <div class="card-head"><div><h2>Actividad de la red NEXO</h2><p>Conversaciones, leads y citas por día</p></div></div>
           <div class="chart-wrap">${activityChart(m.activitySeries)}</div>
         </section>
-        <section class="card">
-          <div class="card-head"><div><h2>Atención requerida</h2><p>Casos abiertos entre todos los clientes</p></div><span class="count">${m.attention} pendientes</span></div>
-          <div class="rows compact-rows">
-            ${attentionRows.length ? attentionRows.map((row) => `
-              <div class="item-row">
-                <div><strong>${esc(row.name)}</strong><small>${esc(clientName(row.organization_id))} · ${esc(row.service)}</small></div>
-                <div class="muted">${esc(row.source)}</div>
-                <div>${pill(row.status)}</div>
-                <div class="muted">${dateTime(row.last_message_at)}</div>
-              </div>
-            `).join("") : emptyState("Nada requiere atención.", "No hay conversaciones escaladas en este período.")}
-          </div>
-        </section>
+        ${alertCenterHtml(networkAlerts, "Alertas de clientes")}
       </div>
 
       <section class="card">
