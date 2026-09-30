@@ -413,6 +413,16 @@ async function loadOrganizations() {
 function updateNavigationAccess() {
   const teamNav = $("teamNav");
   if (teamNav) teamNav.classList.toggle("hidden", !canManageCurrentOrgUsers());
+
+  if ($("profileRole")) {
+    if (state.isAdmin) {
+      $("profileRole").textContent = "NEXO Platform Admin";
+    } else {
+      const role = currentOrgRole();
+      const labels = { owner: "Propietario", admin: "Administrador", operator: "Operador", viewer: "Solo lectura" };
+      $("profileRole").textContent = labels[role] ? `${labels[role]} · Cliente NEXO` : "Cliente NEXO";
+    }
+  }
 }
 
 function updateOrgBadge() {
