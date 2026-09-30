@@ -931,56 +931,70 @@ async function renderMetrics() {
 
 async function renderAdmin() {
   if (!state.isAdmin) {
-    $("content").innerHTML = emptyState("Tu cuenta no tiene permisos de plataforma.", "Esta vista está reservada para administradores NEXO.");
+    $("content").innerHTML = emptyState("Tu cuenta no tiene permisos de plataforma.", "Esta vista está reservada para NEXO.");
     return;
   }
 
-  const rows = [];
-  for (const org of state.organizations) {
-    rows.push({ org, metrics: await getMetrics(org.id, currentDays()) });
-  }
-  state.currentRows = rows.map(({ org, metrics }) => ({
-    organization: org.name, conversations: metrics.chats, leads: metrics.leadCount, appointments: metrics.confirmed,
-  }));
+  const clients = clientOrganizations({ activeOnly: false });
+  const activeClients = clients.filter((org) => org.status === "active");
+  const internal = state.organizations.find((org) => org.name === "NEXO Internal");
+  const totals = internal ? await getMetrics(internal.id, currentDays(), { comparison: false }) : null;
 
-  const totalChats = rows.reduce((sum, row) => sum + row.metrics.chats, 0);
-  const totalLeads = rows.reduce((sum, row) => sum + row.metrics.leadCount, 0);
-  const totalAppointments = rows.reduce((sum, row) => sum + row.metrics.confirmed, 0);
+  const rows = await Promise.all(clients.map(async (org) => ({
+    org,
+    metrics: await getMetrics(org.id, currentDays(), { comparison: false }),
+  })));
+
+  state.currentRows = rows.map(({ org, metrics }) => ({
+    organization: org.name,
+    status: org.status,
+    assistant: org.assistant,
+    conversations: metrics.chats,
+    leads: metrics.leadCount,
+    conversion: metrics.conversion,
+    appointments: metrics.confirmed,
+    value: metrics.value,
+    attention: metrics.attention,
+  }));
 
   $("content").innerHTML = `
     <div class="stats-grid">
-      ${statCard("Negocios", state.organizations.length, "Organizaciones visibles")}
-      ${statCard("Conversaciones", totalChats, "Actividad total")}
-      ${statCard("Leads", totalLeads, "Oportunidades")}
-      ${statCard("Citas confirmadas", totalAppointments, "Total del período", true)}
+      ${statCard("Clientes activos", activeClients.length, `${clients.length} organizaciones creadas`, true)}
+      ${statCard("Conversaciones", totals?.chats || 0, "Actividad de clientes activos")}
+      ${statCard("Leads", totals?.leadCount || 0, `${totals?.leadRate || 0}% de captura`)}
+      ${statCard("Valor confirmado", money(totals?.value || 0), `${totals?.confirmed || 0} citas confirmadas`)}
     </div>
 
-    <div class="grid-two admin-grid">
-      <section class="card">
-        <div class="card-head"><div><h2>Negocios en NEXO</h2><p>Vista del administrador de plataforma</p></div></div>
-        ${rows.length ? `
-          <div class="table-wrap">
-            <table>
-              <thead><tr><th>Negocio</th><th>Asistente</th><th>Conversaciones</th><th>Leads</th><th>Citas</th><th>Pendientes</th></tr></thead>
-              <tbody>
-                ${rows.map(({ org, metrics }) => `
-                  <tr>
-                    <td><b>${esc(org.name)}</b><br><span class="muted">${esc(org.sector)}</span></td>
-                    <td>${esc(org.assistant)}</td>
-                    <td>${metrics.chats}</td>
-                    <td>${metrics.leadCount}</td>
-                    <td>${metrics.confirmed}</td>
-                    <td>${metrics.attention}</td>
-                  </tr>
-                `).join("")}
-              </tbody>
-            </table>
-          </div>
-        ` : emptyState("No hay negocios creados.", "Cuando agreguemos clientes aparecerán aquí.")}
-      </section>
+    <section class="card admin-table-card">
+      <div class="card-head">
+        <div><h2>Clientes de NEXO</h2><p>Estado y rendimiento del período seleccionado</p></div>
+        <span class="count">${activeClients.length} activos</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Cliente</th><th>Estado</th><th>Asistente</th><th>Conversaciones</th><th>Leads</th><th>Conversión</th><th>Citas</th><th>Valor</th><th>Atención</th></tr></thead>
+          <tbody>
+            ${rows.length ? rows.map(({ org, metrics }) => `
+              <tr>
+                <td><b>${esc(org.name)}</b><br><span class="muted">${esc(org.sector || "Sin sector")}</span></td>
+                <td>${org.status === "active" ? '<span class="pill green">Activo</span>' : `<span class="pill">${esc(org.status || "—")}</span>`}</td>
+                <td>${esc(org.assistant || "—")}</td>
+                <td>${metrics.chats}</td>
+                <td>${metrics.leadCount}</td>
+                <td><b>${metrics.conversion}%</b></td>
+                <td>${metrics.confirmed}</td>
+                <td>${money(metrics.value)}</td>
+                <td>${metrics.attention ? `<span class="count">${metrics.attention}</span>` : '<span class="pill green">0</span>'}</td>
+              </tr>
+            `).join("") : `<tr><td colspan="9">${emptyState("Todavía no hay clientes.", "Crea el primer negocio desde este panel.")}</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+    </section>
 
+    <div class="grid-two admin-grid admin-actions-grid">
       <section class="card access-card">
-        <div class="card-head"><div><h2>Crear acceso de cliente</h2><p>Genera un enlace privado sin depender de correos de Supabase</p></div></div>
+        <div class="card-head"><div><h2>Crear acceso inicial</h2><p>Asigna al propietario o administrador de un cliente</p></div></div>
         <form id="clientAccessForm" class="admin-form">
           <label>Nombre</label>
           <input id="clientName" type="text" placeholder="Ej. Isabel Gómez" required />
@@ -988,7 +1002,7 @@ async function renderAdmin() {
           <input id="clientEmail" type="email" placeholder="cliente@correo.com" required />
           <label>Empresa</label>
           <select id="clientOrg" required>
-            ${state.organizations.filter(o => o.name !== "NEXO Internal").map(o => `<option value="${o.id}">${esc(o.name)}</option>`).join("")}
+            ${clients.map((org) => `<option value="${org.id}">${esc(org.name)}</option>`).join("")}
           </select>
           <label>Rol</label>
           <select id="clientRole">
@@ -1000,25 +1014,25 @@ async function renderAdmin() {
         </form>
         <div id="clientAccessResult" class="access-result hidden"></div>
       </section>
-    </div>
 
-    <section class="card new-business-card">
-      <div class="card-head"><div><h2>Nuevo negocio</h2><p>Crea la empresa y su asistente base sin entrar a Supabase</p></div></div>
-      <form id="newBusinessForm" class="admin-form business-form">
-        <label>Nombre del negocio</label>
-        <input id="businessName" type="text" placeholder="Ej. Hotel Central Medellín" required />
-        <label>Sector</label>
-        <input id="businessSector" type="text" placeholder="Ej. Hotel, restaurante, estética" />
-        <label>Nombre del asistente</label>
-        <input id="assistantName" type="text" placeholder="Ej. Luna" required />
-        <label>Iniciales</label>
-        <input id="businessInitials" type="text" maxlength="3" placeholder="Ej. HC" />
-        <label>Color de marca</label>
-        <input id="businessColor" type="color" value="#316bff" />
-        <button id="createBusiness" class="btn primary" type="submit">Crear negocio</button>
-      </form>
-      <div id="businessResult" class="access-result hidden"></div>
-    </section>
+      <section class="card new-business-card">
+        <div class="card-head"><div><h2>Nuevo negocio</h2><p>Solo Platform Admin puede crear compañías</p></div></div>
+        <form id="newBusinessForm" class="admin-form business-form">
+          <label>Nombre del negocio</label>
+          <input id="businessName" type="text" placeholder="Ej. Hotel Central Medellín" required />
+          <label>Sector</label>
+          <input id="businessSector" type="text" placeholder="Ej. Hotel, restaurante, estética" />
+          <label>Nombre del asistente</label>
+          <input id="assistantName" type="text" placeholder="Ej. Luna" required />
+          <label>Iniciales</label>
+          <input id="businessInitials" type="text" maxlength="3" placeholder="Ej. HC" />
+          <label>Color de marca</label>
+          <input id="businessColor" type="color" value="#316bff" />
+          <button id="createBusiness" class="btn primary" type="submit">Crear negocio</button>
+        </form>
+        <div id="businessResult" class="access-result hidden"></div>
+      </section>
+    </div>
   `;
 
   $("clientAccessForm")?.addEventListener("submit", async (event) => {
@@ -1041,10 +1055,7 @@ async function renderAdmin() {
       if (!data?.ok) throw new Error(data?.error || "No pudimos crear el acceso.");
 
       if (data.existing_user) {
-        resultBox.innerHTML = `
-          <strong>Acceso agregado</strong>
-          <p>${esc(data.email)} ya tenía una cuenta NEXO. Se le agregó acceso a <b>${esc(data.organization_name)}</b> sin cambiar su contraseña.</p>
-        `;
+        resultBox.innerHTML = `<strong>Acceso agregado</strong><p>${esc(data.email)} ya tenía una cuenta NEXO y ahora tiene acceso a <b>${esc(data.organization_name)}</b>.</p>`;
       } else {
         resultBox.innerHTML = `
           <strong>Enlace de activación listo</strong>
@@ -1054,7 +1065,7 @@ async function renderAdmin() {
             <button id="copySetupLink" class="btn small" type="button">Copiar</button>
           </div>
         `;
-        $("copySetupLink").addEventListener("click", async () => {
+        $("copySetupLink")?.addEventListener("click", async () => {
           try {
             await navigator.clipboard.writeText(data.setup_url);
             showToast("Enlace copiado.");
@@ -1094,7 +1105,7 @@ async function renderAdmin() {
       });
       if (error) throw error;
       if (!data?.ok) throw new Error(data?.error || "No pudimos crear el negocio.");
-      resultBox.innerHTML = `<strong>Negocio creado</strong><p><b>${esc(data.organization.name)}</b> ya está disponible en NEXO con el asistente <b>${esc(data.organization.assistant)}</b>.</p>`;
+      resultBox.innerHTML = `<strong>Negocio creado</strong><p><b>${esc(data.organization.name)}</b> ya está disponible con el asistente <b>${esc(data.organization.assistant)}</b>.</p>`;
       resultBox.className = "access-result ok";
       showToast("Negocio creado.");
       await loadOrganizations();
@@ -1109,7 +1120,169 @@ async function renderAdmin() {
       }
     }
   });
+}
 
+async function renderTeam() {
+  if (!canManageCurrentOrgUsers() || isInternalOrg()) {
+    $("content").innerHTML = emptyState("No puedes administrar usuarios aquí.", "Selecciona una organización de cliente donde tengas rol Owner o Admin.");
+    return;
+  }
+
+  const org = currentOrg();
+  const { data, error } = await supabase.functions.invoke("org-user-access", {
+    body: { action: "list", organization_id: org.id },
+  });
+  if (error) throw error;
+  if (!data?.ok) throw new Error(data?.error || "No pudimos cargar los usuarios.");
+
+  const requesterRole = data.requester_role;
+  const roleOptions = requesterRole === "platform_admin"
+    ? ["owner", "admin", "operator", "viewer"]
+    : requesterRole === "owner"
+      ? ["admin", "operator", "viewer"]
+      : ["operator", "viewer"];
+
+  const roleLabel = (role) => ({
+    owner: "Propietario", admin: "Administrador", operator: "Operador", viewer: "Solo lectura", platform_admin: "Platform Admin",
+  }[role] || role);
+
+  $("content").innerHTML = `
+    <div class="team-summary">
+      <div>
+        <span class="eyebrow">ACCESOS · ${esc(org.name)}</span>
+        <h2>${data.users.length} usuario${data.users.length === 1 ? "" : "s"} con acceso</h2>
+        <p>Los usuarios de esta empresa solo pueden consultar la información autorizada de este negocio.</p>
+      </div>
+      <div class="role-badge">Tu rol: <b>${esc(roleLabel(requesterRole))}</b></div>
+    </div>
+
+    <div class="grid-two team-grid">
+      <section class="card">
+        <div class="card-head"><div><h2>Usuarios del dashboard</h2><p>Acceso actual a ${esc(org.name)}</p></div></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Usuario</th><th>Correo</th><th>Rol</th><th>Desde</th><th></th></tr></thead>
+            <tbody id="teamRows">
+              ${data.users.map((user) => `
+                <tr>
+                  <td><b>${esc(user.full_name || "Usuario NEXO")}</b>${user.current_user ? '<br><span class="muted">Tu cuenta</span>' : ""}</td>
+                  <td>${esc(user.email || "—")}</td>
+                  <td>
+                    ${user.current_user ? `<span class="pill">${esc(roleLabel(user.role))}</span>` : `
+                      <select class="status-select member-role" data-user-id="${user.user_id}" data-current-role="${esc(user.role)}">
+                        ${[...new Set([user.role, ...roleOptions])].map((role) => `<option value="${role}" ${role === user.role ? "selected" : ""}>${esc(roleLabel(role))}</option>`).join("")}
+                      </select>
+                    `}
+                  </td>
+                  <td>${shortDate(user.created_at)}</td>
+                  <td>${user.current_user ? "" : `<button class="member-remove" data-user-id="${user.user_id}" type="button">Quitar</button>`}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card access-card">
+        <div class="card-head"><div><h2>Agregar usuario</h2><p>Invita a alguien al dashboard de esta empresa</p></div></div>
+        <form id="orgUserForm" class="admin-form">
+          <label>Nombre</label>
+          <input id="orgUserName" type="text" placeholder="Nombre completo" required />
+          <label>Correo</label>
+          <input id="orgUserEmail" type="email" placeholder="usuario@correo.com" required />
+          <label>Rol</label>
+          <select id="orgUserRole">${roleOptions.map((role) => `<option value="${role}">${esc(roleLabel(role))}</option>`).join("")}</select>
+          <button id="orgUserSubmit" class="btn primary" type="submit">Agregar usuario</button>
+        </form>
+        <div id="orgUserResult" class="access-result hidden"></div>
+      </section>
+    </div>
+  `;
+
+  $("orgUserForm")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const button = $("orgUserSubmit");
+    const box = $("orgUserResult");
+    button.disabled = true;
+    button.textContent = "Agregando…";
+    box.className = "access-result hidden";
+    try {
+      const { data: result, error: invokeError } = await supabase.functions.invoke("org-user-access", {
+        body: {
+          action: "create",
+          organization_id: org.id,
+          full_name: $("orgUserName").value.trim(),
+          email: $("orgUserEmail").value.trim(),
+          role: $("orgUserRole").value,
+        },
+      });
+      if (invokeError) throw invokeError;
+      if (!result?.ok) throw new Error(result?.error || "No pudimos agregar el usuario.");
+
+      if (result.setup_url) {
+        box.innerHTML = `
+          <strong>Usuario creado</strong>
+          <p>Comparte este enlace privado para que cree su contraseña. Vence en 48 horas.</p>
+          <div class="setup-link-row"><input id="orgGeneratedLink" value="${esc(result.setup_url)}" readonly /><button id="copyOrgLink" class="btn small" type="button">Copiar</button></div>
+        `;
+        $("copyOrgLink")?.addEventListener("click", async () => {
+          await navigator.clipboard.writeText(result.setup_url);
+          showToast("Enlace copiado.");
+        });
+      } else {
+        box.innerHTML = `<strong>Acceso agregado</strong><p>El usuario ya tenía una cuenta NEXO. Puede ingresar con su contraseña actual.</p>`;
+      }
+      box.className = "access-result ok";
+      showToast("Usuario agregado.");
+      setTimeout(() => renderTeam(), 1200);
+    } catch (err) {
+      box.innerHTML = `<strong>No pudimos agregarlo</strong><p>${esc(err.message || "Inténtalo de nuevo.")}</p>`;
+      box.className = "access-result error";
+    } finally {
+      button.disabled = false;
+      button.textContent = "Agregar usuario";
+    }
+  });
+
+  document.querySelectorAll(".member-role").forEach((select) => {
+    select.addEventListener("change", async () => {
+      const oldRole = select.dataset.currentRole;
+      select.disabled = true;
+      try {
+        const { data: result, error: invokeError } = await supabase.functions.invoke("org-user-access", {
+          body: { action: "update_role", organization_id: org.id, user_id: select.dataset.userId, role: select.value },
+        });
+        if (invokeError) throw invokeError;
+        if (!result?.ok) throw new Error(result?.error || "No pudimos actualizar el rol.");
+        select.dataset.currentRole = select.value;
+        showToast("Rol actualizado.");
+      } catch (err) {
+        select.value = oldRole;
+        showError(err.message || "No pudimos actualizar el rol.");
+      } finally {
+        select.disabled = false;
+      }
+    });
+  });
+
+  document.querySelectorAll(".member-remove").forEach((button) => {
+    button.addEventListener("click", async () => {
+      if (!confirm("¿Quitar el acceso de este usuario a la empresa?")) return;
+      button.disabled = true;
+      try {
+        const { data: result, error: invokeError } = await supabase.functions.invoke("org-user-access", {
+          body: { action: "remove", organization_id: org.id, user_id: button.dataset.userId },
+        });
+        if (invokeError) throw invokeError;
+        if (!result?.ok) throw new Error(result?.error || "No pudimos quitar el acceso.");
+        showToast("Acceso eliminado.");
+        await renderTeam();
+      } catch (err) {
+        showError(err.message || "No pudimos quitar el acceso.");
+        button.disabled = false;
+      }
+    });
+  });
 }
 
 async function render() {
@@ -1127,6 +1300,7 @@ async function render() {
     if (state.page === "overview") await renderOverview();
     else if (["conversations", "leads", "appointments", "followups"].includes(state.page)) await renderTablePage(state.page);
     else if (state.page === "metrics") await renderMetrics();
+    else if (state.page === "team") await renderTeam();
     else if (state.page === "admin") await renderAdmin();
   } catch (error) {
     showError(error.message || "No pudimos cargar la información.");
@@ -1302,13 +1476,21 @@ $("refreshButton").addEventListener("click", async () => {
   showToast("Datos actualizados.");
 });
 
-$("orgSelect").addEventListener("change", render);
+$("orgSelect").addEventListener("change", async () => {
+  updateNavigationAccess();
+  if (state.page === "team" && !canManageCurrentOrgUsers()) {
+    state.page = "overview";
+    document.querySelectorAll(".nav-item").forEach((item) => item.classList.toggle("active", item.dataset.page === "overview"));
+  }
+  await render();
+});
 $("periodSelect").addEventListener("change", render);
 $("exportButton").addEventListener("click", exportCsv);
 
 document.querySelectorAll(".nav-item").forEach((button) => {
   button.addEventListener("click", () => {
     if (button.dataset.page === "admin" && !state.isAdmin) return;
+    if (button.dataset.page === "team" && !canManageCurrentOrgUsers()) return;
     state.page = button.dataset.page;
     document.querySelectorAll(".nav-item").forEach((item) => item.classList.toggle("active", item === button));
     document.body.classList.remove("sidebar-open");
