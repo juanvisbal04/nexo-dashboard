@@ -15,8 +15,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=20260930-crm16" />
-  <link rel="stylesheet" href="./crm.css?v=20260930-crm16" />
+  <link rel="stylesheet" href="./styles.css?v=20260930-crm17" />
+  <link rel="stylesheet" href="./crm.css?v=20260930-crm17" />
 </head>
 <body>
   <div id="loginView" class="login-screen">
@@ -60,26 +60,31 @@
 
       <div class="workspace-label">NEXO PLATFORM <span>LIVE</span></div>
 
-      <p class="nav-title">TU NEGOCIO</p>
-      <nav>
-        <button class="nav-item active" data-page="overview">Vista general</button>
-        <button class="nav-item" data-page="conversations">Conversaciones</button>
-        <button class="nav-item" data-page="leads">Leads</button>
-        <button class="nav-item" data-page="appointments">Citas y reservas</button>
-        <button class="nav-item" data-page="followups">Seguimientos</button>
-        <button class="nav-item" data-page="metrics">Métricas</button>
-        <button class="nav-item" data-page="billing">Facturación</button>
-      </nav>
+      <div id="clientNavWrap">
+        <p class="nav-title">TU NEGOCIO</p>
+        <nav id="clientNav">
+          <button class="nav-item active" data-page="overview">Inicio</button>
+          <button class="nav-item" data-page="conversations">Conversaciones</button>
+          <button class="nav-item" data-page="leads">Oportunidades</button>
+          <button class="nav-item" data-page="appointments">Agenda</button>
+          <button class="nav-item" data-page="billing">Facturación</button>
+          <button class="nav-item" data-page="settings">Configuración</button>
+        </nav>
+      </div>
 
       <div class="team-nav hidden" id="teamNav">
-        <p class="nav-title">EMPRESA</p>
+        <p class="nav-title">ACCESO</p>
         <button class="nav-item" data-page="team">Usuarios y accesos</button>
       </div>
 
       <div class="admin-nav hidden" id="adminNav">
-        <p class="nav-title">NEXO INTERNAL</p>
-        <button class="nav-item" data-page="crm">CRM & Finanzas</button>
-        <button class="nav-item" data-page="admin">Platform Admin</button>
+        <p class="nav-title">NEXO CRM</p>
+        <button class="nav-item" data-page="overview">Command Center</button>
+        <button class="nav-item" data-page="crm">Ventas & Finanzas</button>
+        <button class="nav-item" data-page="clients">Clientes</button>
+        <button class="nav-item" data-page="operations">Operaciones</button>
+        <button class="nav-item" data-page="settings">Configuración</button>
+        <button class="nav-item" data-page="audit">Audit Log</button>
       </div>
 
       <div class="sidebar-bottom">
@@ -158,11 +163,17 @@
   </div>
 
   <nav id="mobileNav" class="mobile-bottom-nav" aria-label="Navegación móvil">
-    <button class="nav-item mobile-nav-item active" data-page="overview"><span>⌂</span><small>Inicio</small></button>
-    <button class="nav-item mobile-nav-item" data-page="conversations"><span>◌</span><small>Chats</small></button>
-    <button class="nav-item mobile-nav-item" data-page="leads"><span>↗</span><small>Leads</small></button>
-    <button class="nav-item mobile-nav-item" data-page="appointments"><span>▣</span><small>Citas</small></button>
-    <button class="nav-item mobile-nav-item" data-page="metrics"><span>◇</span><small>Métricas</small></button>
+    <button class="nav-item mobile-nav-item client-mobile-nav-item active" data-page="overview"><span>⌂</span><small>Inicio</small></button>
+    <button class="nav-item mobile-nav-item client-mobile-nav-item" data-page="conversations"><span>◌</span><small>Chats</small></button>
+    <button class="nav-item mobile-nav-item client-mobile-nav-item" data-page="leads"><span>↗</span><small>Leads</small></button>
+    <button class="nav-item mobile-nav-item client-mobile-nav-item" data-page="appointments"><span>▣</span><small>Agenda</small></button>
+    <button class="nav-item mobile-nav-item client-mobile-nav-item" data-page="billing"><span>◇</span><small>Cobros</small></button>
+
+    <button class="nav-item mobile-nav-item admin-mobile-nav-item hidden" data-page="overview"><span>⌂</span><small>Centro</small></button>
+    <button class="nav-item mobile-nav-item admin-mobile-nav-item hidden" data-page="crm"><span>↗</span><small>CRM</small></button>
+    <button class="nav-item mobile-nav-item admin-mobile-nav-item hidden" data-page="clients"><span>◫</span><small>Clientes</small></button>
+    <button class="nav-item mobile-nav-item admin-mobile-nav-item hidden" data-page="operations"><span>◌</span><small>Operación</small></button>
+    <button class="nav-item mobile-nav-item admin-mobile-nav-item hidden" data-page="audit"><span>◇</span><small>Audit</small></button>
   </nav>
 
   <div id="globalSearchPanel" class="global-search-panel hidden" role="dialog" aria-modal="true" aria-label="Búsqueda global">
@@ -187,6 +198,6 @@
   </aside>
   <div id="toast" class="toast hidden"></div>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-  <script type="module" src="./app.js?v=20260930-crm16"></script>
+  <script type="module" src="./app.js?v=20260930-crm17"></script>
 </body>
 </html>
