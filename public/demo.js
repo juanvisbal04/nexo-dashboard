@@ -1,6 +1,14 @@
-const planParam=new URLSearchParams(location.search).get("plan");
-const planSelect=document.getElementById("demoPlan");
-if(planSelect&&["start","growth","pro","custom"].includes(planParam||"")) planSelect.value=planParam;
+function applyPlanFromUrl(){
+  const planParam=new URLSearchParams(window.location.search).get("plan");
+  const planSelect=document.getElementById("demoPlan");
+  if(planSelect&&["start","growth","pro","custom"].includes(planParam||"")){
+    planSelect.value=planParam;
+    const option=planSelect.querySelector('option[value="'+planParam+'"]');
+    if(option) option.selected=true;
+  }
+}
+applyPlanFromUrl();
+window.addEventListener("pageshow",applyPlanFromUrl);
 
 const form=document.getElementById("demoForm");
 const result=document.getElementById("demoResult");
