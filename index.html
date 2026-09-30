@@ -15,8 +15,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=20260930-crm15" />
-  <link rel="stylesheet" href="./crm.css?v=20260930-crm15" />
+  <link rel="stylesheet" href="./styles.css?v=20260930-crm16" />
+  <link rel="stylesheet" href="./crm.css?v=20260930-crm16" />
 </head>
 <body>
   <div id="loginView" class="login-screen">
@@ -111,6 +111,9 @@
             <span id="orgBadge" class="org-badge">NX</span>
             <select id="orgSelect" aria-label="Empresa"></select>
           </div>
+          <button id="globalSearchButton" class="global-search-button" type="button" aria-label="Buscar en NEXO">
+            <span>⌕</span><small>Buscar</small>
+          </button>
           <button id="notificationButton" class="notification-button" type="button" aria-label="Centro de atención" aria-expanded="false">
             <span class="notification-icon">◎</span>
             <span id="notificationBadge" class="notification-badge hidden">0</span>
@@ -162,6 +165,19 @@
     <button class="nav-item mobile-nav-item" data-page="metrics"><span>◇</span><small>Métricas</small></button>
   </nav>
 
+  <div id="globalSearchPanel" class="global-search-panel hidden" role="dialog" aria-modal="true" aria-label="Búsqueda global">
+    <div class="global-search-shell">
+      <div class="global-search-head">
+        <span>⌕</span>
+        <input id="globalSearchInput" type="search" autocomplete="off" placeholder="Buscar conversaciones, leads, citas, cobros o clientes…" />
+        <button id="globalSearchClose" type="button" aria-label="Cerrar">×</button>
+      </div>
+      <div id="globalSearchResults" class="global-search-results">
+        <div class="global-search-empty"><b>Busca en toda tu operación.</b><p>Escribe un nombre, número de cuenta, estado, servicio o negocio.</p></div>
+      </div>
+      <div class="global-search-foot"><span>Enter para abrir</span><span>Esc para cerrar</span></div>
+    </div>
+  </div>
   <aside id="notificationPanel" class="notification-panel hidden" aria-label="Centro de atención">
     <div class="notification-panel-head">
       <div><span class="eyebrow">NEXO LIVE</span><h2>Centro de atención</h2><p>Lo que merece revisión ahora.</p></div>
@@ -171,6 +187,6 @@
   </aside>
   <div id="toast" class="toast hidden"></div>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-  <script type="module" src="./app.js?v=20260930-crm15"></script>
+  <script type="module" src="./app.js?v=20260930-crm16"></script>
 </body>
 </html>
