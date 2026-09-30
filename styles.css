@@ -261,3 +261,8 @@ footer b{color:#77869c}footer b span{color:#4b82f2}
   .executive-strip>div{border-right:0}
   .chart-wrap{padding-left:12px;padding-right:12px}
 }
+
+.admin-prospects-card{margin-bottom:20px}
+.inline-link{color:var(--blue);text-decoration:none;font-weight:700;font-size:10px}
+.prospect-message{max-width:280px;white-space:normal;line-height:1.45}
+.team-nav .nav-item{width:100%}
