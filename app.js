@@ -185,8 +185,11 @@ async function loadIdentity() {
   if (adminError) throw adminError;
   state.isAdmin = adminResult === true;
 
-  $("profileName").textContent = state.profile?.full_name || "Usuario NEXO";
+  const displayName = state.profile?.full_name || "Usuario NEXO";
+  $("profileName").textContent = displayName;
   $("profileRole").textContent = state.isAdmin ? "Super Admin" : "Cliente NEXO";
+  const initials = displayName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase() || "").join("") || "NX";
+  if ($("profileAvatar")) $("profileAvatar").textContent = initials;
   $("adminNav").classList.toggle("hidden", !state.isAdmin);
 }
 
