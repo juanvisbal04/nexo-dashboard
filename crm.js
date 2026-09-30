@@ -271,6 +271,19 @@ async function openProspectEditor(prospect, plans = []) {
       }, { onConflict: "organization_id" });
       if (commercialError) throw commercialError;
 
+      const setupToCharge = expectedSetup ?? selectedPlan?.setup_fee_min ?? null;
+      if (setupToCharge && setupToCharge > 0) {
+        const { error: setupInvoiceError } = await C.supabase.from("client_invoices").insert({
+          organization_id: org.id,
+          invoice_type: "setup",
+          due_date: new Date().toISOString().slice(0,10),
+          amount_cop: setupToCharge,
+          status: "pending",
+          reference: "Setup inicial NEXO",
+        });
+        if (setupInvoiceError) throw setupInvoiceError;
+      }
+
       const { error: prospectError } = await C.supabase.from("demo_requests").update({
         stage: "implementacion",
         status: "Cliente",
@@ -534,6 +547,12 @@ export async function renderCrm(context) {
       const due = new Date(row.due_date + "T23:59:59").getTime();
       return due >= Date.now() && due <= Date.now() + 30 * 86400000;
     });
+  const renewalsSoon = commercialRows
+    .filter((row) => row.renewal_date)
+    .filter((row) => {
+      const renewal = new Date(row.renewal_date + "T23:59:59").getTime();
+      return renewal >= Date.now() && renewal <= Date.now() + 30 * 86400000;
+    });
   const pipelineStages = new Set(["prospecto", "demo", "propuesta"]);
   const pipelineMrr = opportunityRows
     .filter((row) => pipelineStages.has(row.stage))
@@ -631,6 +650,7 @@ export async function renderCrm(context) {
         <div><span>Por cobrar</span><b>${money(receivable)}</b></div>
         <div><span>Vencidas</span><b>${overdueInvoices.length}</b></div>
         <div><span>Próximos 30 días</span><b>${dueSoonInvoices.length}</b></div>
+        <div><span>Renovaciones 30 días</span><b>${renewalsSoon.length}</b></div>
       </div>
       <form id="crmInvoiceForm" class="crm-invoice-form">
         <select id="crmInvoiceOrg" required>
@@ -746,7 +766,7 @@ export async function renderCrm(context) {
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Cliente</th><th>Etapa</th><th>Plan</th><th>MRR</th><th>Costo mensual</th><th>Utilidad</th><th>Margen</th><th>Implementación</th><th>Integraciones</th><th>Inicio</th><th></th></tr></thead>
+          <thead><tr><th>Cliente</th><th>Etapa</th><th>Plan</th><th>MRR</th><th>Costo mensual</th><th>Utilidad</th><th>Margen</th><th>Implementación</th><th>Integraciones</th><th>Inicio</th><th>Renovación</th><th></th></tr></thead>
           <tbody>
             ${clientFinancials.map(({ org, commercial, orgIntegrations, economics }) => `
               <tr>
@@ -760,9 +780,10 @@ export async function renderCrm(context) {
                 <td>${esc(commercial?.implementation_status || "pending")}</td>
                 <td>${esc(commercial?.integration_status || "pending")} · ${orgIntegrations.length}</td>
                 <td>${commercial?.contract_start_date ? shortDate(commercial.contract_start_date) : "—"}</td>
+                <td>${commercial?.renewal_date ? `<span class="${new Date(commercial.renewal_date+"T23:59:59").getTime() <= Date.now()+30*86400000 ? "crm-watch" : ""}">${shortDate(commercial.renewal_date)}</span>` : "—"}</td>
                 <td><button class="crm-edit-client btn small" data-org-id="${org.id}" type="button">Editar</button></td>
               </tr>
-            `).join("") || `<tr><td colspan="11">${C.emptyState("Sin clientes todavía.", "Convierte un prospecto cuando cierre.")}</td></tr>`}
+            `).join("") || `<tr><td colspan="12">${C.emptyState("Sin clientes todavía.", "Convierte un prospecto cuando cierre.")}</td></tr>`}
           </tbody>
         </table>
       </div>
