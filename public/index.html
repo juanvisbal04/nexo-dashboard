@@ -3,188 +3,338 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <meta name="description" content="NEXO by Juan Visbal crea asistentes digitales personalizados para negocios. Atención, ventas, reservas, seguimiento e integraciones."/>
-  <meta name="theme-color" content="#0B1F3B"/>
-  <title>NEXO by Juan Visbal | Conectamos tu negocio con tus clientes</title>
+  <meta name="description" content="NEXO by Juan Visbal diseña asistentes digitales personalizados para negocios: atención, ventas, reservas, seguimiento, integraciones y dashboard privado."/>
+  <meta name="theme-color" content="#07172b"/>
+  <meta property="og:title" content="NEXO by Juan Visbal"/>
+  <meta property="og:description" content="Conectamos tu negocio con tus clientes."/>
+  <meta property="og:type" content="website"/>
+  <meta property="og:url" content="https://nexobyjv.online"/>
+  <title>NEXO by Juan Visbal | Asistentes digitales para negocios</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://images.unsplash.com">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css"/>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230B1F3B'/%3E%3Cpath d='M17 15l15 17-15 17h12l9-11 9 11h0V35L36 23l7-8H31l-5 7-6-7z' fill='%232D9CFF'/%3E%3C/svg%3E"/>
+  <link rel="stylesheet" href="./styles.css?v=20260930-premium1"/>
+  <script type="application/ld+json">
+  {
+    "@context":"https://schema.org",
+    "@type":"Organization",
+    "name":"NEXO by Juan Visbal",
+    "url":"https://nexobyjv.online",
+    "founder":{"@type":"Person","name":"Juan Visbal"},
+    "sameAs":["https://www.instagram.com/nexo.byjuanvisbal/"],
+    "areaServed":["CO","US"]
+  }
+  </script>
 </head>
 <body>
-<header class="nav">
+<header class="nav" id="top">
   <a class="brand" href="#inicio" aria-label="NEXO inicio">
     <span class="brand-word">NE<span>X</span>O</span>
     <small>by Juan Visbal</small>
   </a>
-  <button class="menu" id="menu">☰</button>
+  <button class="menu" id="menu" aria-label="Abrir menú" aria-expanded="false">☰</button>
   <nav id="navLinks">
-    <a href="#nosotros">Quiénes somos</a>
+    <a href="#nosotros">Nosotros</a>
     <a href="#soluciones">Soluciones</a>
-    <a href="#proceso">Cómo funciona</a>
+    <a href="#industrias">Industrias</a>
+    <a href="#caso">Caso Lía</a>
     <a href="./catalogo.html">Catálogo</a>
-    <a href="#contacto">Contacto</a>
+    <a class="nav-cta" href="https://wa.me/573006150188" target="_blank" rel="noopener">Hablemos</a>
     <a class="login-link" href="https://dashboard.nexobyjv.online">Ingresar</a>
   </nav>
 </header>
 
 <main>
 <section class="hero" id="inicio">
-  <div class="hero-copy">
-    <p class="eyebrow">ASISTENTES DIGITALES PERSONALIZADOS</p>
-    <h1>Conectamos tu negocio con <span>tus clientes.</span></h1>
-    <p class="lead">Diseñamos asistentes digitales que atienden, orientan, captan oportunidades, apoyan reservas y escalan al equipo humano cuando hace falta.</p>
+  <div class="hero-glow glow-one"></div>
+  <div class="hero-glow glow-two"></div>
+  <div class="hero-copy reveal">
+    <div class="hero-kicker"><span></span> ASISTENTES DIGITALES PERSONALIZADOS</div>
+    <h1>Tu negocio siempre <em>conectado.</em></h1>
+    <p class="lead">Diseñamos asistentes digitales que atienden, orientan, captan oportunidades, apoyan reservas y trabajan junto a tu equipo sin borrar la identidad de tu negocio.</p>
     <div class="cta-row">
-      <a class="btn primary" href="https://wa.me/573006150188" target="_blank" rel="noopener">Hablemos por WhatsApp</a>
-      <a class="btn ghost" href="./catalogo.html">Ver soluciones</a>
+      <a class="btn primary bright" href="https://wa.me/573006150188?text=Hola%20NEXO,%20quiero%20conocer%20cómo%20funcionaría%20un%20asistente%20para%20mi%20negocio." target="_blank" rel="noopener">Quiero una demo <span>→</span></a>
+      <a class="btn glass" href="#como-funciona">Cómo funciona</a>
     </div>
-    <div class="hero-points">
-      <span>Atiende 24/7</span><span>Captura oportunidades</span><span>Agenda y organiza</span><span>Mide resultados</span>
-    </div>
-  </div>
-  <div class="hero-visual">
-    <div class="visual-grid"></div>
-    <div class="floating-card card-one"><b>Hola 👋</b><span>¿Cómo puedo ayudarte?</span></div>
-    <div class="floating-card card-two"><b>Cita confirmada</b><span>Hoy · 3:30 PM</span></div>
-    <div class="floating-card card-three"><b>Nuevo lead</b><span>+1 oportunidad</span></div>
-    <div class="visual-logo">
-      <span class="brand-word">NE<span>X</span>O</span>
-      <small>by Juan Visbal</small>
+    <div class="hero-proof">
+      <div><b>24/7</b><span>Atención disponible</span></div>
+      <div><b>1 a 1</b><span>Diseño por negocio</span></div>
+      <div><b>Privado</b><span>Dashboard por cliente</span></div>
     </div>
   </div>
-</section>
 
-<section class="trustbar">
-  <span>WhatsApp</span><span>Reservas</span><span>Leads</span><span>Seguimiento</span><span>Integraciones</span><span>Dashboard privado</span>
-</section>
-
-<section class="section" id="nosotros">
-  <div class="section-title">
-    <p class="eyebrow">QUIÉNES SOMOS</p>
-    <h2>Tecnología que acerca negocios y personas.</h2>
-    <p>NEXO nace para ayudar a empresas a atender mejor, organizar conversaciones y convertir más oportunidades sin perder su identidad.</p>
-  </div>
-  <div class="about-grid">
-    <article class="about-card">
-      <span>01</span>
-      <h3>Nuestra misión</h3>
-      <p>Ayudar a negocios a atender, organizar y convertir mejor sus conversaciones mediante asistentes digitales personalizados, prácticos y alineados con su forma real de trabajar.</p>
-    </article>
-    <article class="about-card">
-      <span>02</span>
-      <h3>Nuestra visión</h3>
-      <p>Construir una plataforma de asistentes digitales confiable para empresas de LATAM y EE. UU., donde cada negocio conserve su voz, sus reglas y el control de la experiencia de sus clientes.</p>
-    </article>
-    <article class="about-card">
-      <span>03</span>
-      <h3>Nuestra forma de trabajar</h3>
-      <p>La tecnología trabaja detrás; la experiencia del cliente va al frente. Diseñamos alrededor del negocio, no de una plantilla genérica.</p>
-    </article>
+  <div class="hero-media reveal">
+    <div class="photo-shell">
+      <img src="https://images.unsplash.com/photo-1758873271807-8f769c7141ab?auto=format&fit=crop&w=1400&q=82" alt="Profesional atendiendo clientes desde su teléfono y portátil" loading="eager"/>
+      <div class="photo-overlay"></div>
+      <div class="media-label">
+        <span class="live-dot"></span>
+        <span>Tu negocio sigue atendiendo</span>
+      </div>
+      <div class="chat-stack">
+        <div class="chat-card customer">
+          <small>Cliente · WhatsApp</small>
+          <p>Hola, quiero saber precios y disponibilidad 👋</p>
+        </div>
+        <div class="chat-card assistant">
+          <small>Asistente NEXO</small>
+          <p>Claro. Te ayudo con la información y también puedo revisar opciones para agendar.</p>
+        </div>
+      </div>
+      <div class="micro-card lead-card"><span>↗</span><div><small>Nuevo lead</small><b>Oportunidad capturada</b></div></div>
+      <div class="micro-card booking-card"><span>✓</span><div><small>Reserva</small><b>Solicitud registrada</b></div></div>
+    </div>
   </div>
 </section>
 
-<section class="section dark" id="soluciones">
-  <div class="section-title light">
-    <p class="eyebrow">SOLUCIONES NEXO</p>
-    <h2>Una base común. Distintos objetivos.</h2>
-    <p>NEXO puede configurarse según la necesidad principal de cada negocio y crecer con nuevas funciones e integraciones.</p>
-  </div>
-  <div class="solutions">
-    <article><b>NEXO Assistant</b><p>Conocimiento, personalidad, flujos y escalamiento.</p></article>
-    <article><b>NEXO Booking</b><p>Citas, reservas, recordatorios y reprogramaciones.</p></article>
-    <article><b>NEXO Sales</b><p>Captura, calificación y seguimiento inicial de oportunidades.</p></article>
-    <article><b>NEXO Service</b><p>Atención, preguntas frecuentes y orientación de servicios.</p></article>
-    <article><b>NEXO Persona</b><p>Nombre, tono, identidad y experiencia propia para cada asistente.</p></article>
-    <article><b>NEXO Connect</b><p>WhatsApp, calendarios, CRM, formularios, email y web según alcance.</p></article>
-  </div>
-</section>
-
-<section class="section" id="proceso">
-  <div class="section-title">
-    <p class="eyebrow">CÓMO FUNCIONA</p>
-    <h2>Primero entendemos el negocio. Después diseñamos la solución.</h2>
-  </div>
-  <div class="steps">
-    <div><span>01</span><b>Discovery</b><p>Entendemos clientes, servicios, objetivos y operación.</p></div>
-    <div><span>02</span><b>Diseño</b><p>Definimos funciones, tono, reglas, límites y escalamiento.</p></div>
-    <div><span>03</span><b>Configuración</b><p>Construimos conocimiento, flujos e integraciones.</p></div>
-    <div><span>04</span><b>Pruebas</b><p>Simulamos conversaciones y ajustamos respuestas.</p></div>
-    <div><span>05</span><b>Lanzamiento</b><p>Activamos el canal y acompañamos la salida.</p></div>
-    <div><span>06</span><b>Optimización</b><p>Mejoramos usando conversaciones y métricas reales.</p></div>
-  </div>
-</section>
-
-<section class="case section">
-  <div class="case-copy">
-    <p class="eyebrow">CASO FUNDADOR</p>
-    <h2>Lía para Estética Avanzada by Isabel Gómez.</h2>
-    <p>Un asistente digital con identidad propia, información aprobada del negocio, reglas de atención, soporte de agenda y escalamiento humano.</p>
-    <ul>
-      <li>Servicios y precios autorizados</li>
-      <li>Atención por WhatsApp</li>
-      <li>Agenda y recordatorios</li>
-      <li>Captura de leads</li>
-      <li>Escalamiento humano</li>
-      <li>Dashboard de conversaciones y métricas</li>
-    </ul>
-  </div>
-  <div class="case-panel">
-    <div class="case-brand">Lía</div>
-    <p>Ejemplo real de una implementación NEXO personalizada.</p>
-    <div class="mini-metrics"><span><b>24/7</b> atención</span><span><b>Leads</b> organizados</span><span><b>Citas</b> visibles</span></div>
-  </div>
-</section>
-
-<section class="section values">
-  <div class="section-title">
-    <p class="eyebrow">POR QUÉ NEXO</p>
-    <h2>Conectar mejor también es crecer.</h2>
-  </div>
-  <div class="value-grid">
-    <div><b>Personalización real</b><p>Construimos alrededor del negocio, no de una plantilla.</p></div>
-    <div><b>Experiencia humana</b><p>El asistente ayuda; el equipo humano mantiene el control.</p></div>
-    <div><b>Implementación práctica</b><p>Diseñamos lo necesario hoy y dejamos espacio para crecer.</p></div>
-    <div><b>Acompañamiento</b><p>Probamos, ajustamos y optimizamos después del lanzamiento.</p></div>
-  </div>
-</section>
-
-<section class="portal section">
+<section class="integration-bar">
+  <p>Una experiencia conectada con las herramientas que tu negocio ya usa</p>
   <div>
-    <p class="eyebrow">PORTAL DE CLIENTES</p>
-    <h2>Tus datos, tu asistente, tu operación.</h2>
-    <p>Cada cliente NEXO cuenta con un acceso privado para consultar conversaciones, leads, citas, métricas y rendimiento de su asistente. Cada empresa solo puede ver su propia información.</p>
+    <span>WhatsApp</span><i></i><span>Calendarios</span><i></i><span>CRM</span><i></i><span>Web</span><i></i><span>Formularios</span><i></i><span>Dashboard NEXO</span>
   </div>
-  <a class="btn primary" href="https://dashboard.nexobyjv.online">Ingresar al Dashboard</a>
+</section>
+
+<section class="section intro" id="nosotros">
+  <div class="section-label reveal">NEXO / QUÉ HACEMOS</div>
+  <div class="intro-grid">
+    <div class="section-heading reveal">
+      <h2>No vendemos un bot genérico. <span>Construimos una experiencia.</span></h2>
+    </div>
+    <div class="intro-copy reveal">
+      <p>NEXO nace para ayudar a negocios a atender mejor, organizar conversaciones y convertir oportunidades sin perder la forma humana de comunicarse.</p>
+      <p>Cada implementación se construye alrededor de servicios, horarios, reglas, preguntas frecuentes, proceso comercial y forma de trabajar del negocio.</p>
+      <a class="text-link" href="./catalogo.html">Explorar el catálogo de soluciones <span>↗</span></a>
+    </div>
+  </div>
+
+  <div class="principles">
+    <article class="principle reveal">
+      <span class="number">01</span>
+      <div class="icon-box">◎</div>
+      <h3>Personalización real</h3>
+      <p>Conocimiento, tono, reglas y flujos diseñados para cada empresa.</p>
+    </article>
+    <article class="principle reveal">
+      <span class="number">02</span>
+      <div class="icon-box">↗</div>
+      <h3>Orientado a resultados</h3>
+      <p>La conversación debe llevar a una acción: orientar, captar, reservar o escalar.</p>
+    </article>
+    <article class="principle reveal">
+      <span class="number">03</span>
+      <div class="icon-box">◇</div>
+      <h3>Humano cuando importa</h3>
+      <p>El asistente ayuda y organiza; el equipo mantiene el control de los casos que lo necesitan.</p>
+    </article>
+    <article class="principle reveal">
+      <span class="number">04</span>
+      <div class="icon-box">▦</div>
+      <h3>Datos visibles</h3>
+      <p>Conversaciones, leads, citas y métricas en un portal privado por cliente.</p>
+    </article>
+  </div>
+</section>
+
+<section class="section solutions-section" id="soluciones">
+  <div class="solution-head reveal">
+    <div>
+      <div class="section-label light">SOLUCIONES NEXO</div>
+      <h2>Una plataforma.<br><span>Distintas formas de crecer.</span></h2>
+    </div>
+    <p>Empieza con lo que necesitas hoy y amplía funciones e integraciones a medida que tu operación evoluciona.</p>
+  </div>
+
+  <div class="solutions-grid">
+    <article class="solution-card featured reveal">
+      <div class="solution-top"><span>01</span><b>NEXO Assistant</b></div>
+      <h3>El núcleo de tu asistente.</h3>
+      <p>Conocimiento, personalidad, reglas, contexto, respuestas y escalamiento.</p>
+      <div class="solution-visual assistant-ui">
+        <div class="ui-bubble left">¿Tienen disponibilidad mañana?</div>
+        <div class="ui-bubble right">Sí. Puedo ayudarte a revisar opciones y registrar tu solicitud.</div>
+        <div class="typing"><i></i><i></i><i></i></div>
+      </div>
+    </article>
+
+    <article class="solution-card reveal">
+      <div class="solution-top"><span>02</span><b>NEXO Booking</b></div>
+      <h3>Agenda sin fricción.</h3>
+      <p>Reservas, solicitudes, recordatorios, confirmaciones y reprogramación según el negocio.</p>
+      <div class="mini-calendar">
+        <div class="cal-head"><span>SEP</span><b>30</b></div>
+        <div class="cal-event"><i></i><span>Solicitud registrada</span></div>
+      </div>
+    </article>
+
+    <article class="solution-card reveal">
+      <div class="solution-top"><span>03</span><b>NEXO Sales</b></div>
+      <h3>Que cada conversación cuente.</h3>
+      <p>Captura datos, identifica interés, organiza oportunidades y facilita el seguimiento.</p>
+      <div class="pipeline">
+        <span style="--w:100%">Conversación</span>
+        <span style="--w:76%">Lead</span>
+        <span style="--w:48%">Oportunidad</span>
+      </div>
+    </article>
+
+    <article class="solution-card reveal">
+      <div class="solution-top"><span>04</span><b>NEXO Connect</b></div>
+      <h3>Todo más conectado.</h3>
+      <p>WhatsApp, calendarios, CRM, web, formularios y otras integraciones según alcance.</p>
+      <div class="connect-orbit">
+        <div class="orbit-core">N</div>
+        <span class="orb o1">WA</span><span class="orb o2">CAL</span><span class="orb o3">CRM</span><span class="orb o4">WEB</span>
+      </div>
+    </article>
+  </div>
+</section>
+
+<section class="section process" id="como-funciona">
+  <div class="process-copy reveal">
+    <div class="section-label">CÓMO FUNCIONA</div>
+    <h2>De una conversación inicial a un asistente listo para trabajar.</h2>
+    <p>No empezamos programando. Empezamos entendiendo cómo funciona tu negocio y qué experiencia quieres entregar.</p>
+    <a class="btn dark-btn" href="https://wa.me/573006150188?text=Hola%20NEXO,%20quiero%20agendar%20una%20demo." target="_blank" rel="noopener">Agendar conversación</a>
+  </div>
+  <div class="process-timeline">
+    <article class="reveal"><span>01</span><div><b>Discovery</b><p>Clientes, servicios, procesos, objetivos y puntos de fricción.</p></div></article>
+    <article class="reveal"><span>02</span><div><b>Diseño</b><p>Funciones, tono, reglas, límites y cuándo debe intervenir una persona.</p></div></article>
+    <article class="reveal"><span>03</span><div><b>Configuración</b><p>Conocimiento, flujos, identidad e integraciones.</p></div></article>
+    <article class="reveal"><span>04</span><div><b>Pruebas</b><p>Escenarios reales, ajustes y validación antes de salir.</p></div></article>
+    <article class="reveal"><span>05</span><div><b>Lanzamiento</b><p>Activación del canal y acompañamiento en producción.</p></div></article>
+    <article class="reveal"><span>06</span><div><b>Optimización</b><p>Mejoras basadas en conversaciones, métricas y necesidades reales.</p></div></article>
+  </div>
+</section>
+
+<section class="section industries" id="industrias">
+  <div class="section-heading center reveal">
+    <div class="section-label">INDUSTRIAS</div>
+    <h2>Diseñado para negocios donde <span>cada conversación puede convertirse en una oportunidad.</span></h2>
+  </div>
+  <div class="industry-grid">
+    <article class="industry-card large reveal">
+      <img src="https://images.unsplash.com/photo-1552693673-1bf958298935?auto=format&fit=crop&w=1200&q=80" alt="Tratamiento facial en un centro de estética" loading="lazy"/>
+      <div class="industry-shade"></div>
+      <div class="industry-copy"><small>ESTÉTICA & WELLNESS</small><h3>Atención, servicios, agenda y seguimiento.</h3><span>Ideal para negocios con alto volumen de consultas por WhatsApp.</span></div>
+    </article>
+    <article class="industry-card reveal">
+      <img src="https://images.unsplash.com/photo-1757840600384-2a384321fa6d?auto=format&fit=crop&w=1000&q=80" alt="Recepción de hotel con personal atendiendo" loading="lazy"/>
+      <div class="industry-shade"></div>
+      <div class="industry-copy"><small>HOTELES</small><h3>Disponibilidad, información y reservas.</h3></div>
+    </article>
+    <article class="industry-card reveal">
+      <img src="https://images.unsplash.com/photo-1759696302352-f20e19869be2?auto=format&fit=crop&w=1000&q=80" alt="Equipo atendiendo clientes en un restaurante" loading="lazy"/>
+      <div class="industry-shade"></div>
+      <div class="industry-copy"><small>RESTAURANTES</small><h3>Menú, sedes, pedidos y atención frecuente.</h3></div>
+    </article>
+  </div>
+  <div class="industry-tags reveal">
+    <span>Clínicas & odontología</span><span>Inmobiliarias</span><span>Servicios profesionales</span><span>Comercio</span><span>Negocios con alto volumen de WhatsApp</span>
+  </div>
+</section>
+
+<section class="case section" id="caso">
+  <div class="case-art reveal">
+    <div class="case-orb"></div>
+    <div class="lia-device">
+      <div class="phone-top"><span></span><b>Lía</b><i></i></div>
+      <div class="lia-chat bot">Hola 👋 Soy Lía. ¿En qué servicio estás interesada?</div>
+      <div class="lia-chat user">Quiero una limpieza facial y saber disponibilidad.</div>
+      <div class="lia-chat bot">Claro. Te comparto la información y podemos revisar opciones para tu cita.</div>
+      <div class="lia-status"><span>●</span> Atención activa</div>
+    </div>
+    <div class="case-badge b1"><small>WhatsApp</small><b>Atención automatizada</b></div>
+    <div class="case-badge b2"><small>NEXO Dashboard</small><b>Leads + citas + métricas</b></div>
+  </div>
+  <div class="case-copy reveal">
+    <div class="section-label">CASO FUNDADOR / LÍA</div>
+    <h2>Una identidad propia para atender un negocio real.</h2>
+    <p>Lía fue construida para Estética Avanzada by Isabel Gómez con información aprobada del negocio, tono propio, atención por WhatsApp, soporte de agenda y escalamiento humano.</p>
+    <div class="case-features">
+      <div><span>01</span><b>Conocimiento del negocio</b><p>Servicios, precios y reglas de atención.</p></div>
+      <div><span>02</span><b>Conversaciones organizadas</b><p>Contacto, historial y necesidades del cliente.</p></div>
+      <div><span>03</span><b>Agenda & leads</b><p>Solicitudes, oportunidades y seguimiento.</p></div>
+      <div><span>04</span><b>Dashboard privado</b><p>Visibilidad de la operación en un solo lugar.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="dashboard-showcase section">
+  <div class="dashboard-copy reveal">
+    <div class="section-label light">NEXO DASHBOARD</div>
+    <h2>Tu operación deja de vivir solo en el chat.</h2>
+    <p>Cada cliente NEXO tiene un acceso privado a su propia información. Conversaciones, teléfonos, leads, citas, seguimientos y métricas en una vista creada para su negocio.</p>
+    <a class="btn outline-light" href="https://dashboard.nexobyjv.online">Ver portal de acceso <span>↗</span></a>
+  </div>
+  <div class="dashboard-frame reveal">
+    <div class="browser-bar"><i></i><i></i><i></i><span>dashboard.nexobyjv.online</span></div>
+    <div class="dash-body">
+      <aside class="dash-side">
+        <div class="mini-logo">NE<span>X</span>O</div>
+        <b>Vista general</b><span>Conversaciones</span><span>Leads</span><span>Citas</span><span>Métricas</span>
+      </aside>
+      <div class="dash-main">
+        <div class="dash-title"><small>NEXO DASHBOARD</small><b>Tu negocio, en perspectiva.</b></div>
+        <div class="dash-stats">
+          <div><small>Conversaciones</small><strong>19</strong><em>actividad</em></div>
+          <div><small>Leads</small><strong>10</strong><em>oportunidades</em></div>
+          <div><small>Citas</small><strong>7</strong><em>registradas</em></div>
+          <div><small>Atención</small><strong>2</strong><em>por revisar</em></div>
+        </div>
+        <div class="dash-chart">
+          <div class="chart-head"><b>Actividad</b><span>Últimos 30 días</span></div>
+          <div class="bars"><i style="--h:35%"></i><i style="--h:56%"></i><i style="--h:43%"></i><i style="--h:78%"></i><i style="--h:62%"></i><i style="--h:88%"></i><i style="--h:70%"></i><i style="--h:96%"></i></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section why">
+  <div class="why-heading reveal">
+    <div class="section-label">POR QUÉ NEXO</div>
+    <h2>Tecnología útil. Implementación cercana.</h2>
+  </div>
+  <div class="why-grid">
+    <article class="reveal"><b>01</b><h3>Hecho alrededor de tu operación</h3><p>No forzamos tu negocio a funcionar como una plantilla.</p></article>
+    <article class="reveal"><b>02</b><h3>Crece por etapas</h3><p>Empieza con lo necesario y agrega nuevas capacidades cuando tengan sentido.</p></article>
+    <article class="reveal"><b>03</b><h3>Visibilidad y control</h3><p>Tu equipo conserva la última palabra y puede revisar la actividad del asistente.</p></article>
+  </div>
 </section>
 
 <section class="contact section" id="contacto">
-  <div class="contact-main">
-    <p class="eyebrow">HABLEMOS</p>
-    <h2>Diseñemos el asistente digital de tu negocio.</h2>
-    <p>Cuéntanos cómo atiendes hoy y qué quieres mejorar. NEXO se adapta a tu operación, no al revés.</p>
-    <div class="contact-actions">
-      <a class="btn primary" href="https://wa.me/573006150188" target="_blank" rel="noopener">WhatsApp +57 300 615 0188</a>
-      <a class="btn ghost" href="mailto:nexobyjuanvisbal@gmail.com">nexobyjuanvisbal@gmail.com</a>
+  <div class="contact-card reveal">
+    <div class="contact-copy">
+      <div class="section-label light">HABLEMOS</div>
+      <h2>¿Qué pasaría si tu negocio pudiera atender mejor sin sumar más caos?</h2>
+      <p>Cuéntame cómo manejas hoy tus conversaciones. Revisamos tu operación, detectamos qué se puede mejorar y armamos una demo alrededor de tu negocio.</p>
+      <div class="contact-actions">
+        <a class="btn primary bright" href="https://wa.me/573006150188?text=Hola%20Juan,%20vi%20NEXO%20y%20quiero%20una%20demo%20para%20mi%20negocio." target="_blank" rel="noopener">Escribir por WhatsApp <span>→</span></a>
+        <a class="btn outline-light" href="mailto:nexobyjuanvisbal@gmail.com">Enviar un correo</a>
+      </div>
+    </div>
+    <div class="contact-meta">
+      <div><small>Founder</small><b>Juan Visbal</b></div>
+      <div><small>Base</small><b>Medellín, Colombia</b></div>
+      <div><small>Alcance</small><b>LATAM & USA</b></div>
+      <div><small>Instagram</small><a href="https://www.instagram.com/nexo.byjuanvisbal/" target="_blank" rel="noopener">@nexo.byjuanvisbal ↗</a></div>
     </div>
   </div>
-  <aside class="contact-info">
-    <span>Founder</span><b>Juan Visbal</b>
-    <span>Ubicación</span><b>Medellín, Colombia</b>
-    <span>Alcance</span><b>Clientes LATAM & USA</b>
-    <span>Instagram</span><b><a href="https://www.instagram.com/nexo.byjuanvisbal/" target="_blank" rel="noopener">@nexo.byjuanvisbal</a></b>
-  </aside>
 </section>
 </main>
 
 <footer>
-  <div><span class="brand-word small">NE<span>X</span>O</span><small>by Juan Visbal</small></div>
-  <div class="footer-links">
-    <a href="./catalogo.html">Catálogo de soluciones</a>
-    <a href="./privacidad.html">Privacidad y tratamiento de datos</a>
-    <a href="https://dashboard.nexobyjv.online">Login clientes</a>
+  <div class="footer-brand">
+    <span class="brand-word small">NE<span>X</span>O</span>
+    <small>by Juan Visbal</small>
+    <p>Conectamos tu negocio con tus clientes.</p>
   </div>
-  <p>© 2026 NEXO by Juan Visbal. Medellín, Colombia.</p>
+  <div class="footer-col"><b>Explorar</b><a href="#soluciones">Soluciones</a><a href="#industrias">Industrias</a><a href="#caso">Caso Lía</a><a href="./catalogo.html">Catálogo</a></div>
+  <div class="footer-col"><b>Acceso</b><a href="https://dashboard.nexobyjv.online">Dashboard clientes</a><a href="./privacidad.html">Privacidad y datos</a><a href="https://www.instagram.com/nexo.byjuanvisbal/" target="_blank" rel="noopener">Instagram</a></div>
+  <div class="footer-bottom"><span>© 2026 NEXO by Juan Visbal.</span><span>Medellín, Colombia.</span></div>
 </footer>
-<script src="./site.js"></script>
+<script src="./site.js?v=20260930-premium1"></script>
 </body>
 </html>
