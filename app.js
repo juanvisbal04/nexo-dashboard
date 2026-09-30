@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
+import { renderCrm } from "./crm.js?v=20260930-crm2";
 
 const SUPABASE_URL = "https://ixewnbjndguchunwcuhf.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_vFnLRe9cmnOcyz2Fivprhw_8UjBaRGL";
@@ -12,6 +13,7 @@ const state = {
   page: "overview",
   organizations: [],
   orgRoles: {},
+  commercialStages: {},
   profile: null,
   isAdmin: false,
   session: null,
@@ -26,7 +28,8 @@ const pageMeta = {
   followups: ["Seguimientos", "NEXO RECOVERY", "El siguiente paso importa.", "Oportunidades que necesitan una nueva acción."],
   metrics: ["Métricas", "NEXO ANALYTICS", "Entiende tus resultados.", "Conversión, automatización, respuesta, demanda y valor en una sola vista."],
   team: ["Usuarios", "CONTROL DE ACCESO", "Tu equipo, con el acceso correcto.", "Invita y administra usuarios de este dashboard."],
-  admin: ["NEXO Admin", "NEXO COMMAND CENTER", "Control total de la plataforma.", "Clientes activos, accesos y crecimiento de NEXO."],
+  crm: ["CRM & Finanzas", "NEXO INTERNAL CRM", "Tu negocio, de prospecto a cliente activo.", "Pipeline, MRR, costos, implementación e integraciones en un solo lugar."],
+  admin: ["Platform Admin", "NEXO COMMAND CENTER", "Control total de la plataforma.", "Clientes activos, accesos y configuración de NEXO."],
 };
 
 function esc(value) {
@@ -107,9 +110,14 @@ function isInternalOrg(orgId = currentOrgId()) {
 }
 
 function clientOrganizations({ activeOnly = true } = {}) {
-  return state.organizations.filter((org) =>
-    org.name !== "NEXO Internal" && (!activeOnly || org.status === "active")
-  );
+  return state.organizations.filter((org) => {
+    if (org.name === "NEXO Internal") return false;
+    if (!activeOnly) return true;
+    if (state.isAdmin && Object.keys(state.commercialStages).length) {
+      return state.commercialStages[org.id] === "activo";
+    }
+    return org.status === "active";
+  });
 }
 
 function metricOrgIds(orgId = currentOrgId()) {
@@ -596,6 +604,15 @@ async function loadOrganizations() {
     .eq("user_id", state.session.user.id);
   if (membershipError) throw membershipError;
   state.orgRoles = Object.fromEntries((memberships || []).map((row) => [row.organization_id, row.role]));
+
+  state.commercialStages = {};
+  if (state.isAdmin) {
+    const { data: commercialRows, error: commercialError } = await supabase
+      .from("organization_commercials")
+      .select("organization_id,lifecycle_stage");
+    if (commercialError) throw commercialError;
+    state.commercialStages = Object.fromEntries((commercialRows || []).map((row) => [row.organization_id, row.lifecycle_stage]));
+  }
 
   $("orgSelect").innerHTML = state.organizations.length
     ? state.organizations.map((org) => `<option value="${org.id}">${esc(org.name)}</option>`).join("")
@@ -1210,7 +1227,7 @@ async function renderAdmin() {
   }
 
   const clients = clientOrganizations({ activeOnly: false });
-  const activeClients = clients.filter((org) => org.status === "active");
+  const activeClients = clientOrganizations();
   const internal = state.organizations.find((org) => org.name === "NEXO Internal");
   const totals = internal ? await getMetrics(internal.id, currentDays(), { comparison: false }) : null;
 
@@ -1218,15 +1235,6 @@ async function renderAdmin() {
     const metrics = await getMetrics(org.id, currentDays(), { comparison: false });
     return { org, metrics, health: operationalHealth(metrics) };
   }));
-
-  const { data: demoRequests, error: demoError } = await supabase
-    .from("demo_requests")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(100);
-  if (demoError) throw demoError;
-  const webProspects = demoRequests || [];
-  const newWebProspects = webProspects.filter((row) => row.status === "Nuevo").length;
 
   state.currentRows = rows.map(({ org, metrics, health }) => ({
     organization: org.name,
@@ -1278,38 +1286,6 @@ async function renderAdmin() {
       </div>
     </section>
 
-    <section class="card admin-prospects-card">
-      <div class="card-head">
-        <div><h2>Prospectos desde la web</h2><p>Solicitudes de demo recibidas en nexobyjv.online</p></div>
-        <span class="count">${newWebProspects} nuevos</span>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Prospecto</th><th>Negocio</th><th>Sector</th><th>Contacto</th><th>Interés</th><th>Fecha</th><th>Estado</th></tr></thead>
-          <tbody>
-            ${webProspects.length ? webProspects.map((lead) => `
-              <tr>
-                <td><b>${esc(lead.full_name)}</b></td>
-                <td>${esc(lead.business_name)}</td>
-                <td>${esc(lead.industry || "—")}</td>
-                <td>
-                  ${lead.phone ? `<a class="inline-link" href="https://wa.me/${String(lead.phone).replace(/\D/g, "")}" target="_blank" rel="noopener">${esc(lead.phone)}</a>` : ""}
-                  ${lead.email ? `<br><a class="inline-link" href="mailto:${esc(lead.email)}">${esc(lead.email)}</a>` : ""}
-                </td>
-                <td class="prospect-message">${esc(lead.message || "—")}</td>
-                <td>${dateTime(lead.created_at)}</td>
-                <td>
-                  <select class="status-select demo-status" data-id="${lead.id}">
-                    ${["Nuevo","Contactado","Calificado","Demo agendada","Cliente","Cerrado"].map((status) => `<option ${status === lead.status ? "selected" : ""}>${status}</option>`).join("")}
-                  </select>
-                </td>
-              </tr>
-            `).join("") : `<tr><td colspan="7">${emptyState("Todavía no hay solicitudes web.", "Cuando alguien complete la página de demo aparecerá aquí.")}</td></tr>`}
-          </tbody>
-        </table>
-      </div>
-    </section>
-
     <div class="grid-two admin-grid admin-actions-grid">
       <section class="card access-card">
         <div class="card-head"><div><h2>Crear acceso inicial</h2><p>Asigna al propietario o administrador de un cliente</p></div></div>
@@ -1352,21 +1328,6 @@ async function renderAdmin() {
       </section>
     </div>
   `;
-
-  document.querySelectorAll(".demo-status").forEach((select) => {
-    select.addEventListener("change", async () => {
-      select.disabled = true;
-      try {
-        const { error } = await supabase.from("demo_requests").update({ status: select.value, updated_at: new Date().toISOString() }).eq("id", select.dataset.id);
-        if (error) throw error;
-        showToast("Estado del prospecto actualizado.");
-      } catch (err) {
-        showError(err.message || "No pudimos actualizar el prospecto.");
-      } finally {
-        select.disabled = false;
-      }
-    });
-  });
 
   $("clientAccessForm")?.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -1620,9 +1581,20 @@ async function renderTeam() {
 
 async function render() {
   closeContactChat();
+  document.getElementById("crmModal")?.remove();
+  document.body.classList.remove("modal-open");
   document.body.classList.remove("sidebar-open");
   clearError();
   const meta = pageMeta[state.page];
+
+  if (state.page === "crm" && state.isAdmin) {
+    const internal = state.organizations.find((org) => org.name === "NEXO Internal");
+    if (internal && $("orgSelect").value !== internal.id) $("orgSelect").value = internal.id;
+  }
+
+  $("periodSelect").classList.toggle("hidden", state.page === "crm");
+  $("exportButton").textContent = state.page === "crm" ? "Exportar CRM" : "Exportar CSV";
+
   $("breadcrumb").textContent = meta[0];
   $("pageEyebrow").textContent = meta[1];
   $("pageTitle").textContent = meta[2];
@@ -1636,6 +1608,7 @@ async function render() {
     else if (["conversations", "leads", "appointments", "followups"].includes(state.page)) await renderTablePage(state.page);
     else if (state.page === "metrics") await renderMetrics();
     else if (state.page === "team") await renderTeam();
+    else if (state.page === "crm") await renderCrm({ supabase, state, $, esc, money, dateTime, shortDate, metricCard, emptyState, showError, showToast, clientOrganizations, loadOrganizations });
     else if (state.page === "admin") await renderAdmin();
   } catch (error) {
     showError(error.message || "No pudimos cargar la información.");
@@ -1824,7 +1797,7 @@ $("exportButton").addEventListener("click", exportCsv);
 
 document.querySelectorAll(".nav-item").forEach((button) => {
   button.addEventListener("click", () => {
-    if (button.dataset.page === "admin" && !state.isAdmin) return;
+    if (["admin","crm"].includes(button.dataset.page) && !state.isAdmin) return;
     if (button.dataset.page === "team" && !canManageCurrentOrgUsers()) return;
     state.page = button.dataset.page;
     document.querySelectorAll(".nav-item").forEach((item) => item.classList.toggle("active", item.dataset.page === state.page));
@@ -1838,12 +1811,16 @@ $("menuButton").addEventListener("click", () => document.body.classList.toggle("
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     closeContactChat();
+    document.getElementById("crmModal")?.remove();
+    document.body.classList.remove("modal-open");
     document.body.classList.remove("sidebar-open");
   }
 });
 
 window.addEventListener("pageshow", () => {
   closeContactChat();
+  document.getElementById("crmModal")?.remove();
+  document.body.classList.remove("modal-open");
   document.body.classList.remove("sidebar-open");
 });
 
