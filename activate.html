@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex,nofollow" />
+  <meta name="theme-color" content="#111d35" />
+  <title>Activar acceso | NEXO</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css?v=20260930-2" />
+</head>
+<body>
+  <div class="login-screen">
+    <section class="login-card">
+      <div class="logo-wrap">
+        <div class="logo-word">NE<span>X</span>O</div>
+        <div class="logo-by">by Juan Visbal</div>
+      </div>
+      <div class="login-copy">
+        <span class="eyebrow">ACTIVAR ACCESO</span>
+        <h1>Crea tu contraseña.</h1>
+        <p>Tu acceso ya fue autorizado por NEXO. Define una contraseña privada para entrar al dashboard de tu negocio.</p>
+      </div>
+      <form id="activateForm">
+        <label>Nueva contraseña</label>
+        <input id="password" type="password" minlength="10" autocomplete="new-password" required placeholder="Mínimo 10 caracteres" />
+        <label>Confirmar contraseña</label>
+        <input id="confirm" type="password" minlength="10" autocomplete="new-password" required placeholder="Repite la contraseña" />
+        <button id="submit" class="btn primary" type="submit">Activar mi acceso</button>
+      </form>
+      <div id="message" class="message hidden"></div>
+      <p class="security-note">El enlace vence en 48 horas y solo puede utilizarse una vez.</p>
+    </section>
+  </div>
+
+<script>
+const SUPABASE_URL = "https://ixewnbjndguchunwcuhf.supabase.co";
+const KEY = "sb_publishable_vFnLRe9cmnOcyz2Fivprhw_8UjBaRGL";
+const token = new URLSearchParams(location.search).get("token");
+const form = document.getElementById("activateForm");
+const message = document.getElementById("message");
+const button = document.getElementById("submit");
+
+if (!token) {
+  form.classList.add("hidden");
+  message.textContent = "Este enlace de activación no es válido.";
+  message.className = "message error";
+}
+
+form.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  message.className = "message hidden";
+  const password = document.getElementById("password").value;
+  const confirm = document.getElementById("confirm").value;
+
+  if (password !== confirm) {
+    message.textContent = "Las contraseñas no coinciden.";
+    message.className = "message error";
+    return;
+  }
+
+  button.disabled = true;
+  button.textContent = "Activando…";
+  try {
+    const response = await fetch(SUPABASE_URL + "/functions/v1/activate-client-access", {
+      method: "POST",
+      headers: { "content-type": "application/json", "apikey": KEY },
+      body: JSON.stringify({ token, password })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "No pudimos activar el acceso.");
+
+    form.classList.add("hidden");
+    message.innerHTML = 'Acceso activado correctamente.<br><br><a class="btn primary" href="https://dashboard.nexobyjv.online">Ir al login de NEXO</a>';
+    message.className = "message ok";
+  } catch (error) {
+    message.textContent = error.message || "No pudimos activar el acceso.";
+    message.className = "message error";
+    button.disabled = false;
+    button.textContent = "Activar mi acceso";
+  }
+});
+</script>
+</body>
+</html>
