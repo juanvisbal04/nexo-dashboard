@@ -158,4 +158,69 @@ async function openProspectEditor(prospect) {
     </div>
   `;
 
-  const { modal, close } = crmMo
+  const { modal, close } = crmModal(prospect.business_name || "Prospecto", body);
+
+  modal.querySelector("#crmProspectForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const payload = {
+      full_name: modal.querySelector("#crmProspectName").value.trim(),
+      business_name: modal.querySelector("#crmProspectBusiness").value.trim(),
+      phone: modal.querySelector("#crmProspectPhone").value.trim() || null,
+      email: modal.querySelector("#crmProspectEmail").value.trim() || null,
+      industry: modal.querySelector("#crmProspectIndustry").value.trim() || null,
+      stage: modal.querySelector("#crmProspectStage").value,
+      expected_mrr: nullableNumber(modal.querySelector("#crmProspectMrr").value),
+      expected_setup_fee: nullableNumber(modal.querySelector("#crmProspectSetup").value),
+      next_action_at: modal.querySelector("#crmProspectNext").value ? new Date(modal.querySelector("#crmProspectNext").value).toISOString() : null,
+      demo_at: modal.querySelector("#crmProspectDemo").value ? new Date(modal.querySelector("#crmProspectDemo").value).toISOString() : null,
+      proposal_sent_at: modal.querySelector("#crmProspectProposal").value ? new Date(modal.querySelector("#crmProspectProposal").value).toISOString() : null,
+      lost_reason: modal.querySelector("#crmProspectLostReason").value.trim() || null,
+      crm_notes: modal.querySelector("#crmProspectNotes").value.trim() || null,
+      updated_at: new Date().toISOString(),
+    };
+
+    const oldStage = prospect.stage;
+    const { error } = await C.supabase.from("demo_requests").update(payload).eq("id", prospect.id);
+    if (error) return C.showError(error.message);
+
+    if (oldStage !== payload.stage) {
+      await C.supabase.from("crm_activities").insert({
+        demo_request_id: prospect.id,
+        organization_id: prospect.organization_id || null,
+        activity_type: "status_change",
+        title: `Etapa: ${crmStageLabel(oldStage)} → ${crmStageLabel(payload.stage)}`,
+        created_by: C.state.session.user.id,
+      });
+    }
+    C.showToast("Prospecto actualizado.");
+    close();
+    await renderCrm();
+  });
+
+  modal.querySelector("#crmActivityForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const title = modal.querySelector("#crmActivityTitle").value.trim();
+    if (!title) return;
+    const { error } = await C.supabase.from("crm_activities").insert({
+      demo_request_id: prospect.id,
+      organization_id: prospect.organization_id || null,
+      activity_type: modal.querySelector("#crmActivityType").value,
+      title,
+      details: modal.querySelector("#crmActivityDetails").value.trim() || null,
+      due_at: modal.querySelector("#crmActivityDue").value ? new Date(modal.querySelector("#crmActivityDue").value).toISOString() : null,
+      created_by: C.state.session.user.id,
+    });
+    if (error) return C.showError(error.message);
+    C.showToast("Actividad registrada.");
+    modal.querySelector("#crmActivityForm").reset();
+  });
+
+  const convert = modal.querySelector("#crmConvertButton");
+  convert?.addEventListener("click", async () => {
+    const assistant = modal.querySelector("#crmConvertAssistant").value.trim();
+    if (!assistant) return C.showError("Define el nombre del asistente antes de convertir el prospecto.");
+
+    convert.disabled = true;
+    convert.textContent = "Creando cliente…";
+    try {
+      const { data: orgResult, error: orgError } = await C.supabase.functions.invoke("admin-create-organization", 
