@@ -101,3 +101,24 @@
 }
 .crm-invoice-email-toggle input{width:15px!important;height:15px!important;flex:0 0 auto}
 .crm-invoice-actions{display:flex;gap:6px;flex-wrap:wrap}
+
+/* Revenue collection analytics */
+.crm-revenue-card{margin-bottom:20px}
+.crm-revenue-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-top:1px solid #edf1f5;border-bottom:1px solid #edf1f5}
+.crm-revenue-summary>div{padding:14px 18px;border-right:1px solid #edf1f5}
+.crm-revenue-summary>div:last-child{border-right:0}
+.crm-revenue-summary span{display:block;font-size:8px;text-transform:uppercase;letter-spacing:.6px;color:#8a99aa;font-weight:700}
+.crm-revenue-summary b{display:block;margin-top:5px;font-family:"Manrope";font-size:17px;color:#2f4b6b}
+.crm-revenue-months{display:grid;grid-template-columns:repeat(6,minmax(90px,1fr));gap:12px;padding:20px 18px 14px;overflow-x:auto}
+.crm-revenue-month{text-align:center;min-width:86px}
+.crm-revenue-month>span{display:block;font-size:8px;color:#8291a3;text-transform:capitalize}
+.crm-revenue-bars{height:110px;display:flex;align-items:flex-end;justify-content:center;gap:5px;margin:10px 0;padding:8px 0;border-bottom:1px solid #e5eaf0}
+.crm-revenue-bars i{display:block;width:14px;border-radius:4px 4px 1px 1px;min-height:0}
+.crm-revenue-bars i.paid{background:#4b8a6b}
+.crm-revenue-bars i.pending{background:#d4a14a}
+.crm-revenue-month b{display:block;font-size:9px;color:#334c68}
+.crm-revenue-month small{display:block;margin-top:3px;font-size:7px;color:#93a0af}
+.crm-revenue-legend{display:flex;gap:14px;padding:0 18px 17px;font-size:8px;color:#7d8b9d}
+.crm-revenue-legend span{display:flex;align-items:center;gap:5px}
+.crm-revenue-legend i{width:8px;height:8px;border-radius:2px}.crm-revenue-legend i.paid{background:#4b8a6b}.crm-revenue-legend i.pending{background:#d4a14a}
+@media(max-width:800px){.crm-revenue-summary{grid-template-columns:1fr 1fr}.crm-revenue-summary>div:nth-child(2){border-right:0}.crm-revenue-summary>div:nth-child(n+3){border-top:1px solid #edf1f5}.crm-revenue-months{grid-template-columns:repeat(6,110px)}}
