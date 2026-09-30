@@ -313,6 +313,9 @@ footer b{color:#77869c}footer b span{color:#4b82f2}
 
 /* Mobile app shell */
 .mobile-bottom-nav{display:none}
+@media(max-width:1200px){
+  .client-strip{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
 @media(max-width:1050px){
   .analytics-insight-grid{grid-template-columns:1fr 1fr}
   .analytics-insight-grid .health-detail-card{grid-column:1/-1}
