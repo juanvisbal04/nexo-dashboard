@@ -716,3 +716,39 @@ body.modal-open{overflow:hidden;touch-action:none}
   .crm-modal-body{padding:16px}
   .crm-integration-row{grid-template-columns:1fr}
 }
+
+
+/* NEXO plans + shared expenses */
+.crm-foundation-grid{margin-bottom:20px}
+.crm-plan-list{padding:0 18px 18px;display:grid;gap:9px}
+.crm-plan-row{
+  display:grid;grid-template-columns:1.5fr .65fr .8fr;gap:14px;align-items:center;
+  padding:13px 0;border-top:1px solid #edf1f5
+}
+.crm-plan-row:first-child{border-top:0}
+.crm-plan-row>div:first-child b{display:block;font-size:11px;color:#2f4866}
+.crm-plan-row>div:first-child small{display:block;margin-top:4px;font-size:8px;line-height:1.4;color:#8794a5}
+.crm-plan-row>div:not(:first-child) span{display:block;font-size:7px;text-transform:uppercase;letter-spacing:.6px;color:#91a0b1}
+.crm-plan-row>div:not(:first-child) strong{display:block;margin-top:4px;font-size:9px;color:#355b8d}
+.crm-expense-list{padding:0 18px 8px;display:grid}
+.crm-expense-row{
+  display:grid;grid-template-columns:1fr 120px 82px;gap:12px;align-items:center;
+  padding:11px 0;border-top:1px solid #edf1f5
+}
+.crm-expense-row:first-child{border-top:0}
+.crm-expense-row b{display:block;font-size:10px;color:#314b68}
+.crm-expense-row small{display:block;margin-top:3px;font-size:8px;color:#8a98a9}
+.crm-expense-row>span{font-size:9px;font-weight:800;color:#365d90}
+.crm-expense-disable{
+  border:1px solid #ecdcd3;background:#fff8f4;color:#9b6448;border-radius:7px;padding:6px 7px;
+  font-size:8px;font-weight:700
+}
+.crm-expense-form{padding:12px 18px 18px;border-top:1px solid #edf1f5}
+.crm-expense-form select{
+  width:100%;border:1px solid #dce4ed;background:#fbfcfe;color:#536984;border-radius:8px;padding:10px 11px;font:inherit;font-size:9px
+}
+@media(max-width:900px){
+  .crm-plan-row{grid-template-columns:1fr 1fr}
+  .crm-plan-row>div:first-child{grid-column:1/-1}
+  .crm-expense-row{grid-template-columns:1fr auto}.crm-expense-row>button{grid-column:1/-1;width:max-content}
+}
