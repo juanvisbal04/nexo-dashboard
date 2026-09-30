@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
-import { renderCrm } from "./crm.js?v=20260930-crm16";
+import { renderCrm } from "./crm.js?v=20260930-crm17";
 
 const SUPABASE_URL = "https://ixewnbjndguchunwcuhf.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_vFnLRe9cmnOcyz2Fivprhw_8UjBaRGL";
@@ -21,6 +21,7 @@ const state = {
   pendingRealtimeRefresh: false,
   notifications: [],
   searchIndex: [],
+  settingsOrgId: null,
 };
 let realtimeChannel = null;
 let realtimeTimer = null;
@@ -38,7 +39,7 @@ function readStoredUiState() {
 function persistUiState() {
   const orgId = $("orgSelect")?.value || null;
   const period = $("periodSelect")?.value || "30";
-  const value = { page: state.page, orgId, period };
+  const value = { page: state.page, orgId, period, settingsOrgId: state.settingsOrgId || null };
   try { localStorage.setItem(UI_STATE_KEY, JSON.stringify(value)); } catch {}
   const nextHash = state.page && state.page !== "overview" ? "#" + state.page : "";
   if (window.location.hash !== nextHash) {
@@ -50,13 +51,17 @@ function restoreUiState() {
   const saved = readStoredUiState();
   const hashPage = window.location.hash.replace(/^#/, "");
   const savedOrg = saved.orgId && state.organizations.some((org) => org.id === saved.orgId) ? saved.orgId : null;
+  state.settingsOrgId = saved.settingsOrgId && state.organizations.some((org) => org.id === saved.settingsOrgId) ? saved.settingsOrgId : null;
   if (savedOrg) $("orgSelect").value = savedOrg;
 
   const allowedPeriods = new Set(["1","7","30","90"]);
   if (allowedPeriods.has(String(saved.period || ""))) $("periodSelect").value = String(saved.period);
 
   let page = pageMeta[hashPage] ? hashPage : (pageMeta[saved.page] ? saved.page : "overview");
-  if (["crm","admin"].includes(page) && !state.isAdmin) page = "overview";
+  const adminOnly = new Set(["crm","clients","operations","audit","admin"]);
+  if (adminOnly.has(page) && !state.isAdmin) page = "overview";
+  if (state.isAdmin && isInternalOrg() && !["overview","crm","clients","operations","settings","audit"].includes(page)) page = "overview";
+  if ((!state.isAdmin || !isInternalOrg()) && ["clients","operations","audit","admin","crm"].includes(page)) page = "overview";
   if (page === "team" && !canManageCurrentOrgUsers()) page = "overview";
   state.page = page;
   updateNavigationAccess();
@@ -65,16 +70,20 @@ function restoreUiState() {
 }
 
 const pageMeta = {
-  overview: ["Vista general", "NEXO DASHBOARD", "Tu negocio, en perspectiva.", "Métricas y actividad de tu operación."],
+  overview: ["Inicio", "NEXO DASHBOARD", "Tu negocio, en perspectiva.", "Lo importante de tu operación en una sola vista."],
   conversations: ["Conversaciones", "ATENCIÓN AL CLIENTE", "Cada conversación cuenta.", "Consulta la actividad registrada por tus asistentes."],
-  leads: ["Leads", "NEXO SALES", "Oportunidades en movimiento.", "Prospectos identificados y su etapa actual."],
-  appointments: ["Citas y reservas", "NEXO BOOKING", "Tu agenda, bajo control.", "Solicitudes, citas y valor estimado."],
+  leads: ["Oportunidades", "NEXO SALES", "Oportunidades en movimiento.", "Leads identificados y su etapa actual."],
+  appointments: ["Agenda", "NEXO BOOKING", "Tu agenda, bajo control.", "Solicitudes, citas y reservas."],
   followups: ["Seguimientos", "NEXO RECOVERY", "El siguiente paso importa.", "Oportunidades que necesitan una nueva acción."],
-  metrics: ["Métricas", "NEXO ANALYTICS", "Entiende tus resultados.", "Conversión, automatización, respuesta, demanda y valor en una sola vista."],
-  billing: ["Facturación", "NEXO BILLING", "Tus cobros y pagos, claros.", "Consulta cuentas de cobro, vencimientos, pagos y descarga tus documentos en PDF."],
+  metrics: ["Métricas", "NEXO ANALYTICS", "Entiende tus resultados.", "Vista analítica avanzada de la operación."],
+  billing: ["Facturación", "NEXO BILLING", "Tus cobros y pagos, claros.", "Cuentas de cobro, vencimientos, pagos y documentos."],
   team: ["Usuarios", "CONTROL DE ACCESO", "Tu equipo, con el acceso correcto.", "Invita y administra usuarios de este dashboard."],
-  crm: ["CRM & Finanzas", "NEXO INTERNAL CRM", "Tu negocio, de prospecto a cliente activo.", "Pipeline, MRR, costos, implementación e integraciones en un solo lugar."],
-  admin: ["Platform Admin", "NEXO COMMAND CENTER", "Control total de la plataforma.", "Clientes activos, accesos y configuración de NEXO."],
+  crm: ["Ventas & Finanzas", "NEXO CRM", "Pipeline, ingresos y rentabilidad.", "Del prospecto al cliente activo y su economía en un solo módulo."],
+  clients: ["Clientes", "NEXO CRM", "Tu cartera de clientes, organizada.", "Empresas, planes, accesos e implementación sin métricas repetidas."],
+  operations: ["Operaciones", "NEXO OPERATIONS", "Lo que está pasando ahora.", "Conversaciones, oportunidades y agenda que requieren seguimiento."],
+  settings: ["Configuración", "NEXO SETTINGS", "Cada negocio, bien configurado.", "Identidad, contacto, asistente, notificaciones y preferencias."],
+  audit: ["Audit Log", "NEXO GOVERNANCE", "Cada cambio deja rastro.", "Historial administrativo de configuración, accesos, cobros e integraciones."],
+  admin: ["Clientes", "NEXO CRM", "Tu cartera de clientes, organizada.", "Empresas, planes, accesos e implementación."],
 };
 
 function esc(value) {
@@ -677,12 +686,21 @@ async function loadOrganizations() {
 }
 
 function updateNavigationAccess() {
+  const internalAdmin = state.isAdmin && isInternalOrg();
+  $("adminNav")?.classList.toggle("hidden", !internalAdmin);
+  $("clientNavWrap")?.classList.toggle("hidden", internalAdmin);
+
   const teamNav = $("teamNav");
-  if (teamNav) teamNav.classList.toggle("hidden", !canManageCurrentOrgUsers());
+  if (teamNav) teamNav.classList.toggle("hidden", internalAdmin || !canManageCurrentOrgUsers());
+
+  document.querySelectorAll(".client-mobile-nav-item").forEach((item) => item.classList.toggle("hidden", internalAdmin));
+  document.querySelectorAll(".admin-mobile-nav-item").forEach((item) => item.classList.toggle("hidden", !internalAdmin));
 
   if ($("profileRole")) {
-    if (state.isAdmin) {
+    if (state.isAdmin && internalAdmin) {
       $("profileRole").textContent = "NEXO Platform Admin";
+    } else if (state.isAdmin) {
+      $("profileRole").textContent = "Platform Admin · Vista cliente";
     } else {
       const role = currentOrgRole();
       const labels = { owner: "Propietario", admin: "Administrador", operator: "Operador", viewer: "Solo lectura" };
@@ -718,7 +736,7 @@ async function loadIdentity() {
   $("profileRole").textContent = state.isAdmin ? "Super Admin" : "Cliente NEXO";
   const initials = displayName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase() || "").join("") || "NX";
   if ($("profileAvatar")) $("profileAvatar").textContent = initials;
-  $("adminNav").classList.toggle("hidden", !state.isAdmin);
+  updateNavigationAccess();
 }
 
 function emptyState(title = "Todavía no hay datos reales en esta sección.", detail = "Los registros aparecerán aquí cuando conectemos el negocio.") {
@@ -1268,6 +1286,468 @@ async function renderMetrics() {
     </div>
   `;
   bindAlertNavigation();
+}
+
+
+function adminInternalView() {
+  return state.isAdmin && isInternalOrg();
+}
+
+function settingsTargetOrgId() {
+  if (adminInternalView()) {
+    const clients = clientOrganizations({ activeOnly: false });
+    if (state.settingsOrgId && clients.some((org) => org.id === state.settingsOrgId)) return state.settingsOrgId;
+    return clients[0]?.id || null;
+  }
+  return currentOrgId();
+}
+
+function auditAreaLabel(table) {
+  return ({
+    organizations: "Empresa",
+    organization_settings: "Configuración",
+    organization_commercials: "Comercial",
+    organization_members: "Usuarios",
+    client_invoices: "Facturación",
+    crm_integrations: "Integraciones",
+  }[table] || table);
+}
+
+function auditActionLabel(action) {
+  return ({ INSERT: "Creó", UPDATE: "Actualizó", DELETE: "Eliminó" }[action] || action);
+}
+
+function auditChangedSummary(row) {
+  const ignored = new Set(["updated_at","created_at"]);
+  const fields = Object.keys(row.changed_fields || {}).filter((key) => !ignored.has(key));
+  if (!fields.length) return "Sin campos relevantes";
+  const labels = {
+    name:"nombre", sector:"sector", assistant:"asistente", initials:"iniciales", color:"color",
+    public_email:"correo público", notification_email:"correo de notificaciones", phone:"teléfono",
+    whatsapp:"WhatsApp", website:"sitio web", address:"dirección", city:"ciudad",
+    handoff_phone:"teléfono de handoff", assistant_tone:"tono del asistente",
+    portal_welcome_message:"mensaje del portal", allow_email_notifications:"notificaciones",
+    allow_billing_emails:"correos de facturación", mrr:"MRR", billing_status:"estado de facturación",
+    billing_email:"correo de facturación", billing_contact_name:"contacto de facturación",
+    billing_day:"día de cobro", auto_invoice:"facturación automática", lifecycle_stage:"etapa",
+    plan_name:"plan", implementation_status:"implementación", integration_status:"integraciones",
+    role:"rol", status:"estado", amount_cop:"valor", due_date:"vencimiento", email_status:"correo",
+  };
+  return fields.slice(0,5).map((field)=>labels[field]||field.replaceAll("_"," ")).join(", ") + (fields.length>5 ? ` +${fields.length-5}` : "");
+}
+
+async function renderClients() {
+  if (!adminInternalView()) {
+    $("content").innerHTML = emptyState("Selecciona NEXO Internal.", "El directorio completo de clientes es exclusivo del Command Center.");
+    return;
+  }
+
+  const clients = clientOrganizations({ activeOnly: false });
+  const [{data:commercials},{data:members},{data:settings}] = await Promise.all([
+    supabase.from("organization_commercials").select("*"),
+    supabase.from("organization_members").select("organization_id,user_id,role"),
+    supabase.from("organization_settings").select("organization_id,notification_email,whatsapp"),
+  ]);
+  const commercialMap=new Map((commercials||[]).map((row)=>[row.organization_id,row]));
+  const settingsMap=new Map((settings||[]).map((row)=>[row.organization_id,row]));
+  const userCounts=(members||[]).reduce((acc,row)=>{acc[row.organization_id]=(acc[row.organization_id]||0)+1;return acc;},{});
+  const activeCount=clients.filter((org)=>commercialMap.get(org.id)?.lifecycle_stage==="activo").length;
+  const implementationCount=clients.filter((org)=>commercialMap.get(org.id)?.lifecycle_stage==="implementacion").length;
+  const billingAttention=clients.filter((org)=>["past_due","paused"].includes(commercialMap.get(org.id)?.billing_status)).length;
+
+  state.currentRows=clients.map((org)=>{
+    const commercial=commercialMap.get(org.id)||{};
+    return {organization:org.name,sector:org.sector,assistant:org.assistant,stage:commercial.lifecycle_stage,plan:commercial.plan_name,billing:commercial.billing_status,integrations:commercial.integration_status,users:userCounts[org.id]||0};
+  });
+
+  $("content").innerHTML=`
+    <div class="directory-summary">
+      <div><span>Clientes</span><b>${clients.length}</b><small>organizaciones creadas</small></div>
+      <div><span>Activos</span><b>${activeCount}</b><small>en operación</small></div>
+      <div><span>Implementación</span><b>${implementationCount}</b><small>en proceso</small></div>
+      <div><span>Facturación</span><b>${billingAttention}</b><small>requieren revisión</small></div>
+    </div>
+
+    <section class="card client-directory-card">
+      <div class="card-head">
+        <div><h2>Directorio de clientes</h2><p>Configuración, plan, accesos y estado operativo. Sin repetir Analytics.</p></div>
+        <span class="count">${clients.length} clientes</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Cliente</th><th>Asistente</th><th>Plan</th><th>Etapa</th><th>Implementación</th><th>Integraciones</th><th>Facturación</th><th>Usuarios</th><th>Contacto</th><th></th></tr></thead>
+          <tbody>
+          ${clients.length ? clients.map((org)=>{
+            const commercial=commercialMap.get(org.id)||{};
+            const setting=settingsMap.get(org.id)||{};
+            return `<tr>
+              <td><b>${esc(org.name)}</b><br><span class="muted">${esc(org.sector||"Sin sector")}</span></td>
+              <td>${esc(org.assistant||"—")}</td>
+              <td>${esc(commercial.plan_name||"Por definir")}</td>
+              <td>${pill(commercial.lifecycle_stage||org.status||"—")}</td>
+              <td>${esc(commercial.implementation_status||"—")}</td>
+              <td>${esc(commercial.integration_status||"—")}</td>
+              <td>${esc(commercial.billing_status||"—")}</td>
+              <td><b>${userCounts[org.id]||0}</b></td>
+              <td>${esc(setting.notification_email||setting.whatsapp||"—")}</td>
+              <td><div class="row-actions">
+                <button class="btn small client-view-button" data-id="${org.id}" type="button">Ver portal</button>
+                <button class="btn small primary client-configure-button" data-id="${org.id}" type="button">Configurar</button>
+              </div></td>
+            </tr>`;
+          }).join("") : `<tr><td colspan="10">${emptyState("Todavía no hay clientes.","Crea tu primer negocio NEXO.")}</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <div class="admin-action-accordion">
+      <details class="card admin-action-drawer">
+        <summary><div><b>+ Crear nuevo negocio</b><span>Alta de organización y asistente NEXO</span></div><em>+</em></summary>
+        <form id="newBusinessForm" class="admin-form compact-admin-form">
+          <label>Nombre del negocio<input id="businessName" type="text" required /></label>
+          <label>Sector<input id="businessSector" type="text" /></label>
+          <label>Nombre del asistente<input id="assistantName" type="text" required /></label>
+          <label>Iniciales<input id="businessInitials" type="text" maxlength="3" /></label>
+          <label>Color de marca<input id="businessColor" type="color" value="#316bff" /></label>
+          <button id="createBusiness" class="btn primary" type="submit">Crear negocio</button>
+        </form>
+        <div id="businessResult" class="access-result hidden"></div>
+      </details>
+
+      <details class="card admin-action-drawer">
+        <summary><div><b>+ Crear acceso de cliente</b><span>Propietario, administrador u observador</span></div><em>+</em></summary>
+        <form id="clientAccessForm" class="admin-form compact-admin-form">
+          <label>Nombre<input id="clientName" type="text" required /></label>
+          <label>Correo<input id="clientEmail" type="email" required /></label>
+          <label>Empresa<select id="clientOrg" required>${clients.map((org)=>`<option value="${org.id}">${esc(org.name)}</option>`).join("")}</select></label>
+          <label>Rol<select id="clientRole"><option value="owner">Propietario</option><option value="admin">Administrador</option><option value="viewer">Solo lectura</option></select></label>
+          <button id="createClientAccess" class="btn primary" type="submit">Generar acceso</button>
+        </form>
+        <div id="clientAccessResult" class="access-result hidden"></div>
+      </details>
+    </div>
+  `;
+
+  document.querySelectorAll(".client-view-button").forEach((button)=>{
+    button.addEventListener("click",async()=>{
+      $("orgSelect").value=button.dataset.id;
+      state.page="overview";
+      updateNavigationAccess();
+      persistUiState();
+      await render();
+    });
+  });
+  document.querySelectorAll(".client-configure-button").forEach((button)=>{
+    button.addEventListener("click",async()=>{
+      state.settingsOrgId=button.dataset.id;
+      state.page="settings";
+      persistUiState();
+      await render();
+    });
+  });
+
+  $("newBusinessForm")?.addEventListener("submit",async(event)=>{
+    event.preventDefault();
+    const button=$("createBusiness");
+    button.disabled=true; button.textContent="Creando…";
+    try{
+      const {data,error}=await supabase.functions.invoke("admin-create-organization",{body:{
+        name:$("businessName").value.trim(),sector:$("businessSector").value.trim(),
+        assistant:$("assistantName").value.trim(),initials:$("businessInitials").value.trim(),color:$("businessColor").value
+      }});
+      if(error)throw error;if(!data?.ok)throw new Error(data?.error||"No pudimos crear el negocio.");
+      showToast("Negocio creado.");
+      await loadOrganizations(); await renderClients();
+    }catch(error){showError(error.message||"No pudimos crear el negocio.");}
+    finally{button.disabled=false;button.textContent="Crear negocio";}
+  });
+
+  $("clientAccessForm")?.addEventListener("submit",async(event)=>{
+    event.preventDefault();
+    const button=$("createClientAccess");const box=$("clientAccessResult");
+    button.disabled=true;button.textContent="Creando…";box.className="access-result hidden";
+    try{
+      const {data,error}=await supabase.functions.invoke("admin-client-access",{body:{
+        full_name:$("clientName").value.trim(),email:$("clientEmail").value.trim(),
+        organization_id:$("clientOrg").value,role:$("clientRole").value
+      }});
+      if(error)throw error;if(!data?.ok)throw new Error(data?.error||"No pudimos crear el acceso.");
+      box.innerHTML=data.existing_user
+        ? `<strong>Acceso agregado</strong><p>${esc(data.email)} ya puede entrar a ${esc(data.organization_name)}.</p>`
+        : `<strong>Activación lista</strong><p>Enlace para <b>${esc(data.email)}</b>:</p><div class="setup-link-row"><input id="generatedSetupLink" value="${esc(data.setup_url)}" readonly><button id="copySetupLink" class="btn small" type="button">Copiar</button></div>`;
+      box.className="access-result ok";
+      $("copySetupLink")?.addEventListener("click",async()=>{await navigator.clipboard.writeText(data.setup_url);showToast("Enlace copiado.");});
+    }catch(error){box.innerHTML=`<strong>Error</strong><p>${esc(error.message||"Inténtalo de nuevo.")}</p>`;box.className="access-result error";}
+    finally{button.disabled=false;button.textContent="Generar acceso";}
+  });
+}
+
+async function renderOperations() {
+  if (!adminInternalView()) {
+    $("content").innerHTML=emptyState("Selecciona NEXO Internal.","Operaciones consolida la actividad de todos los clientes.");
+    return;
+  }
+  const orgIds=clientOrganizations().map((org)=>org.id);
+  const window=periodWindow(currentDays());
+  const [conversations,leads,appointments]=await Promise.all([
+    fetchMetricRows("conversations",orgIds,{...window,order:"last_message_at",timeField:"last_message_at"}),
+    fetchMetricRows("leads",orgIds,window),
+    fetchMetricRows("appointments",orgIds,window),
+  ]);
+  const attention=conversations.filter((row)=>row.status==="Requiere atención").sort((a,b)=>String(b.last_message_at).localeCompare(String(a.last_message_at)));
+  const pendingAppointments=appointments.filter((row)=>["Solicitada","Pendiente"].includes(row.status));
+  const recentConversations=[...conversations].sort((a,b)=>String(b.last_message_at).localeCompare(String(a.last_message_at))).slice(0,10);
+  const recentLeads=[...leads].sort((a,b)=>String(b.created_at).localeCompare(String(a.created_at))).slice(0,10);
+  const recentAppointments=[...appointments].sort((a,b)=>String(b.created_at).localeCompare(String(a.created_at))).slice(0,10);
+  const orgName=(id)=>state.organizations.find((org)=>org.id===id)?.name||"Cliente NEXO";
+
+  state.currentRows=[...conversations.map((r)=>({...r,type:"conversation"})),...leads.map((r)=>({...r,type:"lead"})),...appointments.map((r)=>({...r,type:"appointment"}))];
+
+  $("content").innerHTML=`
+    <div class="operations-summary">
+      <div><span>Conversaciones</span><b>${conversations.length}</b><small>en el período</small></div>
+      <div class="${attention.length?"attention":""}"><span>Atención humana</span><b>${attention.length}</b><small>requieren intervención</small></div>
+      <div><span>Leads</span><b>${leads.length}</b><small>oportunidades detectadas</small></div>
+      <div><span>Citas pendientes</span><b>${pendingAppointments.length}</b><small>por confirmar</small></div>
+    </div>
+
+    <section class="card operations-priority">
+      <div class="card-head"><div><h2>Prioridad operativa</h2><p>Conversaciones que necesitan intervención humana</p></div><span class="count">${attention.length}</span></div>
+      <div class="operations-list">
+        ${attention.slice(0,12).map((row)=>`<div class="operations-row">
+          <div><b>${esc(row.name||"Conversación")}</b><small>${esc(orgName(row.organization_id))} · ${esc(row.service||row.channel||"WhatsApp")}</small></div>
+          <span>${dateTime(row.last_message_at)}</span>
+          <button class="btn small chat-button" data-contact-id="${row.contact_id}" data-org-id="${row.organization_id}" type="button">Ver chat</button>
+        </div>`).join("") || emptyState("Sin handoffs pendientes.","La red de asistentes no tiene conversaciones escaladas ahora mismo.")}
+      </div>
+    </section>
+
+    <div class="operations-columns">
+      <section class="card"><div class="card-head"><div><h2>Chats recientes</h2><p>Última actividad de la red</p></div></div>
+        <div class="mini-feed">${recentConversations.map((row)=>`<div><b>${esc(row.name||"Conversación")}</b><span>${esc(orgName(row.organization_id))}</span><small>${dateTime(row.last_message_at)}</small></div>`).join("")||emptyState()}</div>
+      </section>
+      <section class="card"><div class="card-head"><div><h2>Leads recientes</h2><p>Oportunidades detectadas</p></div></div>
+        <div class="mini-feed">${recentLeads.map((row)=>`<div><b>${esc(row.name||"Lead")}</b><span>${esc(orgName(row.organization_id))} · ${esc(row.stage||row.status||"Nuevo")}</span><small>${dateTime(row.created_at)}</small></div>`).join("")||emptyState()}</div>
+      </section>
+      <section class="card"><div class="card-head"><div><h2>Agenda reciente</h2><p>Solicitudes y reservas</p></div></div>
+        <div class="mini-feed">${recentAppointments.map((row)=>`<div><b>${esc(row.name||"Cita")}</b><span>${esc(orgName(row.organization_id))} · ${esc(row.status||"—")}</span><small>${row.starts_at?dateTime(row.starts_at):dateTime(row.created_at)}</small></div>`).join("")||emptyState()}</div>
+      </section>
+    </div>
+  `;
+  bindChatButtons();
+}
+
+async function renderSettings() {
+  const targetId=settingsTargetOrgId();
+  if (!targetId) {
+    $("content").innerHTML=emptyState("No hay clientes para configurar.","Crea un negocio NEXO primero.");
+    return;
+  }
+  state.settingsOrgId=targetId;
+  const targetOrg=state.organizations.find((org)=>org.id===targetId);
+  const canEdit=state.isAdmin || ["owner","admin"].includes(state.orgRoles[targetId]);
+  const adminMode=state.isAdmin;
+
+  const jobs=[
+    supabase.from("organization_settings").select("*").eq("organization_id",targetId).maybeSingle(),
+    supabase.from("assistants").select("*").eq("organization_id",targetId).order("created_at").limit(10),
+  ];
+  if(adminMode){
+    jobs.push(supabase.from("organization_commercials").select("*").eq("organization_id",targetId).maybeSingle());
+    jobs.push(supabase.from("crm_integrations").select("*").eq("organization_id",targetId).order("created_at"));
+  }
+  const results=await Promise.all(jobs);
+  const setting=results[0].data||{};
+  const assistants=results[1].data||[];
+  const commercial=adminMode?(results[2].data||{}):{};
+  const integrations=adminMode?(results[3].data||[]):[];
+
+  $("content").innerHTML=`
+    ${adminInternalView()? `<section class="settings-context card">
+      <div><span class="eyebrow">CONFIGURACIÓN POR CLIENTE</span><h2>Selecciona la empresa que quieres administrar</h2></div>
+      <select id="settingsOrgSelect" class="control">${clientOrganizations({activeOnly:false}).map((org)=>`<option value="${org.id}" ${org.id===targetId?"selected":""}>${esc(org.name)}</option>`).join("")}</select>
+    </section>`:""}
+
+    <div class="settings-layout">
+      <section class="card settings-profile-card">
+        <div class="settings-brand-preview">
+          <span class="settings-brand-avatar" style="--brand:${esc(targetOrg?.color||"#316bff")}">${esc(targetOrg?.initials||"NX")}</span>
+          <div><span>EMPRESA</span><h2>${esc(targetOrg?.name||"Cliente NEXO")}</h2><p>${esc(targetOrg?.sector||"Sin sector")} · Asistente ${esc(targetOrg?.assistant||"NEXO")}</p></div>
+        </div>
+        <div class="settings-status-grid">
+          <div><span>Asistente</span><b>${esc(assistants[0]?.status||targetOrg?.status||"active")}</b></div>
+          <div><span>Zona horaria</span><b>${esc(targetOrg?.timezone||"America/Bogota")}</b></div>
+          ${adminMode?`<div><span>Plan</span><b>${esc(commercial.plan_name||"Por definir")}</b></div><div><span>Facturación</span><b>${esc(commercial.billing_status||"—")}</b></div>`:""}
+        </div>
+      </section>
+
+      <form id="organizationSettingsForm" class="settings-form">
+        <section class="card settings-section">
+          <div class="card-head"><div><h2>Identidad del negocio</h2><p>Cómo aparece la empresa dentro de NEXO</p></div>${adminMode?'<span class="pill">Platform Admin</span>':""}</div>
+          <div class="settings-grid">
+            <label>Nombre del negocio<input id="settingName" value="${esc(targetOrg?.name||"")}" ${adminMode?"":"disabled"}></label>
+            <label>Sector<input id="settingSector" value="${esc(targetOrg?.sector||"")}" ${adminMode?"":"disabled"}></label>
+            <label>Nombre del asistente<input id="settingAssistant" value="${esc(targetOrg?.assistant||"")}" ${adminMode?"":"disabled"}></label>
+            <label>Iniciales<input id="settingInitials" maxlength="3" value="${esc(targetOrg?.initials||"NX")}" ${adminMode?"":"disabled"}></label>
+            <label>Color de marca<input id="settingColor" type="color" value="${esc(targetOrg?.color||"#316bff")}" ${adminMode?"":"disabled"}></label>
+            <label>Zona horaria<input id="settingTimezone" value="${esc(targetOrg?.timezone||"America/Bogota")}" ${adminMode?"":"disabled"}></label>
+          </div>
+        </section>
+
+        <section class="card settings-section">
+          <div class="card-head"><div><h2>Contacto y notificaciones</h2><p>Información operativa del negocio</p></div></div>
+          <div class="settings-grid">
+            <label>Correo público<input id="settingPublicEmail" type="email" value="${esc(setting.public_email||"")}" ${canEdit?"":"disabled"}></label>
+            <label>Correo de notificaciones<input id="settingNotificationEmail" type="email" value="${esc(setting.notification_email||"")}" ${canEdit?"":"disabled"}></label>
+            <label>Teléfono<input id="settingPhone" value="${esc(setting.phone||"")}" ${canEdit?"":"disabled"}></label>
+            <label>WhatsApp<input id="settingWhatsapp" value="${esc(setting.whatsapp||"")}" ${canEdit?"":"disabled"}></label>
+            <label>Sitio web<input id="settingWebsite" value="${esc(setting.website||"")}" ${canEdit?"":"disabled"}></label>
+            <label>Ciudad<input id="settingCity" value="${esc(setting.city||"")}" ${canEdit?"":"disabled"}></label>
+            <label class="wide">Dirección<input id="settingAddress" value="${esc(setting.address||"")}" ${canEdit?"":"disabled"}></label>
+          </div>
+        </section>
+
+        <section class="card settings-section">
+          <div class="card-head"><div><h2>Asistente y handoff</h2><p>Preferencias que ayudan a mantener la identidad del negocio</p></div></div>
+          <div class="settings-grid">
+            <label>Teléfono para handoff<input id="settingHandoff" value="${esc(setting.handoff_phone||"")}" ${canEdit?"":"disabled"}></label>
+            <label>Tono del asistente<input id="settingTone" value="${esc(setting.assistant_tone||"")}" ${canEdit?"":"disabled"}></label>
+            <label class="wide">Mensaje de bienvenida del portal<textarea id="settingWelcome" rows="3" ${canEdit?"":"disabled"}>${esc(setting.portal_welcome_message||"")}</textarea></label>
+            <label class="settings-toggle"><input id="settingNotifications" type="checkbox" ${setting.allow_email_notifications!==false?"checked":""} ${canEdit?"":"disabled"}><span>Recibir notificaciones operativas por correo</span></label>
+            <label class="settings-toggle"><input id="settingBillingEmails" type="checkbox" ${setting.allow_billing_emails!==false?"checked":""} ${canEdit?"":"disabled"}><span>Recibir correos de facturación</span></label>
+          </div>
+        </section>
+
+        ${adminMode?`<section class="card settings-section">
+          <div class="card-head"><div><h2>Facturación del cliente</h2><p>Parámetros comerciales administrados por NEXO</p></div><span class="pill amber">Solo NEXO</span></div>
+          <div class="settings-grid">
+            <label>Contacto de facturación<input id="settingBillingContact" value="${esc(commercial.billing_contact_name||"")}"></label>
+            <label>Correo de facturación<input id="settingBillingEmail" type="email" value="${esc(commercial.billing_email||"")}"></label>
+            <label>Día de cobro<input id="settingBillingDay" type="number" min="1" max="28" value="${commercial.billing_day??""}"></label>
+            <label class="settings-toggle"><input id="settingAutoInvoice" type="checkbox" ${commercial.auto_invoice!==false?"checked":""}><span>Generar mensualidad automáticamente</span></label>
+          </div>
+          <div class="settings-integrations">
+            <span>Integraciones</span>
+            ${integrations.length?integrations.map((row)=>`<div><b>${esc(row.integration_name)}</b><small>${esc(row.provider||"")} · ${esc(row.status)}</small></div>`).join(""):'<p class="muted">Sin integraciones registradas.</p>'}
+          </div>
+        </section>`:""}
+
+        <div class="settings-actions">
+          ${canManageCurrentOrgUsers() && !adminInternalView()?'<button id="settingsUsersButton" class="btn" type="button">Usuarios y accesos</button>':""}
+          ${canEdit?'<button class="btn primary" type="submit">Guardar configuración</button>':'<span class="muted">Tu rol tiene acceso de solo lectura.</span>'}
+        </div>
+      </form>
+    </div>
+  `;
+
+  $("settingsOrgSelect")?.addEventListener("change",async(event)=>{state.settingsOrgId=event.target.value;persistUiState();await renderSettings();});
+  $("settingsUsersButton")?.addEventListener("click",async()=>{state.page="team";persistUiState();await render();});
+
+  $("organizationSettingsForm")?.addEventListener("submit",async(event)=>{
+    event.preventDefault();
+    if(!canEdit)return;
+    const button=event.currentTarget.querySelector('button[type="submit"]');
+    button.disabled=true;button.textContent="Guardando…";
+    try{
+      const settingsPayload={
+        organization_id:targetId,
+        public_email:$("settingPublicEmail").value.trim()||null,
+        notification_email:$("settingNotificationEmail").value.trim()||null,
+        phone:$("settingPhone").value.trim()||null,
+        whatsapp:$("settingWhatsapp").value.trim()||null,
+        website:$("settingWebsite").value.trim()||null,
+        address:$("settingAddress").value.trim()||null,
+        city:$("settingCity").value.trim()||null,
+        country:setting.country||"Colombia",
+        handoff_phone:$("settingHandoff").value.trim()||null,
+        assistant_tone:$("settingTone").value.trim()||null,
+        portal_welcome_message:$("settingWelcome").value.trim()||null,
+        allow_email_notifications:$("settingNotifications").checked,
+        allow_billing_emails:$("settingBillingEmails").checked,
+        updated_by:state.session.user.id,
+        updated_at:new Date().toISOString(),
+      };
+      const {error:settingsError}=await supabase.from("organization_settings").upsert(settingsPayload,{onConflict:"organization_id"});
+      if(settingsError)throw settingsError;
+
+      if(adminMode){
+        const {error:orgError}=await supabase.from("organizations").update({
+          name:$("settingName").value.trim(),sector:$("settingSector").value.trim(),
+          assistant:$("settingAssistant").value.trim(),initials:$("settingInitials").value.trim().toUpperCase()||"NX",
+          color:$("settingColor").value,timezone:$("settingTimezone").value.trim()||"America/Bogota",updated_at:new Date().toISOString()
+        }).eq("id",targetId);
+        if(orgError)throw orgError;
+        await supabase.from("assistants").update({name:$("settingAssistant").value.trim()}).eq("organization_id",targetId);
+        const {error:billingError}=await supabase.from("organization_commercials").update({
+          billing_contact_name:$("settingBillingContact").value.trim()||null,
+          billing_email:$("settingBillingEmail").value.trim()||null,
+          billing_day:Number($("settingBillingDay").value)||null,
+          auto_invoice:$("settingAutoInvoice").checked,updated_at:new Date().toISOString()
+        }).eq("organization_id",targetId);
+        if(billingError)throw billingError;
+      }
+
+      showToast("Configuración guardada.");
+      await loadOrganizations();
+      state.settingsOrgId=targetId;
+      await renderSettings();
+    }catch(error){showError(error.message||"No pudimos guardar la configuración.");button.disabled=false;button.textContent="Guardar configuración";}
+  });
+}
+
+async function renderAudit() {
+  if (!adminInternalView()) {
+    $("content").innerHTML=emptyState("Audit Log es privado de NEXO.","Selecciona NEXO Internal para revisar el historial administrativo.");
+    return;
+  }
+  const {data,error}=await supabase.from("audit_log").select("*").order("created_at",{ascending:false}).limit(500);
+  if(error)throw error;
+  const rows=data||[];
+  state.currentRows=rows;
+  const orgName=(id)=>state.organizations.find((org)=>org.id===id)?.name||"NEXO / Sistema";
+  const tables=[...new Set(rows.map((row)=>row.table_name))].sort();
+
+  $("content").innerHTML=`
+    <section class="audit-toolbar card">
+      <div><span class="eyebrow">HISTORIAL ADMINISTRATIVO</span><h2>Quién cambió qué y cuándo</h2><p>Configuración, usuarios, facturación, comerciales e integraciones.</p></div>
+      <div class="audit-filters">
+        <select id="auditOrgFilter" class="control"><option value="">Todos los clientes</option>${clientOrganizations({activeOnly:false}).map((org)=>`<option value="${org.id}">${esc(org.name)}</option>`).join("")}</select>
+        <select id="auditTableFilter" class="control"><option value="">Todas las áreas</option>${tables.map((table)=>`<option value="${table}">${esc(auditAreaLabel(table))}</option>`).join("")}</select>
+        <input id="auditSearch" class="control" placeholder="Buscar actor o cambio">
+      </div>
+    </section>
+    <section class="card audit-card">
+      <div class="card-head"><div><h2>Actividad reciente</h2><p>Se conserva el antes y después para revisión interna</p></div><span id="auditCount" class="count">${rows.length}</span></div>
+      <div id="auditRows" class="audit-list"></div>
+    </section>
+  `;
+
+  const draw=()=>{
+    const orgFilter=$("auditOrgFilter").value;
+    const tableFilter=$("auditTableFilter").value;
+    const q=$("auditSearch").value.trim().toLowerCase();
+    const filtered=rows.filter((row)=>{
+      if(orgFilter&&row.organization_id!==orgFilter)return false;
+      if(tableFilter&&row.table_name!==tableFilter)return false;
+      const hay=[row.actor_email,auditAreaLabel(row.table_name),auditActionLabel(row.action),auditChangedSummary(row),orgName(row.organization_id)].filter(Boolean).join(" ").toLowerCase();
+      return !q||hay.includes(q);
+    });
+    $("auditCount").textContent=String(filtered.length);
+    $("auditRows").innerHTML=filtered.length?filtered.map((row)=>`<details class="audit-entry">
+      <summary>
+        <span class="audit-action ${row.action.toLowerCase()}">${esc(auditActionLabel(row.action))}</span>
+        <div><b>${esc(auditAreaLabel(row.table_name))}</b><small>${esc(orgName(row.organization_id))} · ${esc(row.actor_email||"Sistema")}</small></div>
+        <span class="audit-summary">${esc(auditChangedSummary(row))}</span>
+        <time>${dateTime(row.created_at)}</time>
+      </summary>
+      <div class="audit-detail">
+        ${Object.keys(row.changed_fields||{}).filter((key)=>!["updated_at","created_at"].includes(key)).map((key)=>`<div><span>${esc(key.replaceAll("_"," "))}</span><code>${esc(typeof row.changed_fields[key]==="object"?JSON.stringify(row.changed_fields[key]):row.changed_fields[key])}</code></div>`).join("")||'<p>Sin detalle adicional.</p>'}
+      </div>
+    </details>`).join(""):emptyState("No hay cambios con esos filtros.","Ajusta la búsqueda o espera nuevas acciones administrativas.");
+  };
+  draw();
+  ["auditOrgFilter","auditTableFilter","auditSearch"].forEach((id)=>$(id)?.addEventListener(id==="auditSearch"?"input":"change",draw));
 }
 
 async function renderAdmin() {
@@ -2174,14 +2654,19 @@ async function render() {
   clearError();
   const meta = pageMeta[state.page];
 
-  if (state.page === "crm" && state.isAdmin) {
+  if (["crm","clients","operations","audit"].includes(state.page) && state.isAdmin) {
     const internal = state.organizations.find((org) => org.name === "NEXO Internal");
-    if (internal && $("orgSelect").value !== internal.id) $("orgSelect").value = internal.id;
+    if (internal && $("orgSelect").value !== internal.id) {
+      $("orgSelect").value = internal.id;
+      updateNavigationAccess();
+    }
   }
 
   persistUiState();
-  $("periodSelect").classList.toggle("hidden", ["crm","billing"].includes(state.page));
-  $("exportButton").textContent = state.page === "crm" ? "Exportar CRM" : state.page === "billing" ? "Exportar cobros" : "Exportar CSV";
+  const noPeriod = ["crm","billing","clients","settings","audit"].includes(state.page);
+  $("periodSelect").classList.toggle("hidden", noPeriod);
+  $("exportButton").classList.toggle("hidden", state.page === "settings");
+  $("exportButton").textContent = state.page === "crm" ? "Exportar CRM" : state.page === "billing" ? "Exportar cobros" : state.page === "audit" ? "Exportar audit" : state.page === "clients" ? "Exportar clientes" : "Exportar CSV";
 
   $("breadcrumb").textContent = meta[0];
   $("pageEyebrow").textContent = meta[1];
@@ -2198,7 +2683,10 @@ async function render() {
     else if (state.page === "billing") await renderBillingPortal();
     else if (state.page === "team") await renderTeam();
     else if (state.page === "crm") await renderCrm({ supabase, state, $, esc, money, dateTime, shortDate, metricCard, emptyState, showError, showToast, clientOrganizations, loadOrganizations, renderApp: render, persistUiState, downloadInvoicePdf });
-    else if (state.page === "admin") await renderAdmin();
+    else if (state.page === "clients" || state.page === "admin") await renderClients();
+    else if (state.page === "operations") await renderOperations();
+    else if (state.page === "settings") await renderSettings();
+    else if (state.page === "audit") await renderAudit();
   } catch (error) {
     showError(error.message || "No pudimos cargar la información.");
     $("content").innerHTML = emptyState("No pudimos cargar esta vista.", "Revisa la conexión e inténtalo de nuevo.");
@@ -2404,10 +2892,11 @@ $("refreshButton").addEventListener("click", async () => {
 
 $("orgSelect").addEventListener("change", async () => {
   updateNavigationAccess();
-  if (state.page === "team" && !canManageCurrentOrgUsers()) {
-    state.page = "overview";
-    document.querySelectorAll(".nav-item").forEach((item) => item.classList.toggle("active", item.dataset.page === "overview"));
-  }
+  const internal=adminInternalView();
+  if (internal && !["overview","crm","clients","operations","settings","audit"].includes(state.page)) state.page="overview";
+  if (!internal && ["crm","clients","operations","audit","admin"].includes(state.page)) state.page="overview";
+  if (state.page === "team" && !canManageCurrentOrgUsers()) state.page = "overview";
+  document.querySelectorAll(".nav-item").forEach((item) => item.classList.toggle("active", item.dataset.page === state.page));
   persistUiState();
   await render();
 });
@@ -2419,7 +2908,8 @@ $("exportButton").addEventListener("click", exportCsv);
 
 document.querySelectorAll(".nav-item").forEach((button) => {
   button.addEventListener("click", () => {
-    if (["admin","crm"].includes(button.dataset.page) && !state.isAdmin) return;
+    if (["admin","crm","clients","operations","audit"].includes(button.dataset.page) && !state.isAdmin) return;
+    if (["crm","clients","operations","audit"].includes(button.dataset.page) && !adminInternalView()) return;
     if (button.dataset.page === "team" && !canManageCurrentOrgUsers()) return;
     state.page = button.dataset.page;
     document.querySelectorAll(".nav-item").forEach((item) => item.classList.toggle("active", item.dataset.page === state.page));
@@ -2482,7 +2972,8 @@ window.addEventListener("hashchange", () => {
   if (!state.session) return;
   const page = window.location.hash.replace(/^#/, "") || "overview";
   if (!pageMeta[page]) return;
-  if (["admin","crm"].includes(page) && !state.isAdmin) return;
+  if (["admin","crm","clients","operations","audit"].includes(page) && !state.isAdmin) return;
+  if (["crm","clients","operations","audit"].includes(page) && !adminInternalView()) return;
   state.page = page;
   document.querySelectorAll(".nav-item").forEach((item) => item.classList.toggle("active", item.dataset.page === state.page));
   render();
