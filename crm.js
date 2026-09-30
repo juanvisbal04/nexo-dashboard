@@ -496,4 +496,67 @@ export async function renderCrm(context) {
     <div class="crm-finance-strip">
       <div><span>MRR activo</span><b>${money(activeMrr)}</b></div>
       <div><span>ARR</span><b>${money(arr)}</b></div>
-    
+      <div><span>Costos mensuales</span><b>${money(monthlyCost)}</b></div>
+      <div><span>Utilidad bruta</span><b>${money(grossProfit)}</b></div>
+      <div><span>Margen bruto</span><b>${grossMargin}%</b></div>
+      <div><span>Integraciones pendientes</span><b>${integrationAttention}</b></div>
+    </div>
+
+    <section class="card crm-pipeline-card">
+      <div class="card-head">
+        <div><h2>Pipeline comercial</h2><p>Prospecto → Demo → Propuesta → Cliente → Implementación → Activo</p></div>
+        <button id="crmNewProspectButton" class="btn primary small" type="button">+ Nuevo prospecto</button>
+      </div>
+      <div class="crm-pipeline">
+        ${pipelineStagesUi.map(([stage, label]) => {
+          const rows = opportunityRows.filter((row) => row.stage === stage);
+          const stageMrr = rows.reduce((sum, row) => sum + Number(row.expected_mrr || 0), 0);
+          return `
+            <div class="crm-stage">
+              <div class="crm-stage-head">
+                <div><b>${esc(label)}</b><small>${rows.length} negocio${rows.length === 1 ? "" : "s"}</small></div>
+                <span>${money(stageMrr)}</span>
+              </div>
+              <div class="crm-stage-list">
+                ${rows.length ? rows.map((row) => `
+                  <button class="crm-opportunity-card" type="button" data-prospect-id="${row.id}">
+                    <div class="crm-opportunity-top">
+                      <b>${esc(row.business_name)}</b>
+                      ${row.next_action_at && new Date(row.next_action_at).getTime() < now ? '<span class="crm-overdue">Vencido</span>' : ""}
+                    </div>
+                    <span>${esc(row.full_name)}</span>
+                    <div class="crm-opportunity-value">
+                      <strong>${row.expected_mrr ? money(row.expected_mrr) + "/mes" : "MRR por definir"}</strong>
+                      <small>${row.next_action_at ? shortDate(row.next_action_at) : "Sin próxima acción"}</small>
+                    </div>
+                  </button>
+                `).join("") : `<div class="crm-stage-empty">Sin oportunidades</div>`}
+              </div>
+            </div>
+          `;
+        }).join("")}
+      </div>
+      ${opportunityRows.some((row) => row.stage === "perdido") ? `
+        <div class="crm-lost-row"><span>Oportunidades perdidas</span><b>${opportunityRows.filter((row) => row.stage === "perdido").length}</b></div>
+      ` : ""}
+    </section>
+
+    <div class="crm-two-col">
+      <section class="card">
+        <div class="card-head">
+          <div><h2>Próximas acciones</h2><p>Seguimientos comerciales ordenados por fecha</p></div>
+          <span class="count">${overdue} vencidos</span>
+        </div>
+        <div class="crm-action-list">
+          ${nextActions.slice(0, 8).map((row) => `
+            <button class="crm-action-row" type="button" data-prospect-id="${row.id}">
+              <span class="${new Date(row.next_action_at).getTime() < now ? "late" : ""}">${dateTime(row.next_action_at)}</span>
+              <div><b>${esc(row.business_name)}</b><small>${esc(crmStageLabel(row.stage))} · ${esc(row.full_name)}</small></div>
+              <em>→</em>
+            </button>
+          `).join("") || `<div class="empty"><strong>Agenda comercial limpia.</strong>No hay próximas acciones registradas.</div>`}
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-head"><div><h2>Actividad reciente</h2><p>Notas, demos, propuestas y seguimientos</p></div></
