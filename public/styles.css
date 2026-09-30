@@ -303,3 +303,6 @@ footer .brand-word{color:#fff}.brand-word.small{font-size:27px}.footer-brand>sma
 @media(max-width:1050px){.trust-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:820px){.mobile-demo-cta{display:flex;position:fixed;z-index:80;left:16px;right:16px;bottom:14px;align-items:center;justify-content:space-between;padding:13px 16px;border-radius:13px;background:#2d9cff;color:#061427;font-size:10px;font-weight:800;box-shadow:0 14px 35px rgba(6,20,39,.25)}body{padding-bottom:64px}}
 @media(max-width:600px){.trust-grid{grid-template-columns:1fr}.trust-grid article{min-height:180px}.trust-grid b{margin-top:28px}.faq-item summary{font-size:10px}}
+
+.mobile-demo-cta{transition:opacity .2s ease,transform .2s ease}
+.mobile-demo-cta.is-hidden{opacity:0;pointer-events:none;transform:translateY(12px)}
