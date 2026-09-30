@@ -266,3 +266,74 @@ footer b{color:#77869c}footer b span{color:#4b82f2}
 .inline-link{color:var(--blue);text-decoration:none;font-weight:700;font-size:10px}
 .prospect-message{max-width:280px;white-space:normal;line-height:1.45}
 .team-nav .nav-item{width:100%}
+
+
+/* Portfolio health, alerts and demand intelligence */
+.health-badge{display:inline-flex;align-items:center;justify-content:center;width:max-content;border-radius:999px;padding:5px 8px;font-size:9px;font-weight:800;white-space:nowrap}
+.health-badge.good{background:#e7f7ef;color:#257957}
+.health-badge.watch{background:#fff4df;color:#9b7028}
+.health-badge.risk{background:#fff0e8;color:#a85d39}
+.health-badge.neutral{background:#edf1f6;color:#78869a}
+.health-dot{width:7px;height:7px;border-radius:50%;display:inline-block}.health-dot.good{background:#3eaa7d}.health-dot.watch{background:#d49a33}.health-dot.risk{background:#d5754a}
+
+.portfolio-health{background:#fff;border:1px solid var(--border);border-radius:12px;margin-bottom:20px;overflow:hidden}
+.portfolio-health-summary{padding:17px 20px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;border-bottom:1px solid var(--border);font-size:10px;color:#78879a}
+.portfolio-health-summary>span{font-weight:800;color:#293f5c;margin-right:auto}
+.portfolio-health-summary>div{display:flex;align-items:center;gap:6px}
+.portfolio-health-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:0}
+.portfolio-account{padding:18px 20px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);min-height:150px}
+.portfolio-account-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:18px}
+.org-mini{width:33px;height:33px;border-radius:9px;display:grid;place-items:center;background:color-mix(in srgb,var(--org-color) 14%, white);color:var(--org-color);font-size:9px;font-weight:800}
+.portfolio-account>b{display:block;font-size:13px;color:#27415e}.portfolio-account>small{display:block;margin-top:5px;font-size:9px;color:#8996a8}.portfolio-account>p{font-size:9px;line-height:1.45;color:#76869a;margin:13px 0 0}
+
+.alert-center{margin-bottom:20px}
+.alert-list{padding:0 20px 18px;display:grid;gap:8px}
+.alert-item{width:100%;border:1px solid #e6ebf1;background:#fff;border-radius:10px;padding:12px;display:grid;grid-template-columns:8px 1fr 18px;gap:11px;align-items:center;text-align:left;color:#50627c}
+.alert-item>i{width:8px;height:8px;border-radius:50%;background:#99a7b8}
+.alert-item.risk>i{background:#d36d48}.alert-item.watch>i{background:#d59b35}.alert-item.info>i{background:#508ff3}
+.alert-item b{display:block;font-size:11px;color:#2b435f}.alert-item span{display:block;font-size:9px;color:#8290a2;margin-top:4px}.alert-item em{font-style:normal;color:#9aa7b7}
+.alert-item:hover{background:#f9fbfd}
+.alert-empty{padding:18px 20px 24px;display:flex;gap:12px;align-items:flex-start;color:#688078}
+.alert-empty>span{width:29px;height:29px;border-radius:50%;display:grid;place-items:center;background:#e8f7ef;color:#287a59;font-weight:800}.alert-empty b{font-size:11px}.alert-empty p{font-size:9px;color:#87968d;margin-top:4px}
+
+.demand-overview{margin-bottom:20px}
+.demand-wrap{padding:4px 20px 22px}
+.demand-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.demand-cell{border-radius:10px;padding:14px 12px;min-height:92px;background:#f5f7fa;border:1px solid #edf0f4}
+.demand-cell.level-1{background:#eef5ff}.demand-cell.level-2{background:#e3efff}.demand-cell.level-3{background:#cfe4ff}.demand-cell.level-4{background:#b8d8ff}
+.demand-cell span{font-size:8px;color:#5e7390;text-transform:uppercase;letter-spacing:.6px}.demand-cell b{display:block;font-family:"Manrope";font-size:20px;color:#204b7c;margin:8px 0 2px}.demand-cell small{font-size:8px;color:#7588a0}
+.weekday-wrap{padding:5px 20px 22px}
+.weekday-bars{height:160px;display:flex;align-items:flex-end;gap:10px}
+.weekday-bars>div{flex:1;display:grid;grid-template-rows:16px 1fr 16px;gap:5px;text-align:center;height:100%}
+.weekday-bars span,.weekday-bars strong{font-size:8px;color:#7e8ea2}.weekday-bars i{display:flex;align-items:flex-end;justify-content:center;background:#f4f6f9;border-radius:6px;overflow:hidden;min-width:18px}.weekday-bars i b{display:block;width:100%;max-width:22px;background:linear-gradient(#4b84f2,#8ab4ff);border-radius:5px 5px 0 0}
+.analytics-insight-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:19px;margin-bottom:20px}
+.health-detail-card .card-head{align-items:center}.health-reasons{padding:0 21px 21px;display:grid;gap:9px}.health-reasons>div{display:flex;align-items:flex-start;gap:9px;font-size:9px;color:#6e7f93}.health-reasons i{width:6px;height:6px;border-radius:50%;background:#83a0c4;margin-top:4px;flex-shrink:0}
+.metric-score-foot{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.client-strip{grid-template-columns:repeat(5,minmax(0,1fr))}
+
+/* Mobile app shell */
+.mobile-bottom-nav{display:none}
+@media(max-width:1050px){
+  .analytics-insight-grid{grid-template-columns:1fr 1fr}
+  .analytics-insight-grid .health-detail-card{grid-column:1/-1}
+}
+@media(max-width:720px){
+  body{padding-bottom:74px}
+  main{padding-bottom:20px}
+  .mobile-bottom-nav{display:grid;grid-template-columns:repeat(5,1fr);position:fixed;left:0;right:0;bottom:0;z-index:70;background:rgba(255,255,255,.96);backdrop-filter:blur(18px);border-top:1px solid var(--border);padding:7px 8px calc(7px + env(safe-area-inset-bottom));box-shadow:0 -12px 30px rgba(17,29,53,.08)}
+  .mobile-bottom-nav .mobile-nav-item{margin:0;padding:5px 2px;border-radius:8px;background:transparent;color:#7a879a;text-align:center;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:16px}
+  .mobile-bottom-nav .mobile-nav-item span{font-size:17px;line-height:1}.mobile-bottom-nav .mobile-nav-item small{font-size:7px;font-weight:700}
+  .mobile-bottom-nav .mobile-nav-item.active{background:#eef3ff;color:#316bff}
+  .portfolio-health-cards{grid-template-columns:1fr}
+  .portfolio-account{border-right:0}
+  .portfolio-health-summary{align-items:flex-start;gap:10px}.portfolio-health-summary>span{width:100%}
+  .analytics-insight-grid{grid-template-columns:1fr}.analytics-insight-grid .health-detail-card{grid-column:auto}
+  .demand-grid{grid-template-columns:1fr 1fr}
+  .client-strip{grid-template-columns:1fr 1fr}
+  .alert-item{grid-template-columns:7px 1fr 14px}
+  .weekday-bars{height:135px;gap:5px}
+}
+@media(max-width:480px){
+  .demand-grid{grid-template-columns:1fr 1fr}
+  .client-strip{grid-template-columns:1fr}
+}
