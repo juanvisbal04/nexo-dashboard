@@ -298,4 +298,55 @@ async function openCommercialEditor(org, commercial, integrations) {
         <label>MRR / cuota mensual<input id="crmMrr" type="number" min="0" step="1000" value="${commercial?.mrr ?? ""}"></label>
         <label>Costo mensual base<input id="crmMonthlyCost" type="number" min="0" step="1000" value="${commercial?.monthly_cost ?? ""}"></label>
         <label>Setup cobrado<input id="crmSetupFee" type="number" min="0" step="1000" value="${commercial?.setup_fee ?? ""}"></label>
-        <label>Costo implementación<input id="crmImplementationCost" type="number" min="0" step="1
+        <label>Costo implementación<input id="crmImplementationCost" type="number" min="0" step="1000" value="${commercial?.implementation_cost ?? ""}"></label>
+        <label>Inicio contrato<input id="crmStartDate" type="date" value="${inputDate(commercial?.contract_start_date)}"></label>
+        <label>Go live<input id="crmGoLiveDate" type="date" value="${inputDate(commercial?.go_live_date)}"></label>
+        <label>Renovación<input id="crmRenewalDate" type="date" value="${inputDate(commercial?.renewal_date)}"></label>
+        <label>Facturación
+          <select id="crmBillingStatus">${["pending","active","past_due","paused","cancelled"].map((value) => `<option value="${value}" ${commercial?.billing_status === value ? "selected" : ""}>${value}</option>`).join("")}</select>
+        </label>
+        <label>Implementación
+          <select id="crmImplementationStatus">${["pending","discovery","design","configuration","testing","go_live","active","paused"].map((value) => `<option value="${value}" ${commercial?.implementation_status === value ? "selected" : ""}>${value}</option>`).join("")}</select>
+        </label>
+        <label>Integraciones
+          <select id="crmIntegrationStatus">${["pending","partial","connected","attention","paused"].map((value) => `<option value="${value}" ${commercial?.integration_status === value ? "selected" : ""}>${value}</option>`).join("")}</select>
+        </label>
+        <label class="wide">Notas comerciales<textarea id="crmCommercialNotes" rows="3">${esc(commercial?.commercial_notes || "")}</textarea></label>
+        <label class="wide">Notas de integración<textarea id="crmIntegrationNotes" rows="3">${esc(commercial?.integration_notes || "")}</textarea></label>
+      </div>
+      <div class="crm-form-actions"><button class="btn primary" type="submit">Guardar ficha financiera</button></div>
+    </form>
+
+    <div class="crm-integrations-box">
+      <div class="crm-section-head">
+        <div><span class="eyebrow">INTEGRACIONES</span><h3>Costos y estado por conexión</h3></div>
+      </div>
+      <div class="crm-integration-list">
+        ${integrations.length ? integrations.map((item) => `
+          <div class="crm-integration-row">
+            <div><b>${esc(item.integration_name)}</b><small>${esc(item.provider || "Sin proveedor")}</small></div>
+            <select class="crm-integration-status" data-id="${item.id}">
+              ${["pending","configuration","connected","attention","paused","disabled"].map((value) => `<option value="${value}" ${item.status === value ? "selected" : ""}>${value}</option>`).join("")}
+            </select>
+            <span>${money(item.monthly_cost || 0)}/mes</span>
+          </div>
+        `).join("") : `<div class="muted crm-empty-line">Sin integraciones registradas.</div>`}
+      </div>
+      <form id="crmIntegrationForm" class="crm-mini-form">
+        <input id="crmIntegrationName" placeholder="Integración (ej. WhatsApp)" required>
+        <input id="crmIntegrationProvider" placeholder="Proveedor">
+        <input id="crmIntegrationCost" type="number" min="0" step="1000" placeholder="Costo mensual">
+        <button class="btn" type="submit">Agregar</button>
+      </form>
+    </div>
+  `;
+
+  const { modal, close } = crmModal(org.name, body);
+
+  modal.querySelector("#crmCommercialForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const payload = {
+      organization_id: org.id,
+      lifecycle_stage: modal.querySelector("#crmLifecycle").value,
+      plan_name: modal.querySelector("#crmPlan").value.trim() || null,
+      mrr: nullableNum
