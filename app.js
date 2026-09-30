@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
-import { renderCrm } from "./crm.js?v=20260930-crm14";
+import { renderCrm } from "./crm.js?v=20260930-crm15";
 
 const SUPABASE_URL = "https://ixewnbjndguchunwcuhf.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_vFnLRe9cmnOcyz2Fivprhw_8UjBaRGL";
@@ -1926,7 +1926,7 @@ async function refreshNotifications() {
 
   const tasks = [
     scoped(supabase.from("conversations").select("id,organization_id,name,status,last_message_at").eq("status","Requiere atención").order("last_message_at",{ascending:false}).limit(12)),
-    scoped(supabase.from("appointments").select("id,organization_id,name,status,appointment_at,created_at").in("status",["Solicitada","Pendiente"]).order("created_at",{ascending:false}).limit(12)),
+    scoped(supabase.from("appointments").select("id,organization_id,name,status,starts_at,created_at").in("status",["Solicitada","Pendiente"]).order("created_at",{ascending:false}).limit(12)),
     scoped(supabase.from("client_invoices").select("id,organization_id,invoice_number,status,due_date,amount_cop,reference").in("status",["pending","overdue"]).order("due_date",{ascending:true}).limit(20)),
   ];
 
@@ -1943,7 +1943,7 @@ async function refreshNotifications() {
     tone:"watch", priority:80, page:"appointments", orgId:row.organization_id,
     title:"Cita pendiente de confirmar",
     detail:(row.name || "Solicitud") + " · " + notificationOrgName(row.organization_id),
-    date:row.appointment_at || row.created_at,
+    date:row.starts_at || row.created_at,
   }));
 
   (invoiceResult.data || []).forEach((row) => {
