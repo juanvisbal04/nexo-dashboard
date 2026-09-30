@@ -752,3 +752,14 @@ body.modal-open{overflow:hidden;touch-action:none}
   .crm-plan-row>div:first-child{grid-column:1/-1}
   .crm-expense-row{grid-template-columns:1fr auto}.crm-expense-row>button{grid-column:1/-1;width:max-content}
 }
+
+/* Explicit profile + logout */
+.profile-card{cursor:default}
+.logout-button{
+  width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;
+  margin-top:8px;padding:10px 12px;border:1px solid #ffffff16;border-radius:8px;
+  background:#ffffff08;color:#aebdd2;font:inherit;font-size:9px;font-weight:700;text-align:left
+}
+.logout-button:hover{background:#ffffff0f;color:#fff}
+.logout-button b{font-size:12px;font-weight:600}
+.logout-button:disabled{opacity:.55;cursor:wait}
