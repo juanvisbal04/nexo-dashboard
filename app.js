@@ -992,7 +992,10 @@ async function openContactChat(contactId, organizationId = currentOrgId()) {
 
 function bindChatButtons() {
   document.querySelectorAll(".chat-button").forEach((button) => {
-    button.addEventListener("click", () => openContactChat(button.dataset.contactId));
+    button.addEventListener("click", () => openContactChat(
+      button.dataset.contactId,
+      button.dataset.orgId || currentOrgId()
+    ));
   });
 }
 
@@ -1808,6 +1811,26 @@ document.querySelectorAll(".nav-item").forEach((button) => {
 
 $("menuButton").addEventListener("click", () => document.body.classList.toggle("sidebar-open"));
 
+function repairUiLocks() {
+  const chat = document.getElementById("chatModal");
+  const chatOpen = chat && !chat.classList.contains("hidden");
+  const crmOpen = !!document.getElementById("crmModal");
+  if (!chatOpen && !crmOpen) document.body.classList.remove("modal-open");
+}
+
+document.addEventListener("pointerdown", (event) => {
+  if (document.body.classList.contains("sidebar-open")) {
+    const insideSidebar = event.target.closest("aside");
+    const menuButton = event.target.closest("#menuButton");
+    if (!insideSidebar && !menuButton) document.body.classList.remove("sidebar-open");
+  }
+  repairUiLocks();
+}, { passive: true });
+
+window.addEventListener("focus", repairUiLocks);
+window.addEventListener("touchend", repairUiLocks, { passive: true });
+setInterval(repairUiLocks, 1500);
+
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     closeContactChat();
@@ -1825,10 +1848,7 @@ window.addEventListener("pageshow", () => {
 });
 
 document.addEventListener("visibilitychange", () => {
-  if (!document.hidden) {
-    const modal = document.getElementById("chatModal");
-    if (!modal || modal.classList.contains("hidden")) document.body.classList.remove("modal-open");
-  }
+  if (!document.hidden) repairUiLocks();
 });
 
 supabase.auth.onAuthStateChange((event, session) => {
