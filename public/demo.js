@@ -10,7 +10,11 @@ function applyPlanFromUrl(){
   }
 }
 applyPlanFromUrl();
+document.addEventListener("DOMContentLoaded",applyPlanFromUrl);
 window.addEventListener("pageshow",applyPlanFromUrl);
+requestAnimationFrame(applyPlanFromUrl);
+setTimeout(applyPlanFromUrl,100);
+setTimeout(applyPlanFromUrl,700);
 
 const form=document.getElementById("demoForm");
 const result=document.getElementById("demoResult");
