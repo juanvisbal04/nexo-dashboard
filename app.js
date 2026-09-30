@@ -1206,10 +1206,10 @@ async function renderAdmin() {
   const internal = state.organizations.find((org) => org.name === "NEXO Internal");
   const totals = internal ? await getMetrics(internal.id, currentDays(), { comparison: false }) : null;
 
-  const rows = await Promise.all(clients.map(async (org) => ({
-    org,
-    metrics: await getMetrics(org.id, currentDays(), { comparison: false }),
-  })));
+  const rows = await Promise.all(clients.map(async (org) => {
+    const metrics = await getMetrics(org.id, currentDays(), { comparison: false });
+    return { org, metrics, health: operationalHealth(metrics) };
+  }));
 
   const { data: demoRequests, error: demoError } = await supabase
     .from("demo_requests")
@@ -1220,9 +1220,11 @@ async function renderAdmin() {
   const webProspects = demoRequests || [];
   const newWebProspects = webProspects.filter((row) => row.status === "Nuevo").length;
 
-  state.currentRows = rows.map(({ org, metrics }) => ({
+  state.currentRows = rows.map(({ org, metrics, health }) => ({
     organization: org.name,
     status: org.status,
+    health: health.score,
+    health_label: health.level,
     assistant: org.assistant,
     conversations: metrics.chats,
     leads: metrics.leadCount,
@@ -1247,12 +1249,13 @@ async function renderAdmin() {
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Cliente</th><th>Estado</th><th>Asistente</th><th>Conversaciones</th><th>Leads</th><th>Conversión</th><th>Citas</th><th>Valor</th><th>Atención</th></tr></thead>
+          <thead><tr><th>Cliente</th><th>Estado</th><th>Salud</th><th>Asistente</th><th>Conversaciones</th><th>Leads</th><th>Conversión</th><th>Citas</th><th>Valor</th><th>Atención</th></tr></thead>
           <tbody>
-            ${rows.length ? rows.map(({ org, metrics }) => `
+            ${rows.length ? rows.map(({ org, metrics, health }) => `
               <tr>
                 <td><b>${esc(org.name)}</b><br><span class="muted">${esc(org.sector || "Sin sector")}</span></td>
                 <td>${org.status === "active" ? '<span class="pill green">Activo</span>' : `<span class="pill">${esc(org.status || "—")}</span>`}</td>
+                <td>${healthBadge(health, true)}</td>
                 <td>${esc(org.assistant || "—")}</td>
                 <td>${metrics.chats}</td>
                 <td>${metrics.leadCount}</td>
@@ -1261,7 +1264,7 @@ async function renderAdmin() {
                 <td>${money(metrics.value)}</td>
                 <td>${metrics.attention ? `<span class="count">${metrics.attention}</span>` : '<span class="pill green">0</span>'}</td>
               </tr>
-            `).join("") : `<tr><td colspan="9">${emptyState("Todavía no hay clientes.", "Crea el primer negocio desde este panel.")}</td></tr>`}
+            `).join("") : `<tr><td colspan="10">${emptyState("Todavía no hay clientes.", "Crea el primer negocio desde este panel.")}</td></tr>`}
           </tbody>
         </table>
       </div>
