@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
-import { renderCrm } from "./crm.js?v=20260930-crm23";
+import { renderCrm } from "./crm.js?v=20260930-crm24";
 
 const SUPABASE_URL = "https://ixewnbjndguchunwcuhf.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_vFnLRe9cmnOcyz2Fivprhw_8UjBaRGL";
@@ -62,7 +62,7 @@ function restoreUiState() {
   let page = pageMeta[hashPage] ? hashPage : (pageMeta[saved.page] ? saved.page : "overview");
   const adminOnly = new Set(["crm","clients","operations","audit","admin"]);
   if (adminOnly.has(page) && !state.isAdmin) page = "overview";
-  if (state.isAdmin && isInternalOrg() && !["overview","crm","clients","operations","settings","audit"].includes(page)) page = "overview";
+  if (state.isAdmin && isInternalOrg() && !["overview","crm","clients","operations","settings","audit","profile"].includes(page)) page = "overview";
   if ((!state.isAdmin || !isInternalOrg()) && ["clients","operations","audit","admin","crm"].includes(page)) page = "overview";
   if (page === "team" && !canManageCurrentOrgUsers()) page = "overview";
   state.page = page;
@@ -1939,10 +1939,10 @@ async function renderSettings() {
               <small>La misma imagen se mostrará en Inicio y en la vista de NEXO.</small>
             </div>
             <div class="settings-grid assistant-editor-fields">
-              <label>Nombre visible<input id="assistantNameProfile" value="${esc(assistant?.name||targetOrg?.assistant||"")}" ${canEdit?"":"disabled"}></label>
+              <label>Nombre visible<input id="assistantNameProfile" value="${esc(assistant?.name||targetOrg?.assistant||"")}" ${adminMode?"":"disabled"}></label>
               <label>Rol<input id="assistantRoleLabel" value="${esc(assistant?.role_label||"")}" placeholder="Ej. Asistente virtual de reservas" ${canEdit?"":"disabled"}></label>
               <label>Canal<input id="assistantChannel" value="${esc(assistant?.channel||"WhatsApp")}" ${canEdit?"":"disabled"}></label>
-              <label>Estado<select id="assistantStatus" ${canEdit?"":"disabled"}><option value="active" ${assistant?.status==="active"?"selected":""}>Activo</option><option value="paused" ${assistant?.status==="paused"?"selected":""}>Pausado</option><option value="maintenance" ${assistant?.status==="maintenance"?"selected":""}>Mantenimiento</option></select></label>
+              <label>Estado en NEXO<input value="${assistant?.status==="active"?"Activo":esc(assistant?.status||"—")}" disabled></label>
               <label class="wide">Descripción<textarea id="assistantDescription" rows="3" ${canEdit?"":"disabled"}>${esc(assistant?.description||"")}</textarea></label>
               <label class="wide">Contexto del asistente<textarea id="assistantContext" rows="4" ${canEdit?"":"disabled"}>${esc(assistant?.context_summary||"")}</textarea></label>
               <label class="wide">Tono<textarea id="assistantTone" rows="2" ${canEdit?"":"disabled"}>${esc(assistant?.tone||setting.assistant_tone||"")}</textarea></label>
@@ -2044,7 +2044,7 @@ async function renderSettings() {
           name:$("assistantNameProfile").value.trim()||assistant.name,
           role_label:$("assistantRoleLabel").value.trim()||null,
           channel:$("assistantChannel").value.trim()||"WhatsApp",
-          status:$("assistantStatus").value,
+          status:assistant.status,
           description:$("assistantDescription").value.trim()||null,
           context_summary:$("assistantContext").value.trim()||null,
           tone:$("assistantTone").value.trim()||null,
@@ -3047,9 +3047,9 @@ async function render() {
   }
 
   persistUiState();
-  const noPeriod = ["crm","billing","clients","settings","audit"].includes(state.page);
+  const noPeriod = ["crm","billing","clients","settings","audit","profile"].includes(state.page);
   $("periodSelect").classList.toggle("hidden", noPeriod);
-  $("exportButton").classList.toggle("hidden", state.page === "settings");
+  $("exportButton").classList.toggle("hidden", ["settings","profile"].includes(state.page));
   $("exportButton").textContent = state.page === "crm" ? "Exportar CRM" : state.page === "billing" ? "Exportar cobros" : state.page === "audit" ? "Exportar audit" : state.page === "clients" ? "Exportar clientes" : "Exportar CSV";
 
   $("breadcrumb").textContent = meta[0];
@@ -3280,7 +3280,7 @@ $("refreshButton").addEventListener("click", async () => {
 $("orgSelect").addEventListener("change", async () => {
   updateNavigationAccess();
   const internal=adminInternalView();
-  if (internal && !["overview","crm","clients","operations","settings","audit"].includes(state.page)) state.page="overview";
+  if (internal && !["overview","crm","clients","operations","settings","audit","profile"].includes(state.page)) state.page="overview";
   if (!internal && ["crm","clients","operations","audit","admin"].includes(state.page)) state.page="overview";
   if (state.page === "team" && !canManageCurrentOrgUsers()) state.page = "overview";
   document.querySelectorAll(".nav-item").forEach((item) => item.classList.toggle("active", item.dataset.page === state.page));
