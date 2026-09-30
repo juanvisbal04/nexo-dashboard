@@ -1586,6 +1586,15 @@ async function render() {
   document.body.classList.remove("sidebar-open");
   clearError();
   const meta = pageMeta[state.page];
+
+  if (state.page === "crm" && state.isAdmin) {
+    const internal = state.organizations.find((org) => org.name === "NEXO Internal");
+    if (internal && $("orgSelect").value !== internal.id) $("orgSelect").value = internal.id;
+  }
+
+  $("periodSelect").classList.toggle("hidden", state.page === "crm");
+  $("exportButton").textContent = state.page === "crm" ? "Exportar CRM" : "Exportar CSV";
+
   $("breadcrumb").textContent = meta[0];
   $("pageEyebrow").textContent = meta[1];
   $("pageTitle").textContent = meta[2];
