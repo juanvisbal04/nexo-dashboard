@@ -717,7 +717,7 @@ export async function renderCrm(context) {
       </form>
       <div class="table-wrap crm-billing-table">
         <table>
-          <thead><tr><th>Número</th><th>Cliente</th><th>Tipo</th><th>Valor</th><th>Vence</th><th>Estado</th><th>Correo</th><th>Pago</th><th>Referencia</th><th></th></tr></thead>
+          <thead><tr><th>Número</th><th>Cliente</th><th>Tipo</th><th>Valor</th><th>Vence</th><th>Estado</th><th>Correo</th><th>Pago</th><th>Online</th><th>Referencia</th><th></th></tr></thead>
           <tbody>
             ${invoiceRows.length ? invoiceRows.slice(0,30).map((row)=>{
               const org=clients.find((item)=>item.id===row.organization_id);
@@ -740,6 +740,7 @@ export async function renderCrm(context) {
                 <td><span class="pill ${derived==="paid"?"green":derived==="overdue"?"orange":""}">${esc(derived)}</span></td>
                 <td><span class="pill ${row.email_status==="sent"?"green":row.email_status==="failed"?"orange":""}">${esc(emailLabel)}</span>${row.email_sent_at ? `<br><span class="muted">${dateTime(row.email_sent_at)}</span>` : ""}</td>
                 <td>${row.paid_at ? dateTime(row.paid_at) : "—"}</td>
+                <td>${row.payment_status === "approved" ? '<span class="pill green">Aprobado</span>' : row.payment_status === "pending" ? '<span class="pill amber">Link activo</span>' : row.payment_status === "declined" ? '<span class="pill orange">Rechazado</span>' : "—"}</td>
                 <td>${esc(row.reference || "—")}</td>
                 <td class="crm-invoice-actions">
                   ${derived==="pending"||derived==="overdue" ? `<button class="crm-invoice-paid btn small" data-id="${row.id}" type="button">Marcar pagado</button>` : ""}
@@ -747,7 +748,7 @@ export async function renderCrm(context) {
                   ${billingEmail ? `<button class="crm-invoice-email btn small" data-id="${row.id}" type="button">${row.email_status==="sent"?"Reenviar":"Enviar correo"}</button>` : ""}
                 </td>
               </tr>`;
-            }).join("") : `<tr><td colspan="10">${C.emptyState("Sin cobros todavía.", "Crea el primer cobro cuando corresponda.")}</td></tr>`}
+            }).join("") : `<tr><td colspan="11">${C.emptyState("Sin cobros todavía.", "Crea el primer cobro cuando corresponda.")}</td></tr>`}
           </tbody>
         </table>
       </div>
