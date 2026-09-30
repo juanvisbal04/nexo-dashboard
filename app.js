@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
-import { renderCrm } from "./crm.js?v=20260930-crm15";
+import { renderCrm } from "./crm.js?v=20260930-crm16";
 
 const SUPABASE_URL = "https://ixewnbjndguchunwcuhf.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_vFnLRe9cmnOcyz2Fivprhw_8UjBaRGL";
@@ -20,6 +20,7 @@ const state = {
   currentRows: [],
   pendingRealtimeRefresh: false,
   notifications: [],
+  searchIndex: [],
 };
 let realtimeChannel = null;
 let realtimeTimer = null;
@@ -1906,6 +1907,130 @@ function startRealtime() {
 }
 
 
+
+function searchOrgIds() {
+  if (state.isAdmin && isInternalOrg()) return clientOrganizations({ activeOnly: false }).map((org)=>org.id);
+  return currentOrgId() ? [currentOrgId()] : [];
+}
+
+function searchLabelFor(type,row) {
+  if (type==="conversation") return row.name || row.service || "Conversación";
+  if (type==="lead") return row.name || row.company || row.business_name || "Lead";
+  if (type==="appointment") return row.name || row.service || "Cita";
+  if (type==="invoice") return row.invoice_number || row.reference || "Cuenta de cobro";
+  if (type==="prospect") return row.business_name || row.full_name || "Prospecto";
+  return "Registro";
+}
+
+function searchDetailFor(type,row) {
+  const org=state.organizations.find((item)=>item.id===row.organization_id)?.name;
+  const bits=[];
+  if (org) bits.push(org);
+  if (type==="conversation" && row.status) bits.push(row.status);
+  if (type==="lead") bits.push(row.stage || row.status || "");
+  if (type==="appointment") bits.push(row.status || row.service || "");
+  if (type==="invoice") bits.push(money(row.amount_cop), row.status || "");
+  if (type==="prospect") bits.push(row.stage || row.status || "");
+  return bits.filter(Boolean).join(" · ");
+}
+
+async function buildSearchIndex() {
+  const orgIds=searchOrgIds();
+  const scope=(request)=>{
+    if (!orgIds.length) return request.eq("organization_id","00000000-0000-0000-0000-000000000000");
+    return orgIds.length===1 ? request.eq("organization_id",orgIds[0]) : request.in("organization_id",orgIds);
+  };
+
+  const jobs=[
+    scope(supabase.from("conversations").select("*").order("last_message_at",{ascending:false}).limit(250)),
+    scope(supabase.from("leads").select("*").order("created_at",{ascending:false}).limit(250)),
+    scope(supabase.from("appointments").select("*").order("created_at",{ascending:false}).limit(250)),
+    scope(supabase.from("client_invoices").select("*").order("created_at",{ascending:false}).limit(250)),
+  ];
+  if (state.isAdmin && isInternalOrg()) jobs.push(supabase.from("demo_requests").select("*").order("created_at",{ascending:false}).limit(250));
+
+  const results=await Promise.all(jobs);
+  const types=["conversation","lead","appointment","invoice","prospect"];
+  const pages={conversation:"conversations",lead:"leads",appointment:"appointments",invoice:"billing",prospect:"crm"};
+  const index=[];
+
+  results.forEach((result,i)=>{
+    (result.data||[]).forEach((row)=>{
+      const type=types[i];
+      const title=searchLabelFor(type,row);
+      const detail=searchDetailFor(type,row);
+      const raw=Object.values(row).filter((value)=>value!==null && typeof value!=="object").join(" ");
+      index.push({
+        type,page:pages[type],orgId:row.organization_id||null,row,title,detail,
+        haystack:(title+" "+detail+" "+raw).toLowerCase()
+      });
+    });
+  });
+  state.searchIndex=index;
+  return index;
+}
+
+function searchTypeLabel(type) {
+  return ({conversation:"Chat",lead:"Lead",appointment:"Cita",invoice:"Cobro",prospect:"Prospecto"}[type]||type);
+}
+
+function renderSearchResults(query="") {
+  const box=$("globalSearchResults");
+  if (!box) return;
+  const q=query.trim().toLowerCase();
+  if (!q) {
+    box.innerHTML='<div class="global-search-empty"><b>Busca en toda tu operación.</b><p>Escribe un nombre, número de cuenta, estado, servicio o negocio.</p></div>';
+    return;
+  }
+  const terms=q.split(/\s+/).filter(Boolean);
+  const matches=state.searchIndex
+    .filter((item)=>terms.every((term)=>item.haystack.includes(term)))
+    .slice(0,30);
+
+  box.innerHTML=matches.length ? matches.map((item,index)=>`
+    <button class="global-search-result ${index===0?"selected":""}" type="button" data-search-index="${state.searchIndex.indexOf(item)}">
+      <span class="global-search-type">${esc(searchTypeLabel(item.type))}</span>
+      <div><b>${esc(item.title)}</b><small>${esc(item.detail || "NEXO")}</small></div>
+      <em>→</em>
+    </button>
+  `).join("") : '<div class="global-search-empty"><b>Sin coincidencias.</b><p>Prueba con otro nombre, estado o referencia.</p></div>';
+
+  box.querySelectorAll("[data-search-index]").forEach((button)=>{
+    button.addEventListener("click",()=>openSearchResult(Number(button.dataset.searchIndex)));
+  });
+}
+
+async function openSearchResult(index) {
+  const item=state.searchIndex[index];
+  if (!item) return;
+  if (item.orgId && state.organizations.some((org)=>org.id===item.orgId)) $("orgSelect").value=item.orgId;
+  state.page=item.page;
+  document.querySelectorAll(".nav-item").forEach((el)=>el.classList.toggle("active",el.dataset.page===state.page));
+  persistUiState();
+  closeGlobalSearch();
+  await render();
+}
+
+async function openGlobalSearch() {
+  const panel=$("globalSearchPanel");
+  if (!panel) return;
+  panel.classList.remove("hidden");
+  const input=$("globalSearchInput");
+  input.value="";
+  $("globalSearchResults").innerHTML='<div class="global-search-empty"><b>Cargando búsqueda…</b><p>Preparando los registros autorizados de tu empresa.</p></div>';
+  try {
+    await buildSearchIndex();
+    renderSearchResults("");
+  } catch (error) {
+    $("globalSearchResults").innerHTML='<div class="global-search-empty"><b>No pudimos cargar la búsqueda.</b><p>Inténtalo nuevamente.</p></div>';
+  }
+  setTimeout(()=>input?.focus(),20);
+}
+
+function closeGlobalSearch() {
+  $("globalSearchPanel")?.classList.add("hidden");
+}
+
 function notificationOrgIds() {
   if (state.isAdmin && isInternalOrg()) return clientOrganizations({ activeOnly: false }).map((org) => org.id);
   return currentOrgId() ? [currentOrgId()] : [];
@@ -2304,6 +2429,20 @@ document.querySelectorAll(".nav-item").forEach((button) => {
   });
 });
 
+$("globalSearchButton")?.addEventListener("click",openGlobalSearch);
+$("globalSearchClose")?.addEventListener("click",closeGlobalSearch);
+$("globalSearchPanel")?.addEventListener("click",(event)=>{
+  if (event.target === $("globalSearchPanel")) closeGlobalSearch();
+});
+$("globalSearchInput")?.addEventListener("input",(event)=>renderSearchResults(event.target.value));
+$("globalSearchInput")?.addEventListener("keydown",(event)=>{
+  if (event.key==="Enter") {
+    event.preventDefault();
+    const first=$("globalSearchResults")?.querySelector("[data-search-index]");
+    if (first) openSearchResult(Number(first.dataset.searchIndex));
+  }
+});
+
 $("notificationButton")?.addEventListener("click",(event)=>{
   event.stopPropagation();
   toggleNotificationPanel();
@@ -2354,7 +2493,14 @@ window.addEventListener("touchend", repairUiLocks, { passive: true });
 setInterval(repairUiLocks, 1500);
 
 document.addEventListener("keydown", (event) => {
+  const activeTag=document.activeElement?.tagName;
+  if (event.key === "/" && !["INPUT","TEXTAREA","SELECT"].includes(activeTag)) {
+    event.preventDefault();
+    openGlobalSearch();
+    return;
+  }
   if (event.key === "Escape") {
+    closeGlobalSearch();
     closeContactChat();
     document.getElementById("crmModal")?.remove();
     $("notificationPanel")?.classList.add("hidden");
