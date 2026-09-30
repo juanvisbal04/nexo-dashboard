@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex,nofollow" />
+  <meta name="theme-color" content="#111d35" />
+  <title>NEXO Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div id="loginView" class="login-screen">
+    <section class="login-card">
+      <div class="logo-wrap">
+        <div class="logo-word">NE<span>X</span>O</div>
+        <div class="logo-by">by Juan Visbal</div>
+      </div>
+      <div class="login-copy">
+        <span class="eyebrow">ACCESO PRIVADO</span>
+        <h1>Tu operación, en un solo lugar.</h1>
+        <p>Accede a conversaciones, leads, citas, seguimientos y métricas de tus negocios en NEXO.</p>
+      </div>
+
+      <label>Correo</label>
+      <input id="emailInput" type="email" value="nexobyjuanvisbal@gmail.com" autocomplete="email" />
+
+      <button id="magicButton" class="btn primary">Enviarme un enlace de acceso</button>
+
+      <div class="divider"><span>o</span></div>
+
+      <details class="password-access">
+        <summary>Ingresar con contraseña</summary>
+        <form id="passwordForm">
+          <label>Contraseña</label>
+          <input id="passwordInput" type="password" autocomplete="current-password" />
+          <button class="btn secondary" type="submit">Ingresar</button>
+        </form>
+      </details>
+
+      <div id="loginMessage" class="message hidden"></div>
+      <p class="security-note">Protegido por Supabase Auth y permisos por empresa.</p>
+    </section>
+  </div>
+
+  <div id="appView" class="app hidden">
+    <aside id="sidebar">
+      <div class="sidebar-brand">
+        <div class="logo-word">NE<span>X</span>O</div>
+        <div class="logo-by">by Juan Visbal</div>
+      </div>
+
+      <div class="workspace-label">WORKSPACE <span>V1</span></div>
+
+      <p class="nav-title">TU NEGOCIO</p>
+      <nav>
+        <button class="nav-item active" data-page="overview">Vista general</button>
+        <button class="nav-item" data-page="conversations">Conversaciones</button>
+        <button class="nav-item" data-page="leads">Leads</button>
+        <button class="nav-item" data-page="appointments">Citas y reservas</button>
+        <button class="nav-item" data-page="followups">Seguimientos</button>
+        <button class="nav-item" data-page="metrics">Métricas</button>
+      </nav>
+
+      <div class="admin-nav hidden" id="adminNav">
+        <p class="nav-title">ADMINISTRACIÓN</p>
+        <button class="nav-item" data-page="admin">NEXO Admin</button>
+      </div>
+
+      <div class="sidebar-bottom">
+        <div class="sidebar-note">
+          <strong>Conexiones que cuentan.</strong>
+          <span>Tu operación, en un solo lugar.</span>
+        </div>
+        <button id="logoutButton" class="profile-button">
+          <span class="avatar">JV</span>
+          <span>
+            <strong id="profileName">Juan Visbal</strong>
+            <small id="profileRole">Super Admin</small>
+          </span>
+        </button>
+      </div>
+    </aside>
+
+    <div class="workspace">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button id="menuButton" class="menu-button" aria-label="Abrir menú">☰</button>
+          <span>NEXO</span><span>/</span><strong id="breadcrumb">Vista general</strong>
+        </div>
+        <div class="topbar-right">
+          <div class="org-switcher">
+            <span id="orgBadge" class="org-badge">NX</span>
+            <select id="orgSelect" aria-label="Empresa"></select>
+          </div>
+          <span id="topEmail" class="top-email"></span>
+        </div>
+      </header>
+
+      <div class="live-banner">
+        <span><strong>Espacio privado</strong> · Datos reales de NEXO Platform</span>
+        <button id="refreshButton">Actualizar</button>
+      </div>
+
+      <main>
+        <section class="page-heading">
+          <div>
+            <p id="pageEyebrow" class="eyebrow">NEXO DASHBOARD</p>
+            <h1 id="pageTitle">Tu negocio, en perspectiva.</h1>
+            <p id="pageSubtitle">Métricas y actividad de tu operación.</p>
+          </div>
+          <div class="page-actions">
+            <select id="periodSelect" class="control">
+              <option value="1">Hoy</option>
+              <option value="7">Últimos 7 días</option>
+              <option value="30" selected>Últimos 30 días</option>
+              <option value="90">Últimos 90 días</option>
+            </select>
+            <button id="exportButton" class="btn small">Exportar CSV</button>
+          </div>
+        </section>
+
+        <div id="errorBox" class="error-box hidden"></div>
+        <div id="content"></div>
+
+        <footer>
+          <span><b>NE<span>X</span>O</b> by Juan Visbal</span>
+          <span>Plataforma privada · Colombia</span>
+        </footer>
+      </main>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
