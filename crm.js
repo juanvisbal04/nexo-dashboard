@@ -616,4 +616,52 @@ export async function renderCrm(context) {
           <label>WhatsApp<input id="crmNewPhone"></label>
           <label>Correo<input id="crmNewEmail" type="email"></label>
           <label>Sector<input id="crmNewIndustry"></label>
-          <label>MRR esperado<input id="crmNewMrr" type="number" min="0" st
+          <label>MRR esperado<input id="crmNewMrr" type="number" min="0" step="1000"></label>
+          <label>Próxima acción<input id="crmNewNext" type="datetime-local"></label>
+          <label class="wide">Contexto<textarea id="crmNewMessage" rows="3"></textarea></label>
+        </div>
+        <div class="crm-form-actions"><button class="btn primary" type="submit">Crear prospecto</button></div>
+      </form>
+    </section>
+  `;
+
+  const byId = new Map(opportunityRows.map((row) => [row.id, row]));
+  document.querySelectorAll("[data-prospect-id]").forEach((button) => {
+    button.addEventListener("click", () => openProspectEditor(byId.get(button.dataset.prospectId)));
+  });
+
+  document.querySelectorAll(".crm-edit-client").forEach((button) => {
+    button.addEventListener("click", () => {
+      const org = clients.find((row) => row.id === button.dataset.orgId);
+      openCommercialEditor(org, commercialMap.get(org.id) || null, integrationsByOrg.get(org.id) || []);
+    });
+  });
+
+  $("crmNewProspectButton")?.addEventListener("click", () => {
+    $("crmNewProspectPanel").classList.remove("hidden");
+    $("crmNewProspectPanel").scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+
+  $("crmCancelNewProspect")?.addEventListener("click", () => $("crmNewProspectPanel").classList.add("hidden"));
+
+  $("crmNewProspectForm")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const payload = {
+      full_name: $("crmNewName").value.trim(),
+      business_name: $("crmNewBusiness").value.trim(),
+      phone: $("crmNewPhone").value.trim() || null,
+      email: $("crmNewEmail").value.trim() || null,
+      industry: $("crmNewIndustry").value.trim() || null,
+      message: $("crmNewMessage").value.trim() || null,
+      source: "manual",
+      status: "Nuevo",
+      stage: "prospecto",
+      expected_mrr: nullableNumber($("crmNewMrr").value),
+      next_action_at: $("crmNewNext").value ? new Date($("crmNewNext").value).toISOString() : null,
+    };
+    const { error } = await C.supabase.from("demo_requests").insert(payload);
+    if (error) return C.showError(error.message);
+    C.showToast("Prospecto creado.");
+    await renderCrm();
+  });
+}
