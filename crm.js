@@ -559,4 +559,61 @@ export async function renderCrm(context) {
       </section>
 
       <section class="card">
-        <div class="card-head"><div><h2>Actividad reciente</h2><p>Notas, demos, propuestas y seguimientos</p></div></
+        <div class="card-head"><div><h2>Actividad reciente</h2><p>Notas, demos, propuestas y seguimientos</p></div></div>
+        <div class="crm-activity-timeline">
+          ${activityRows.slice(0, 8).map((row) => `
+            <div class="crm-activity-entry">
+              <i></i>
+              <div>
+                <b>${esc(row.title)}</b>
+                <small>${esc(row.activity_type)} · ${dateTime(row.created_at)}</small>
+                <p>${esc(row.details || "")}</p>
+              </div>
+            </div>
+          `).join("") || `<div class="empty"><strong>Sin actividad registrada.</strong>Las acciones del CRM aparecerán aquí.</div>`}
+        </div>
+      </section>
+    </div>
+
+    <section class="card crm-clients-card">
+      <div class="card-head">
+        <div><h2>Clientes, implementación y rentabilidad</h2><p>Economía real de cada cuenta NEXO</p></div>
+        <span class="count">${clients.length} clientes</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Cliente</th><th>Etapa</th><th>Plan</th><th>MRR</th><th>Costo mensual</th><th>Utilidad</th><th>Margen</th><th>Implementación</th><th>Integraciones</th><th>Inicio</th><th></th></tr></thead>
+          <tbody>
+            ${clientFinancials.map(({ org, commercial, orgIntegrations, economics }) => `
+              <tr>
+                <td><b>${esc(org.name)}</b><br><span class="muted">${esc(org.assistant || "—")}</span></td>
+                <td><span class="pill ${crmTone(commercial?.lifecycle_stage)}">${esc(crmStageLabel(commercial?.lifecycle_stage || "cliente"))}</span></td>
+                <td>${esc(commercial?.plan_name || "Por definir")}</td>
+                <td><b>${commercial?.mrr == null ? "—" : money(economics.mrr)}</b></td>
+                <td>${commercial?.monthly_cost == null && !orgIntegrations.length ? "—" : money(economics.cost)}</td>
+                <td>${commercial?.mrr == null ? "—" : money(economics.profit)}</td>
+                <td>${commercial?.mrr == null ? "—" : `<b class="${economics.margin >= 60 ? "crm-good" : economics.margin >= 30 ? "crm-watch" : "crm-risk"}">${economics.margin}%</b>`}</td>
+                <td>${esc(commercial?.implementation_status || "pending")}</td>
+                <td>${esc(commercial?.integration_status || "pending")} · ${orgIntegrations.length}</td>
+                <td>${commercial?.contract_start_date ? shortDate(commercial.contract_start_date) : "—"}</td>
+                <td><button class="crm-edit-client btn small" data-org-id="${org.id}" type="button">Editar</button></td>
+              </tr>
+            `).join("") || `<tr><td colspan="11">${C.emptyState("Sin clientes todavía.", "Convierte un prospecto cuando cierre.")}</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="crmNewProspectPanel" class="card crm-new-prospect hidden">
+      <div class="card-head">
+        <div><h2>Nuevo prospecto manual</h2><p>Para oportunidades que no llegaron desde la web</p></div>
+        <button id="crmCancelNewProspect" class="btn small" type="button">Cerrar</button>
+      </div>
+      <form id="crmNewProspectForm" class="crm-form crm-inline-form">
+        <div class="crm-form-grid">
+          <label>Contacto<input id="crmNewName" required></label>
+          <label>Negocio<input id="crmNewBusiness" required></label>
+          <label>WhatsApp<input id="crmNewPhone"></label>
+          <label>Correo<input id="crmNewEmail" type="email"></label>
+          <label>Sector<input id="crmNewIndustry"></label>
+          <label>MRR esperado<input id="crmNewMrr" type="number" min="0" st
