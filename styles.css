@@ -1322,3 +1322,10 @@ aside::-webkit-scrollbar-thumb{background:#344968;border-radius:999px}
   .growth-action-row{grid-template-columns:1fr;gap:6px}
   .growth-action-row>em{text-align:left}
 }
+
+
+/* Growth record lifecycle */
+.growth-pipeline-row.archived{background:#f7f9fc;opacity:.86}
+.growth-row-actions{display:flex;gap:6px;justify-content:flex-end;align-items:center;flex-wrap:wrap}
+.btn.danger{border-color:#efc7c7;color:#a33;background:#fff8f8}
+.btn.danger:hover{background:#fff0f0}
