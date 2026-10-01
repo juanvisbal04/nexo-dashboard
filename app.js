@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
 import { renderCrm } from "./crm.js?v=20260930-crm25";
 import { renderTasks, openCustomer360, openContact360, closeDrawer } from "./workspace360.js?v=20261001-360f";
+import { renderDataQuality, openOnboarding, closeQualityDrawer } from "./qualityOnboarding.js?v=20261001-quality1";
 
 const SUPABASE_URL = "https://ixewnbjndguchunwcuhf.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_vFnLRe9cmnOcyz2Fivprhw_8UjBaRGL";
@@ -63,10 +64,10 @@ function restoreUiState() {
   if (allowedPeriods.has(String(saved.period || ""))) $("periodSelect").value = String(saved.period);
 
   let page = pageMeta[hashPage] ? hashPage : (pageMeta[saved.page] ? saved.page : "overview");
-  const adminOnly = new Set(["crm","clients","operations","audit","admin"]);
+  const adminOnly = new Set(["crm","clients","operations","quality","audit","admin"]);
   if (adminOnly.has(page) && !state.isAdmin) page = "overview";
-  if (state.isAdmin && isInternalOrg() && !["overview","crm","clients","operations","tasks","settings","audit","profile"].includes(page)) page = "overview";
-  if ((!state.isAdmin || !isInternalOrg()) && ["clients","operations","audit","admin","crm"].includes(page)) page = "overview";
+  if (state.isAdmin && isInternalOrg() && !["overview","crm","clients","operations","tasks","quality","settings","audit","profile"].includes(page)) page = "overview";
+  if ((!state.isAdmin || !isInternalOrg()) && ["clients","operations","quality","audit","admin","crm"].includes(page)) page = "overview";
   if (page === "team" && !canManageCurrentOrgUsers()) page = "overview";
   state.page = page;
   updateNavigationAccess();
@@ -86,6 +87,7 @@ const pageMeta = {
   crm: ["Ventas & Finanzas", "NEXO CRM", "Pipeline, ingresos y rentabilidad.", "Del prospecto al cliente activo y su economía en un solo módulo."],
   clients: ["Clientes", "NEXO CRM", "Tu cartera de clientes, organizada.", "Empresas, planes, accesos e implementación sin métricas repetidas."],
   operations: ["Operaciones", "NEXO OPERATIONS", "Lo que está pasando ahora.", "Conversaciones, oportunidades y agenda que requieren seguimiento."],
+  quality: ["Calidad de datos", "NEXO DATA QUALITY", "Datos confiables para decidir.", "Duplicados, precios, pruebas, integridad y onboarding en una sola vista."],
   tasks: ["Tareas", "NEXO WORK", "Trabajo claro, responsables claros.", "Prioridades, responsables, fechas límite y progreso en un solo lugar."],
   settings: ["Configuración", "NEXO SETTINGS", "Cada negocio, bien configurado.", "Identidad, contacto, asistente, notificaciones y preferencias."],
   audit: ["Audit Log", "NEXO GOVERNANCE", "Cada cambio deja rastro.", "Historial administrativo de configuración, accesos, cobros e integraciones."],
@@ -1778,6 +1780,7 @@ async function renderClients() {
               <td>${esc(setting.notification_email||setting.whatsapp||"—")}</td>
               <td><div class="row-actions">
                 <button class="btn small primary customer-360-button" data-id="${org.id}" type="button">Customer 360</button>
+                <button class="btn small onboarding-button" data-id="${org.id}" type="button">Onboarding</button>
                 <button class="btn small client-configure-button" data-id="${org.id}" type="button">Configurar</button>
               </div></td>
             </tr>`;
@@ -1817,6 +1820,9 @@ async function renderClients() {
 
   document.querySelectorAll(".customer-360-button").forEach((button)=>{
     button.addEventListener("click",()=>openCustomer360(workspace360Context(),button.dataset.id));
+  });
+  document.querySelectorAll(".onboarding-button").forEach((button)=>{
+    button.addEventListener("click",()=>openOnboarding(qualityContext(),button.dataset.id));
   });
 
   document.querySelectorAll(".client-view-button").forEach((button)=>{
@@ -3123,6 +3129,15 @@ function workspace360Context() {
   };
 }
 
+function qualityContext() {
+  return {
+    supabase,state,$,esc,money,dateTime,shortDate,emptyState,showError,showToast,
+    isInternalOrg,clientOrganizations,assistantForOrg,loadOrganizations,
+    openCustomer360,workspaceContext:workspace360Context,
+    renderApp:render,persistUiState
+  };
+}
+
 function contact360Cell(row) {
   const label=row.contact_name||row.name||"Contacto";
   if(!row.contact_id)return `<b>${esc(label)}</b>`;
@@ -3140,12 +3155,13 @@ async function render() {
   document.getElementById("crmModal")?.remove();
   closeDrawer("customer360Modal");
   closeDrawer("contact360Modal");
+  closeQualityDrawer("onboardingDrawer");
   document.body.classList.remove("modal-open");
   document.body.classList.remove("sidebar-open");
   clearError();
   const meta = pageMeta[state.page];
 
-  if (["crm","clients","operations","audit"].includes(state.page) && state.isAdmin) {
+  if (["crm","clients","operations","quality","audit"].includes(state.page) && state.isAdmin) {
     const internal = state.organizations.find((org) => org.name === "NEXO Internal");
     if (internal && $("orgSelect").value !== internal.id) {
       $("orgSelect").value = internal.id;
@@ -3154,10 +3170,10 @@ async function render() {
   }
 
   persistUiState();
-  const noPeriod = ["crm","billing","clients","tasks","settings","audit","profile"].includes(state.page);
+  const noPeriod = ["crm","billing","clients","tasks","quality","settings","audit","profile"].includes(state.page);
   $("periodSelect").classList.toggle("hidden", noPeriod);
   $("exportButton").classList.toggle("hidden", ["settings","profile"].includes(state.page));
-  $("exportButton").textContent = state.page === "crm" ? "Exportar CRM" : state.page === "billing" ? "Exportar cobros" : state.page === "audit" ? "Exportar audit" : state.page === "clients" ? "Exportar clientes" : state.page === "tasks" ? "Exportar tareas" : "Exportar CSV";
+  $("exportButton").textContent = state.page === "crm" ? "Exportar CRM" : state.page === "billing" ? "Exportar cobros" : state.page === "audit" ? "Exportar audit" : state.page === "clients" ? "Exportar clientes" : state.page === "tasks" ? "Exportar tareas" : state.page === "quality" ? "Exportar calidad" : "Exportar CSV";
 
   $("breadcrumb").textContent = meta[0];
   $("pageEyebrow").textContent = meta[1];
@@ -3177,6 +3193,7 @@ async function render() {
     else if (state.page === "clients" || state.page === "admin") await renderClients();
     else if (state.page === "operations") await renderOperations();
     else if (state.page === "tasks") await renderTasks(workspace360Context());
+    else if (state.page === "quality") await renderDataQuality(qualityContext());
     else if (state.page === "settings") await renderSettings();
     else if (state.page === "audit") await renderAudit();
     else if (state.page === "profile") await renderProfile();
@@ -3388,8 +3405,8 @@ $("refreshButton").addEventListener("click", async () => {
 $("orgSelect").addEventListener("change", async () => {
   updateNavigationAccess();
   const internal=adminInternalView();
-  if (internal && !["overview","crm","clients","operations","tasks","settings","audit","profile"].includes(state.page)) state.page="overview";
-  if (!internal && ["crm","clients","operations","audit","admin"].includes(state.page)) state.page="overview";
+  if (internal && !["overview","crm","clients","operations","tasks","quality","settings","audit","profile"].includes(state.page)) state.page="overview";
+  if (!internal && ["crm","clients","operations","quality","audit","admin"].includes(state.page)) state.page="overview";
   if (state.page === "team" && !canManageCurrentOrgUsers()) state.page = "overview";
   document.querySelectorAll(".nav-item").forEach((item) => item.classList.toggle("active", item.dataset.page === state.page));
   persistUiState();
@@ -3403,8 +3420,8 @@ $("exportButton").addEventListener("click", exportCsv);
 
 document.querySelectorAll(".nav-item").forEach((button) => {
   button.addEventListener("click", () => {
-    if (["admin","crm","clients","operations","audit"].includes(button.dataset.page) && !state.isAdmin) return;
-    if (["crm","clients","operations","audit"].includes(button.dataset.page) && !adminInternalView()) return;
+    if (["admin","crm","clients","operations","quality","audit"].includes(button.dataset.page) && !state.isAdmin) return;
+    if (["crm","clients","operations","quality","audit"].includes(button.dataset.page) && !adminInternalView()) return;
     if (button.dataset.page === "team" && !canManageCurrentOrgUsers()) return;
     state.page = button.dataset.page;
     document.querySelectorAll(".nav-item").forEach((item) => item.classList.toggle("active", item.dataset.page === state.page));
@@ -3468,8 +3485,8 @@ window.addEventListener("hashchange", () => {
   if (!state.session) return;
   const page = window.location.hash.replace(/^#/, "") || "overview";
   if (!pageMeta[page]) return;
-  if (["admin","crm","clients","operations","audit"].includes(page) && !state.isAdmin) return;
-  if (["crm","clients","operations","audit"].includes(page) && !adminInternalView()) return;
+  if (["admin","crm","clients","operations","quality","audit"].includes(page) && !state.isAdmin) return;
+  if (["crm","clients","operations","quality","audit"].includes(page) && !adminInternalView()) return;
   state.page = page;
   document.querySelectorAll(".nav-item").forEach((item) => item.classList.toggle("active", item.dataset.page === state.page));
   render();
@@ -3492,6 +3509,7 @@ document.addEventListener("keydown", (event) => {
     document.getElementById("crmModal")?.remove();
     closeDrawer("customer360Modal");
     closeDrawer("contact360Modal");
+    closeQualityDrawer("onboardingDrawer");
     $("notificationPanel")?.classList.add("hidden");
     $("notificationButton")?.setAttribute("aria-expanded","false");
     document.body.classList.remove("modal-open");
