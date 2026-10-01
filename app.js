@@ -2425,14 +2425,18 @@ async function renderAudit() {
   state.currentRows=rows;
   const orgName=(id)=>state.organizations.find((org)=>org.id===id)?.name||"NEXO / Sistema";
   const tables=[...new Set(rows.map((row)=>row.table_name))].sort();
+  const actors=[...new Set(rows.map((row)=>row.actor_email).filter(Boolean))].sort();
 
   $("content").innerHTML=`
     <section class="audit-toolbar card">
       <div><span class="eyebrow">HISTORIAL ADMINISTRATIVO</span><h2>Quién cambió qué y cuándo</h2><p>Configuración, usuarios, facturación, comerciales e integraciones.</p></div>
       <div class="audit-filters">
         <select id="auditOrgFilter" class="control"><option value="">Todos los clientes</option>${clientOrganizations({activeOnly:false}).map((org)=>`<option value="${org.id}">${esc(org.name)}</option>`).join("")}</select>
+        <select id="auditActorFilter" class="control"><option value="">Todos los usuarios</option>${actors.map((actor)=>`<option value="${esc(actor)}">${esc(actor)}</option>`).join("")}</select>
+        <select id="auditActionFilter" class="control"><option value="">Todas las acciones</option><option value="INSERT">Creaciones</option><option value="UPDATE">Cambios</option><option value="DELETE">Eliminaciones</option></select>
         <select id="auditTableFilter" class="control"><option value="">Todas las áreas</option>${tables.map((table)=>`<option value="${table}">${esc(auditAreaLabel(table))}</option>`).join("")}</select>
-        <input id="auditSearch" class="control" placeholder="Buscar actor o cambio">
+        <select id="auditDateFilter" class="control"><option value="">Todo el historial</option><option value="7">Últimos 7 días</option><option value="30">Últimos 30 días</option><option value="90">Últimos 90 días</option></select>
+        <input id="auditSearch" class="control" placeholder="Buscar actor, cliente o cambio">
       </div>
     </section>
     <section class="card audit-card">
@@ -2443,11 +2447,18 @@ async function renderAudit() {
 
   const draw=()=>{
     const orgFilter=$("auditOrgFilter").value;
+    const actorFilter=$("auditActorFilter").value;
+    const actionFilter=$("auditActionFilter").value;
     const tableFilter=$("auditTableFilter").value;
+    const dateFilter=Number($("auditDateFilter").value||0);
+    const cutoff=dateFilter?Date.now()-dateFilter*86400000:null;
     const q=$("auditSearch").value.trim().toLowerCase();
     const filtered=rows.filter((row)=>{
       if(orgFilter&&row.organization_id!==orgFilter)return false;
+      if(actorFilter&&row.actor_email!==actorFilter)return false;
+      if(actionFilter&&row.action!==actionFilter)return false;
       if(tableFilter&&row.table_name!==tableFilter)return false;
+      if(cutoff&&new Date(row.created_at).getTime()<cutoff)return false;
       const hay=[row.actor_email,auditAreaLabel(row.table_name),auditActionLabel(row.action),auditChangedSummary(row),orgName(row.organization_id)].filter(Boolean).join(" ").toLowerCase();
       return !q||hay.includes(q);
     });
@@ -2465,7 +2476,7 @@ async function renderAudit() {
     </details>`).join(""):emptyState("No hay cambios con esos filtros.","Ajusta la búsqueda o espera nuevas acciones administrativas.");
   };
   draw();
-  ["auditOrgFilter","auditTableFilter","auditSearch"].forEach((id)=>$(id)?.addEventListener(id==="auditSearch"?"input":"change",draw));
+  ["auditOrgFilter","auditActorFilter","auditActionFilter","auditTableFilter","auditDateFilter","auditSearch"].forEach((id)=>$(id)?.addEventListener(id==="auditSearch"?"input":"change",draw));
 }
 
 async function renderAdmin() {
