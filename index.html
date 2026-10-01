@@ -15,11 +15,23 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=20261001-scale2" />
+  <link rel="stylesheet" href="./styles.css?v=20261001-auth1" />
   <link rel="stylesheet" href="./crm.css?v=20261001-crm32" />
 </head>
 <body>
-  <div id="loginView" class="login-screen">
+  <div id="bootView" class="boot-screen">
+    <div class="boot-card">
+      <div class="logo-wrap">
+        <div class="logo-word">NE<span>X</span>O</div>
+        <div class="logo-by">by Juan Visbal</div>
+      </div>
+      <div class="boot-spinner" aria-hidden="true"></div>
+      <strong>Restaurando tu sesión</strong>
+      <span>Volviendo exactamente donde estabas…</span>
+    </div>
+  </div>
+
+  <div id="loginView" class="login-screen hidden">
     <section class="login-card">
       <div class="logo-wrap">
         <div class="logo-word">NE<span>X</span>O</div>
@@ -209,6 +221,6 @@
   </aside>
   <div id="toast" class="toast hidden"></div>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-  <script type="module" src="./app.js?v=20261001-scale2"></script>
+  <script type="module" src="./app.js?v=20261001-auth1"></script>
 </body>
 </html>
