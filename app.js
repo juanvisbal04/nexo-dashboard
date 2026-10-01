@@ -2452,7 +2452,9 @@ async function renderGrowth(){
   if(activityError)throw activityError;
   if(plansError)throw plansError;
 
-  const rows=allRows||[];
+  const rawRows=allRows||[];
+  const rows=rawRows.filter((row)=>!row.archived_at);
+  const archivedRows=rawRows.filter((row)=>Boolean(row.archived_at));
   const activityRows=activities||[];
   const planRows=plans||[];
   const sinceMs=new Date(since).getTime();
@@ -2505,6 +2507,7 @@ async function renderGrowth(){
         <label class="search"><input id="growthSearch" type="search" placeholder="Buscar negocio, contacto, fuente o industria"></label>
         <select id="growthStageFilter" class="control"><option value="">Todas las etapas</option>${["prospecto","demo","propuesta","cliente","implementacion","activo","perdido"].map((stage)=>`<option value="${stage}">${stageLabel(stage)}</option>`).join("")}</select>
         <select id="growthActionFilter" class="control"><option value="">Cualquier seguimiento</option><option value="overdue">Vencido</option><option value="upcoming">Programado</option><option value="none">Sin próxima acción</option><option value="novalue">Sin valor definido</option></select>
+        <select id="growthVisibilityFilter" class="control"><option value="active">Activos</option><option value="archived">Archivados (${archivedRows.length})</option></select>
       </div>
       <div id="growthPipelineRows" class="growth-pipeline-list"></div>
     </section>
@@ -2523,7 +2526,9 @@ async function renderGrowth(){
     const query=($("growthSearch")?.value||"").trim().toLowerCase();
     const stage=$("growthStageFilter")?.value||"";
     const action=$("growthActionFilter")?.value||"";
-    const visible=rows.filter((row)=>{
+    const visibility=$("growthVisibilityFilter")?.value||"active";
+    const baseRows=visibility==="archived"?archivedRows:rows;
+    const visible=baseRows.filter((row)=>{
       const hay=[row.business_name,row.full_name,row.email,row.phone,row.industry,row.source,row.plan_interest,row.crm_notes].filter(Boolean).join(" ").toLowerCase();
       if(query&&!hay.includes(query))return false;
       if(stage&&row.stage!==stage)return false;
@@ -2538,13 +2543,43 @@ async function renderGrowth(){
       const next=row.next_action_at?new Date(row.next_action_at).getTime():null;
       const late=openStages.has(row.stage)&&next&&next<now;
       const missing=!Number(row.expected_mrr||0)&&!Number(row.expected_setup_fee||0)&&openStages.has(row.stage);
-      return `<article class="growth-pipeline-row ${late?"late":""}"><div class="growth-pipeline-identity"><span>${esc(row.industry||row.source||"Prospecto NEXO")}</span><b>${esc(row.business_name||row.full_name||"Sin nombre")}</b><small>${esc(row.full_name||row.email||row.phone||"Sin contacto")}</small></div><div><span>Etapa</span><b>${esc(stageLabel(row.stage))}</b></div><div><span>MRR</span><b>${row.expected_mrr?money(row.expected_mrr):"<em>Por definir</em>"}</b></div><div><span>Setup</span><b>${row.expected_setup_fee?money(row.expected_setup_fee):"<em>Por definir</em>"}</b></div><div><span>Próxima acción</span><b class="${late?"growth-late":""}">${row.next_action_at?dateTime(row.next_action_at):"Sin fecha"}</b></div><div class="growth-row-flags">${late?'<span class="pill orange">Vencido</span>':""}${missing?'<span class="pill amber">Sin valor</span>':""}${!row.next_action_at&&openStages.has(row.stage)?'<span class="pill">Sin próxima acción</span>':""}</div><button class="btn small" type="button" data-growth-edit="${row.id}">Editar</button></article>`;
+      const archived=Boolean(row.archived_at);
+      return `<article class="growth-pipeline-row ${late?"late":""} ${archived?"archived":""}"><div class="growth-pipeline-identity"><span>${esc(row.industry||row.source||"Prospecto NEXO")}</span><b>${esc(row.business_name||row.full_name||"Sin nombre")}</b><small>${esc(row.full_name||row.email||row.phone||"Sin contacto")}</small></div><div><span>Etapa</span><b>${esc(stageLabel(row.stage))}</b></div><div><span>MRR</span><b>${row.expected_mrr?money(row.expected_mrr):"<em>Por definir</em>"}</b></div><div><span>Setup</span><b>${row.expected_setup_fee?money(row.expected_setup_fee):"<em>Por definir</em>"}</b></div><div><span>${archived?"Archivado":"Próxima acción"}</span><b class="${late?"growth-late":""}">${archived?dateTime(row.archived_at):(row.next_action_at?dateTime(row.next_action_at):"Sin fecha")}</b></div><div class="growth-row-flags">${archived?'<span class="pill">Oculto</span>':""}${!archived&&late?'<span class="pill orange">Vencido</span>':""}${!archived&&missing?'<span class="pill amber">Sin valor</span>':""}${!archived&&!row.next_action_at&&openStages.has(row.stage)?'<span class="pill">Sin próxima acción</span>':""}</div><div class="growth-row-actions">${archived?`<button class="btn small" type="button" data-growth-restore="${row.id}">Restaurar</button>${!row.organization_id?`<button class="btn small danger" type="button" data-growth-delete="${row.id}">Eliminar</button>`:""}`:`<button class="btn small" type="button" data-growth-edit="${row.id}">Editar</button><button class="btn small" type="button" data-growth-archive="${row.id}">Ocultar</button>`}</div></article>`;
     }).join(""):emptyState("No hay oportunidades con estos filtros.","Ajusta los filtros.");
     document.querySelectorAll("#growthPipelineRows [data-growth-edit]").forEach((button)=>button.addEventListener("click",()=>{const row=rows.find((item)=>item.id===button.dataset.growthEdit);if(row)openProspectEditorFromGrowth(crmContext,row,planRows);}));
+    document.querySelectorAll("#growthPipelineRows [data-growth-archive]").forEach((button)=>button.addEventListener("click",async()=>{
+      const row=rows.find((item)=>item.id===button.dataset.growthArchive);
+      if(!row||!confirm(`Ocultar ${row.business_name||row.full_name||"este registro"} del dashboard? Podrás restaurarlo desde Archivados.`))return;
+      const {error}=await supabase.from("demo_requests").update({
+        archived_at:new Date().toISOString(),
+        archived_by:state.session.user.id,
+        archive_reason:"Ocultado desde Growth"
+      }).eq("id",row.id);
+      if(error)return showError(error.message);
+      showToast("Registro archivado.");
+      await renderGrowth();
+    }));
+    document.querySelectorAll("#growthPipelineRows [data-growth-restore]").forEach((button)=>button.addEventListener("click",async()=>{
+      const row=archivedRows.find((item)=>item.id===button.dataset.growthRestore);
+      if(!row)return;
+      const {error}=await supabase.from("demo_requests").update({archived_at:null,archived_by:null,archive_reason:null}).eq("id",row.id);
+      if(error)return showError(error.message);
+      showToast("Registro restaurado.");
+      await renderGrowth();
+    }));
+    document.querySelectorAll("#growthPipelineRows [data-growth-delete]").forEach((button)=>button.addEventListener("click",async()=>{
+      const row=archivedRows.find((item)=>item.id===button.dataset.growthDelete);
+      if(!row||row.organization_id)return;
+      if(!confirm(`Eliminar definitivamente ${row.business_name||row.full_name||"este registro"}? Esta acción también elimina su actividad CRM y no se puede deshacer.`))return;
+      const {error}=await supabase.from("demo_requests").delete().eq("id",row.id).is("organization_id",null);
+      if(error)return showError(error.message);
+      showToast("Registro eliminado definitivamente.");
+      await renderGrowth();
+    }));
   };
 
   drawPipeline();
-  ["growthSearch","growthStageFilter","growthActionFilter"].forEach((id)=>$(id)?.addEventListener(id==="growthSearch"?"input":"change",drawPipeline));
+  ["growthSearch","growthStageFilter","growthActionFilter","growthVisibilityFilter"].forEach((id)=>$(id)?.addEventListener(id==="growthSearch"?"input":"change",drawPipeline));
   document.querySelectorAll(".growth-action-row[data-growth-edit]").forEach((button)=>button.addEventListener("click",()=>{const row=rows.find((item)=>item.id===button.dataset.growthEdit);if(row)openProspectEditorFromGrowth(crmContext,row,planRows);}));
   $("growthNewProspect")?.addEventListener("click",async()=>{
     state.page="crm";
