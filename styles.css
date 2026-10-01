@@ -968,3 +968,15 @@ body.modal-open{overflow:hidden;touch-action:none}
 
 @media(max-width:1100px){.task-create-form{grid-template-columns:repeat(3,1fr)}.customer360-kpis,.contact360-kpis,.task-summary-grid{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:720px){.nexo-drawer-panel{width:100vw}.nexo-drawer-content{padding:0 10px 24px}.drawer-header{margin-left:-10px;margin-right:-10px}.customer360-grid,.contact360-grid{grid-template-columns:1fr}.drawer-card.drawer-wide{grid-column:auto}.customer360-kpis,.contact360-kpis,.task-summary-grid{grid-template-columns:1fr 1fr}.task-create-form{grid-template-columns:1fr}.task-row{grid-template-columns:1fr}.task-row-actions{justify-content:flex-start}.task-toolbar{width:100%;flex-direction:column}}
+
+/* 360 task editor */
+.task-editor-form{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:4px 0 20px}
+.task-editor-form label{display:flex;flex-direction:column;gap:6px;font-size:8px;font-weight:800;color:#65788f}
+.task-editor-form label.wide,.task-editor-actions.wide{grid-column:1/-1}
+.task-editor-form input,.task-editor-form select,.task-editor-form textarea{width:100%;border:1px solid #dfe6ee;border-radius:8px;background:#fff;padding:10px 11px;color:#314b67;font:inherit;font-size:9px;outline:none}
+.task-editor-form input:focus,.task-editor-form select:focus,.task-editor-form textarea:focus{border-color:#8cabed;box-shadow:0 0 0 3px #316bff0d}
+.task-editor-actions{display:flex;justify-content:flex-end;gap:8px;padding-top:4px}
+.customer360-kpis{grid-template-columns:repeat(8,minmax(0,1fr))}
+.contact360-kpis{grid-template-columns:repeat(6,minmax(0,1fr))}
+@media(max-width:1200px){.customer360-kpis{grid-template-columns:repeat(4,minmax(0,1fr))}.contact360-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:720px){.task-editor-form{grid-template-columns:1fr}.task-editor-form label.wide,.task-editor-actions.wide{grid-column:auto}.customer360-kpis,.contact360-kpis{grid-template-columns:1fr 1fr}}
