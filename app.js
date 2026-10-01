@@ -1734,21 +1734,32 @@ async function renderClients() {
   }
 
   const clients = clientOrganizations({ activeOnly: false });
-  const [{data:commercials},{data:members},{data:settings}] = await Promise.all([
+  const [{data:commercials},{data:members},{data:settings},{data:onboardingRows}] = await Promise.all([
     supabase.from("organization_commercials").select("*"),
     supabase.from("organization_members").select("organization_id,user_id,role"),
     supabase.from("organization_settings").select("organization_id,notification_email,whatsapp"),
+    supabase.from("organization_onboarding").select("*"),
   ]);
   const commercialMap=new Map((commercials||[]).map((row)=>[row.organization_id,row]));
   const settingsMap=new Map((settings||[]).map((row)=>[row.organization_id,row]));
+  const onboardingMap=new Map((onboardingRows||[]).map((row)=>[row.organization_id,row]));
+  const onboardingProgress=(row)=>{
+    if(!row)return 0;
+    const fields=["company_status","assistant_status","catalog_status","integrations_status","users_status","testing_status","go_live_status"];
+    return Math.round(fields.filter((field)=>["done","not_needed"].includes(row[field])).length/fields.length*100);
+  };
   const userCounts=(members||[]).reduce((acc,row)=>{acc[row.organization_id]=(acc[row.organization_id]||0)+1;return acc;},{});
   const activeCount=clients.filter((org)=>commercialMap.get(org.id)?.lifecycle_stage==="activo").length;
-  const implementationCount=clients.filter((org)=>commercialMap.get(org.id)?.lifecycle_stage==="implementacion").length;
+  const implementationCount=clients.filter((org)=>{
+    const onb=onboardingMap.get(org.id);
+    return onb ? onb.overall_status!=="live" : commercialMap.get(org.id)?.lifecycle_stage==="implementacion";
+  }).length;
   const billingAttention=clients.filter((org)=>["past_due","paused"].includes(commercialMap.get(org.id)?.billing_status)).length;
 
   state.currentRows=clients.map((org)=>{
     const commercial=commercialMap.get(org.id)||{};
-    return {organization:org.name,sector:org.sector,assistant:org.assistant,stage:commercial.lifecycle_stage,plan:commercial.plan_name,billing:commercial.billing_status,integrations:commercial.integration_status,users:userCounts[org.id]||0};
+    const onb=onboardingMap.get(org.id)||{};
+    return {organization:org.name,sector:org.sector,assistant:org.assistant,stage:commercial.lifecycle_stage,plan:commercial.plan_name,billing:commercial.billing_status,integrations:commercial.integration_status,onboarding:onb.overall_status||"not_started",onboarding_progress:onboardingProgress(onb),users:userCounts[org.id]||0};
   });
 
   $("content").innerHTML=`
@@ -1766,17 +1777,20 @@ async function renderClients() {
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Cliente</th><th>Asistente</th><th>Plan</th><th>Etapa</th><th>Implementación</th><th>Integraciones</th><th>Facturación</th><th>Usuarios</th><th>Contacto</th><th></th></tr></thead>
+          <thead><tr><th>Cliente</th><th>Asistente</th><th>Plan</th><th>Etapa</th><th>Implementación</th><th>Onboarding</th><th>Integraciones</th><th>Facturación</th><th>Usuarios</th><th>Contacto</th><th></th></tr></thead>
           <tbody>
           ${clients.length ? clients.map((org)=>{
             const commercial=commercialMap.get(org.id)||{};
             const setting=settingsMap.get(org.id)||{};
+            const onb=onboardingMap.get(org.id)||{};
+            const onbProgress=onboardingProgress(onb);
             return `<tr>
               <td><b>${esc(org.name)}</b><br><span class="muted">${esc(org.sector||"Sin sector")}</span></td>
               <td><div class="client-assistant-cell">${assistantAvatarHtml(assistantForOrg(org.id),org,"assistant-mini")}<span><b>${esc(org.assistant||"—")}</b><small>${esc(assistantForOrg(org.id)?.status==="active"?"Activo":assistantForOrg(org.id)?.status||"—")}</small></span></div></td>
               <td>${esc(commercial.plan_name||"Por definir")}</td>
               <td>${pill(commercial.lifecycle_stage||org.status||"—")}</td>
               <td>${esc(commercial.implementation_status||"—")}</td>
+              <td><div class="client-onboarding-cell"><div class="quality-progress"><i style="width:${onbProgress}%"></i></div><small>${onbProgress}% · ${esc(onb.overall_status||"not_started")}</small></div></td>
               <td>${esc(commercial.integration_status||"—")}</td>
               <td>${esc(commercial.billing_status||"—")}</td>
               <td><b>${userCounts[org.id]||0}</b></td>
@@ -1787,7 +1801,7 @@ async function renderClients() {
                 <button class="btn small client-configure-button" data-id="${org.id}" type="button">Configurar</button>
               </div></td>
             </tr>`;
-          }).join("") : `<tr><td colspan="10">${emptyState("Todavía no hay clientes.","Crea tu primer negocio NEXO.")}</td></tr>`}
+          }).join("") : `<tr><td colspan="11">${emptyState("Todavía no hay clientes.","Crea tu primer negocio NEXO.")}</td></tr>`}
           </tbody>
         </table>
       </div>
