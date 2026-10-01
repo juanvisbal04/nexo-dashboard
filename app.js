@@ -2441,14 +2441,23 @@ async function renderGrowth(){
     $("content").innerHTML=emptyState("Growth es privado de NEXO.","Selecciona NEXO Internal para revisar adquisición y pipeline.");
     return;
   }
+
   const since=sinceIso(currentDays());
-  const [{data:allRows,error},{data:activities}]=await Promise.all([
+  const [{data:allRows,error},{data:activities,error:activityError},{data:plans,error:plansError}]=await Promise.all([
     supabase.from("demo_requests").select("*").order("created_at",{ascending:false}).limit(1000),
-    supabase.from("crm_activities").select("*").order("created_at",{ascending:false}).limit(1000)
+    supabase.from("crm_activities").select("*").order("created_at",{ascending:false}).limit(1000),
+    supabase.from("nexo_plans").select("*").order("sort_order")
   ]);
   if(error)throw error;
+  if(activityError)throw activityError;
+  if(plansError)throw plansError;
+
   const rows=allRows||[];
-  const periodRows=rows.filter((row)=>new Date(row.created_at).getTime()>=new Date(since).getTime());
+  const activityRows=activities||[];
+  const planRows=plans||[];
+  const sinceMs=new Date(since).getTime();
+  const now=Date.now();
+  const periodRows=rows.filter((row)=>new Date(row.created_at).getTime()>=sinceMs);
   const openStages=new Set(["prospecto","demo","propuesta"]);
   const wonStages=new Set(["cliente","implementacion","activo"]);
   const open=rows.filter((row)=>openStages.has(row.stage));
@@ -2458,47 +2467,86 @@ async function renderGrowth(){
   const closeRate=closed?Math.round((won.length/closed)*100):0;
   const potentialMrr=open.reduce((sum,row)=>sum+Number(row.expected_mrr||0),0);
   const setupPipeline=open.reduce((sum,row)=>sum+Number(row.expected_setup_fee||0),0);
+  const overdueRows=open.filter((row)=>row.next_action_at&&new Date(row.next_action_at).getTime()<now);
+  const upcomingRows=open.filter((row)=>row.next_action_at&&new Date(row.next_action_at).getTime()>=now).sort((a,b)=>new Date(a.next_action_at)-new Date(b.next_action_at));
+  const noNextAction=open.filter((row)=>!row.next_action_at);
+  const missingValue=open.filter((row)=>!Number(row.expected_mrr||0)&&!Number(row.expected_setup_fee||0));
+  const avgOpenAge=open.length?Math.round(open.reduce((sum,row)=>sum+(now-new Date(row.created_at).getTime())/86400000,0)/open.length):0;
+
   const sources=Object.entries(periodRows.reduce((map,row)=>{const key=row.source||"Sin fuente";map[key]=(map[key]||0)+1;return map;},{})).sort((a,b)=>b[1]-a[1]);
+  const sourceStats=sources.map(([source,count])=>{const allFromSource=rows.filter((row)=>(row.source||"Sin fuente")===source);const sourceWon=allFromSource.filter((row)=>wonStages.has(row.stage)).length;return {source,count,rate:allFromSource.length?Math.round(sourceWon/allFromSource.length*100):0};});
+  const lostReasons=Object.entries(lost.reduce((map,row)=>{const key=row.lost_reason||"Sin motivo registrado";map[key]=(map[key]||0)+1;return map;},{})).sort((a,b)=>b[1]-a[1]);
   const stages=["prospecto","demo","propuesta","cliente","implementacion","activo","perdido"].map((stage)=>[stage,rows.filter((row)=>row.stage===stage).length]);
-  const upcoming=rows.filter((row)=>row.next_action_at && new Date(row.next_action_at).getTime()>=Date.now()).sort((a,b)=>new Date(a.next_action_at)-new Date(b.next_action_at)).slice(0,8);
-  const overdue=rows.filter((row)=>openStages.has(row.stage)&&row.next_action_at&&new Date(row.next_action_at).getTime()<Date.now()).length;
+  const stageLabel=(stage)=>({prospecto:"Prospecto",demo:"Demo",propuesta:"Propuesta",cliente:"Cliente",implementacion:"Implementación",activo:"Activo",perdido:"Perdido"}[stage]||stage||"Prospecto");
+  const crmContext={ supabase, state, $, esc, money, dateTime, shortDate, metricCard, emptyState, showError, showToast, clientOrganizations, loadOrganizations, renderApp: render, persistUiState, downloadInvoicePdf };
 
   state.currentRows=rows;
   $("content").innerHTML=`
+    <div class="growth-toolbar">
+      <div><span class="eyebrow">CONTROL COMERCIAL</span><h2>Pipeline NEXO</h2><p>Visibilidad de adquisición, valor potencial y siguientes pasos. Edita cualquier oportunidad directamente desde aquí.</p></div>
+      <div class="growth-toolbar-actions"><button id="growthOpenCrm" class="btn" type="button">Abrir CRM completo</button></div>
+    </div>
     <div class="stats-grid">
       ${metricCard("Nuevos prospectos",periodRows.length,`Últimos ${currentDays()} días`,null,true)}
       ${metricCard("MRR potencial",money(potentialMrr),`${open.length} oportunidades abiertas`)}
-      ${metricCard("Setup potencial",money(setupPipeline),"Pipeline abierto")}
+      ${metricCard("Setup potencial",money(setupPipeline),`${missingValue.length} sin valor definido`)}
       ${metricCard("Tasa de cierre",closeRate+"%",`${won.length} ganados · ${lost.length} perdidos`)}
     </div>
-    <div class="executive-strip">
-      <div><span>Prospectos abiertos</span><b>${open.length}</b><small>pipeline activo</small></div>
+    <div class="executive-strip growth-executive-strip">
+      <div><span>Pipeline abierto</span><b>${open.length}</b><small>${avgOpenAge} días promedio</small></div>
       <div><span>Demos</span><b>${rows.filter((r)=>r.stage==="demo").length}</b><small>en etapa demo</small></div>
       <div><span>Propuestas</span><b>${rows.filter((r)=>r.stage==="propuesta").length}</b><small>por cerrar</small></div>
-      <div><span>Seguimientos vencidos</span><b>${overdue}</b><small>requieren acción</small></div>
-      <div><span>Clientes ganados</span><b>${won.length}</b><small>cliente / implementación / activo</small></div>
+      <div><span>Seguimientos vencidos</span><b>${overdueRows.length}</b><small>requieren acción</small></div>
+      <div><span>Sin próxima acción</span><b>${noNextAction.length}</b><small>pipeline sin siguiente paso</small></div>
     </div>
-    <div class="grid-two">
-      <section class="card">
-        <div class="card-head"><div><h2>Embudo NEXO</h2><p>Distribución actual del pipeline</p></div></div>
-        <div class="growth-funnel">
-          ${stages.map(([stage,count])=>`<div><span>${esc(({prospecto:"Prospecto",demo:"Demo",propuesta:"Propuesta",cliente:"Cliente",implementacion:"Implementación",activo:"Activo",perdido:"Perdido"}[stage]||stage))}</span><b>${count}</b><i><em style="width:${rows.length?Math.max(3,(count/rows.length)*100):0}%"></em></i></div>`).join("")}
-        </div>
-      </section>
-      <section class="card">
-        <div class="card-head"><div><h2>Fuentes de prospectos</h2><p>Nuevos registros del período</p></div></div>
-        <div class="growth-sources">
-          ${sources.length?sources.map(([source,count])=>`<div><span>${esc(source)}</span><b>${count}</b></div>`).join(""):emptyState("Aún no hay fuentes en este período.","Los nuevos prospectos aparecerán aquí.")}
-        </div>
-      </section>
-    </div>
-    <section class="card">
-      <div class="card-head"><div><h2>Próximas acciones comerciales</h2><p>Seguimientos programados para NEXO</p></div><span class="count">${upcoming.length}</span></div>
-      <div class="rows">
-        ${upcoming.length?upcoming.map((row)=>`<div class="item-row"><div><strong>${esc(row.business_name||row.full_name||"Prospecto")}</strong><small>${esc(row.stage||"prospecto")} · ${esc(row.source||"sin fuente")}</small></div><div class="muted">${dateTime(row.next_action_at)}</div></div>`).join(""):emptyState("No hay acciones futuras programadas.","Programa la próxima acción desde Ventas & Finanzas.")}
+    <section class="card growth-pipeline-card">
+      <div class="card-head"><div><h2>Pipeline editable</h2><p>Etapa, MRR, setup, próxima acción y datos incompletos en una sola vista.</p></div><span class="count">${rows.length} prospectos</span></div>
+      <div class="growth-filterbar">
+        <label class="search"><input id="growthSearch" type="search" placeholder="Buscar negocio, contacto, fuente o industria"></label>
+        <select id="growthStageFilter" class="control"><option value="">Todas las etapas</option>${["prospecto","demo","propuesta","cliente","implementacion","activo","perdido"].map((stage)=>`<option value="${stage}">${stageLabel(stage)}</option>`).join("")}</select>
+        <select id="growthActionFilter" class="control"><option value="">Cualquier seguimiento</option><option value="overdue">Vencido</option><option value="upcoming">Programado</option><option value="none">Sin próxima acción</option><option value="novalue">Sin valor definido</option></select>
       </div>
+      <div id="growthPipelineRows" class="growth-pipeline-list"></div>
     </section>
+    <div class="grid-two growth-visibility-grid">
+      <section class="card"><div class="card-head"><div><h2>Embudo NEXO</h2><p>Distribución actual del pipeline</p></div></div><div class="growth-funnel">${stages.map(([stage,count])=>`<div><span>${esc(stageLabel(stage))}</span><b>${count}</b><i><em style="width:${rows.length?Math.max(3,(count/rows.length)*100):0}%"></em></i></div>`).join("")}</div></section>
+      <section class="card"><div class="card-head"><div><h2>Fuentes y conversión</h2><p>Adquisición del período y cierre histórico por fuente</p></div></div><div class="growth-source-table">${sourceStats.length?sourceStats.map((item)=>`<div><span>${esc(item.source)}</span><b>${item.count}</b><small>${item.rate}% cierre</small></div>`).join(""):emptyState("Aún no hay fuentes en este período.","Los nuevos prospectos aparecerán aquí.")}</div></section>
+    </div>
+    <div class="grid-two growth-visibility-grid">
+      <section class="card"><div class="card-head"><div><h2>Acciones que requieren atención</h2><p>Vencidas primero y luego próximas acciones</p></div><span class="count">${overdueRows.length+upcomingRows.length}</span></div><div class="growth-action-list">${[...overdueRows,...upcomingRows].slice(0,10).map((row)=>{const late=row.next_action_at&&new Date(row.next_action_at).getTime()<now;return `<button class="growth-action-row ${late?"late":""}" type="button" data-growth-edit="${row.id}"><div><b>${esc(row.business_name||row.full_name||"Prospecto")}</b><small>${esc(stageLabel(row.stage))} · ${esc(row.source||"sin fuente")}</small></div><span>${row.next_action_at?dateTime(row.next_action_at):"Sin fecha"}</span><em>Editar →</em></button>`;}).join("")||emptyState("No hay seguimientos programados.","Agrega la próxima acción desde una oportunidad.")}</div></section>
+      <section class="card"><div class="card-head"><div><h2>Por qué se pierden</h2><p>Motivos registrados en oportunidades perdidas</p></div></div><div class="growth-sources">${lostReasons.length?lostReasons.slice(0,8).map(([reason,count])=>`<div><span>${esc(reason)}</span><b>${count}</b></div>`).join(""):emptyState("Aún no hay motivos registrados.","Agrega el motivo al marcar una oportunidad como perdida.")}</div></section>
+    </div>
+    <section class="card"><div class="card-head"><div><h2>Actividad comercial reciente</h2><p>Cambios de etapa, notas, llamadas y seguimientos</p></div><span class="count">${activityRows.length}</span></div><div class="growth-activity-feed">${activityRows.slice(0,12).map((activity)=>{const prospect=rows.find((row)=>row.id===activity.demo_request_id);return `<div><i></i><div><b>${esc(activity.title||"Actividad")}</b><small>${esc(prospect?.business_name||prospect?.full_name||"NEXO CRM")} · ${dateTime(activity.created_at)}</small>${activity.details?`<p>${esc(activity.details)}</p>`:""}</div></div>`;}).join("")||emptyState("Todavía no hay actividad CRM.","Los cambios y notas aparecerán aquí.")}</div></section>
   `;
+
+  const drawPipeline=()=>{
+    const query=($("growthSearch")?.value||"").trim().toLowerCase();
+    const stage=$("growthStageFilter")?.value||"";
+    const action=$("growthActionFilter")?.value||"";
+    const visible=rows.filter((row)=>{
+      const hay=[row.business_name,row.full_name,row.email,row.phone,row.industry,row.source,row.plan_interest,row.crm_notes].filter(Boolean).join(" ").toLowerCase();
+      if(query&&!hay.includes(query))return false;
+      if(stage&&row.stage!==stage)return false;
+      const next=row.next_action_at?new Date(row.next_action_at).getTime():null;
+      if(action==="overdue"&&(!next||next>=now||!openStages.has(row.stage)))return false;
+      if(action==="upcoming"&&(!next||next<now||!openStages.has(row.stage)))return false;
+      if(action==="none"&&(next||!openStages.has(row.stage)))return false;
+      if(action==="novalue"&&((Number(row.expected_mrr||0)>0||Number(row.expected_setup_fee||0)>0)||!openStages.has(row.stage)))return false;
+      return true;
+    });
+    $("growthPipelineRows").innerHTML=visible.length?visible.map((row)=>{
+      const next=row.next_action_at?new Date(row.next_action_at).getTime():null;
+      const late=openStages.has(row.stage)&&next&&next<now;
+      const missing=!Number(row.expected_mrr||0)&&!Number(row.expected_setup_fee||0)&&openStages.has(row.stage);
+      return `<article class="growth-pipeline-row ${late?"late":""}"><div class="growth-pipeline-identity"><span>${esc(row.industry||row.source||"Prospecto NEXO")}</span><b>${esc(row.business_name||row.full_name||"Sin nombre")}</b><small>${esc(row.full_name||row.email||row.phone||"Sin contacto")}</small></div><div><span>Etapa</span><b>${esc(stageLabel(row.stage))}</b></div><div><span>MRR</span><b>${row.expected_mrr?money(row.expected_mrr):"<em>Por definir</em>"}</b></div><div><span>Setup</span><b>${row.expected_setup_fee?money(row.expected_setup_fee):"<em>Por definir</em>"}</b></div><div><span>Próxima acción</span><b class="${late?"growth-late":""}">${row.next_action_at?dateTime(row.next_action_at):"Sin fecha"}</b></div><div class="growth-row-flags">${late?'<span class="pill orange">Vencido</span>':""}${missing?'<span class="pill amber">Sin valor</span>':""}${!row.next_action_at&&openStages.has(row.stage)?'<span class="pill">Sin próxima acción</span>':""}</div><button class="btn small" type="button" data-growth-edit="${row.id}">Editar</button></article>`;
+    }).join(""):emptyState("No hay oportunidades con estos filtros.","Ajusta los filtros.");
+    document.querySelectorAll("#growthPipelineRows [data-growth-edit]").forEach((button)=>button.addEventListener("click",()=>{const row=rows.find((item)=>item.id===button.dataset.growthEdit);if(row)openProspectEditorFromGrowth(crmContext,row,planRows);}));
+  };
+
+  drawPipeline();
+  ["growthSearch","growthStageFilter","growthActionFilter"].forEach((id)=>$(id)?.addEventListener(id==="growthSearch"?"input":"change",drawPipeline));
+  document.querySelectorAll(".growth-action-row[data-growth-edit]").forEach((button)=>button.addEventListener("click",()=>{const row=rows.find((item)=>item.id===button.dataset.growthEdit);if(row)openProspectEditorFromGrowth(crmContext,row,planRows);}));
+  $("growthOpenCrm")?.addEventListener("click",async()=>{state.page="crm";persistUiState();await render();});
 }
 
 async function renderAudit() {
