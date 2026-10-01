@@ -861,6 +861,10 @@ function updateNavigationAccess() {
       $("profileRole").textContent = labels[role] ? `${labels[role]} · Cliente NEXO` : "Cliente NEXO";
     }
   }
+
+  const impersonating=state.isAdmin && !isInternalOrg();
+  $("impersonationBanner")?.classList.toggle("hidden",!impersonating);
+  if(impersonating && $("impersonationClientName")) $("impersonationClientName").textContent=currentOrg()?.name||"Cliente NEXO";
 }
 
 function updateOrgBadge() {
@@ -3787,6 +3791,19 @@ $("profileButton")?.addEventListener("click",()=>{state.page="profile";document.
 $("logoutButton")?.addEventListener("click", () => performLogout($("logoutButton")));
 $("logoutTopButton")?.addEventListener("click", () => performLogout($("logoutTopButton")));
 
+$("exitImpersonationButton")?.addEventListener("click",async()=>{
+  const internal=state.organizations.find((org)=>org.name==="NEXO Internal");
+  if(!internal)return;
+  $("orgSelect").value=internal.id;
+  state.settingsOrgId=null;
+  state.taskOrgFilter=null;
+  state.page="overview";
+  updateNavigationAccess();
+  document.querySelectorAll(".nav-item").forEach((item)=>item.classList.toggle("active",item.dataset.page===state.page));
+  persistUiState();
+  await render();
+});
+
 $("refreshButton").addEventListener("click", async () => {
   await loadOrganizations();
   await render();
@@ -3796,7 +3813,7 @@ $("refreshButton").addEventListener("click", async () => {
 $("orgSelect").addEventListener("change", async () => {
   updateNavigationAccess();
   const internal=adminInternalView();
-  if (internal && !["overview","crm","clients","operations","tasks","quality","settings","audit","profile"].includes(state.page)) state.page="overview";
+  if (internal && !["overview","crm","clients","operations","conversations","tasks","quality","settings","audit","profile","growth"].includes(state.page)) state.page="overview";
   if (!internal && ["crm","clients","operations","quality","audit","admin"].includes(state.page)) state.page="overview";
   if (state.page === "team" && !canManageCurrentOrgUsers()) state.page = "overview";
   document.querySelectorAll(".nav-item").forEach((item) => item.classList.toggle("active", item.dataset.page === state.page));
