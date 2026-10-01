@@ -45,9 +45,10 @@ function currentRole(){return C.state.isAdmin?"platform_admin":C.currentOrgRole(
 function canWrite(){return C.state.isAdmin || ["owner","admin","operator"].includes(currentRole());}
 
 async function assigneesForOrg(orgId){
-  const {data,error}=await C.supabase.rpc("org_task_assignees",{target_org:orgId});
+  const {data,error}=await C.supabase.functions.invoke("task-assignees",{body:{organization_id:orgId}});
   if(error)throw error;
-  return data||[];
+  if(!data?.ok)throw new Error(data?.error||"No pudimos cargar los responsables.");
+  return data.assignees||[];
 }
 function assigneeName(map,id){return id?(map.get(id)?.full_name||map.get(id)?.contact_email||"Usuario"):"Sin asignar";}
 
