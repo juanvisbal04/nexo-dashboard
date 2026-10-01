@@ -3411,17 +3411,23 @@ function notificationOrgName(orgId) {
 async function refreshNotifications() {
   if (!state.session) return;
   const orgIds = notificationOrgIds();
+  const internalAdmin=state.isAdmin && isInternalOrg();
   const items = [];
   const scoped = (query) => {
     if (!orgIds.length) return query.eq("organization_id", "00000000-0000-0000-0000-000000000000");
     return orgIds.length === 1 ? query.eq("organization_id", orgIds[0]) : query.in("organization_id", orgIds);
   };
 
+  let workTaskQuery=scoped(supabase.from("work_tasks").select("id,organization_id,title,status,priority,due_at,contact_id,assigned_to").in("status",["pending","in_progress"]).order("due_at",{ascending:true,nullsFirst:false}).limit(30));
+  if(internalAdmin) workTaskQuery=workTaskQuery.eq("assigned_to",state.session.user.id);
+
   const tasks = [
     scoped(supabase.from("conversations").select("id,organization_id,name,status,last_message_at").eq("status","Requiere atención").order("last_message_at",{ascending:false}).limit(12)),
-    scoped(supabase.from("appointments").select("id,organization_id,name,status,starts_at,created_at").in("status",["Solicitada","Pendiente"]).order("created_at",{ascending:false}).limit(12)),
+    internalAdmin
+      ? supabase.from("appointments").select("id,organization_id,name,status,starts_at,created_at").eq("organization_id","00000000-0000-0000-0000-000000000000")
+      : scoped(supabase.from("appointments").select("id,organization_id,name,status,starts_at,created_at").in("status",["Solicitada","Pendiente"]).order("created_at",{ascending:false}).limit(12)),
     scoped(supabase.from("client_invoices").select("id,organization_id,invoice_number,status,due_date,amount_cop,reference").in("status",["pending","overdue"]).order("due_date",{ascending:true}).limit(20)),
-    scoped(supabase.from("work_tasks").select("id,organization_id,title,status,priority,due_at,contact_id").in("status",["pending","in_progress"]).order("due_at",{ascending:true,nullsFirst:false}).limit(30)),
+    workTaskQuery,
   ];
 
   const [conversationResult, appointmentResult, invoiceResult, workTaskResult] = await Promise.all(tasks);
