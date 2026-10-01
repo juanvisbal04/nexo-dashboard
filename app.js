@@ -3115,6 +3115,11 @@ function pageUsesRealtimeTable(table) {
     crm_activities: ["crm"],
     work_tasks: ["overview","tasks","clients","operations"],
     contact_notes: ["tasks"],
+    conversation_reads: ["conversations"],
+    assistants: ["overview","clients","operations","settings"],
+    organization_commercials: ["overview","crm","clients","operations"],
+    crm_integrations: ["clients","operations","settings"],
+    audit_log: ["audit"],
   };
   return (map[table] || []).includes(state.page);
 }
@@ -3136,14 +3141,28 @@ function startRealtime() {
   realtimeChannel = supabase.channel("nexo-dashboard-live");
   [
     "conversations","messages","leads","appointments","followups",
-    "client_invoices","demo_requests","crm_activities","work_tasks","contact_notes"
+    "client_invoices","invoice_payments","demo_requests","crm_activities","work_tasks","contact_notes",
+    "conversation_reads","assistants","organization_commercials","crm_integrations","audit_log"
   ].forEach((table) => {
     realtimeChannel.on("postgres_changes", { event: "*", schema: "public", table }, () => {
       scheduleRealtimeRefresh(table);
       refreshNotifications().catch(()=>{});
     });
   });
-  realtimeChannel.subscribe();
+  const statusEl=$("realtimeStatus");
+  const setRealtimeStatus=(status)=>{
+    if(!statusEl)return;
+    const subscribed=status==="SUBSCRIBED";
+    const failed=["CHANNEL_ERROR","TIMED_OUT","CLOSED"].includes(status);
+    statusEl.className="realtime-status "+(subscribed?"online":failed?"offline":"connecting");
+    statusEl.innerHTML=`<i></i>${subscribed?"Live":failed?"Reconectando":"Conectando"}`;
+  };
+  realtimeChannel.subscribe((status)=>{
+    setRealtimeStatus(status);
+    if(["CHANNEL_ERROR","TIMED_OUT","CLOSED"].includes(status)){
+      setTimeout(()=>{if(state.session)startRealtime();},2500);
+    }
+  });
 }
 
 
