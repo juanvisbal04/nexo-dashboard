@@ -1275,6 +1275,53 @@ async function fetchDetailedRows(type) {
   }));
 }
 
+async function enrichConversationInboxRows(rows) {
+  if (!rows.length || !state.session?.user?.id) return rows;
+  const ids=rows.map((row)=>row.id).filter(Boolean);
+  const [messageResult,readResult]=await Promise.all([
+    supabase.from("messages")
+      .select("conversation_id,sender,content,created_at")
+      .in("conversation_id",ids)
+      .order("created_at",{ascending:false})
+      .limit(5000),
+    supabase.from("conversation_reads")
+      .select("conversation_id,last_viewed_at")
+      .eq("user_id",state.session.user.id)
+      .in("conversation_id",ids)
+  ]);
+  if(messageResult.error) throw messageResult.error;
+  if(readResult.error) throw readResult.error;
+
+  const latest=new Map();
+  (messageResult.data||[]).forEach((msg)=>{
+    if(!latest.has(msg.conversation_id)) latest.set(msg.conversation_id,msg);
+  });
+  const reads=new Map((readResult.data||[]).map((row)=>[row.conversation_id,row.last_viewed_at]));
+
+  return rows.map((row)=>{
+    const last=latest.get(row.id)||null;
+    const viewedAt=reads.get(row.id)||null;
+    const lastAt=last?.created_at||row.last_message_at||row.created_at;
+    const unread=Boolean(last && last.sender==="contact" && (!viewedAt || new Date(lastAt).getTime()>new Date(viewedAt).getTime()));
+    const needsReply=Boolean(last && last.sender==="contact" && !["Resuelta","Cerrada"].includes(row.status));
+    const inboxState=row.status==="Requiere atención"?"Escalado":["Resuelta","Cerrada"].includes(row.status)?"Resuelto":unread?"Nuevo":"Activo";
+    return {
+      ...row,
+      last_message_sender:last?.sender||null,
+      last_message_content:last?.content||"",
+      last_message_created_at:lastAt,
+      is_unread:unread,
+      needs_reply:needsReply,
+      inbox_state:inboxState,
+    };
+  });
+}
+
+function inboxStatePill(row){
+  const cls=row.inbox_state==="Escalado"?"orange":row.inbox_state==="Resuelto"?"green":row.inbox_state==="Nuevo"?"amber":"";
+  return `<span class="pill ${cls}">${esc(row.inbox_state||"Activo")}</span>`;
+}
+
 function phoneCell(row) {
   const phone = row.phone || row.contacts?.phone || "";
   if (!phone) return '<span class="muted">Sin número</span>';
@@ -1361,6 +1408,16 @@ async function openContactChat(contactId, organizationId = currentOrgId()) {
       : emptyState("No hay mensajes guardados.", "Este contacto aún no tiene historial disponible.");
 
     $("chatBody").scrollTop = $("chatBody").scrollHeight;
+    const latestConversation=(conversations||[]).slice(-1)[0];
+    if(latestConversation?.id){
+      const latestAt=messages.length ? messages[messages.length-1].created_at : new Date().toISOString();
+      supabase.from("conversation_reads").upsert({
+        user_id:state.session.user.id,
+        conversation_id:latestConversation.id,
+        organization_id:organizationId,
+        last_viewed_at:latestAt || new Date().toISOString()
+      },{onConflict:"user_id,conversation_id"}).then(({error})=>{if(error)console.warn("NEXO_READ_STATE",error);});
+    }
   } catch (error) {
     closeContactChat();
     showError(error.message || "No pudimos abrir el historial del contacto.");
@@ -1377,13 +1434,15 @@ function bindChatButtons() {
 }
 
 async function renderTablePage(type) {
-  const rows = await fetchDetailedRows(type);
+  let rows = await fetchDetailedRows(type);
+  const showOrganization = state.isAdmin && isInternalOrg();
+  if(type==="conversations") rows=await enrichConversationInboxRows(rows);
+
   state.currentRows = rows.map((row) => ({
     ...row,
     phone: row.phone || row.contacts?.phone || "",
   }));
 
-  const showOrganization = state.isAdmin && isInternalOrg();
   const config = {
     conversations: {
       title: "Conversaciones",
@@ -1452,13 +1511,99 @@ async function renderTablePage(type) {
       }).join("")
     : "";
 
+  if(type==="conversations"){
+    const unread=rows.filter((row)=>row.is_unread).length;
+    const needsReply=rows.filter((row)=>row.needs_reply).length;
+    const handoffs=rows.filter((row)=>row.status==="Requiere atención").length;
+    $("content").innerHTML = `
+      <div class="inbox-summary">
+        <div><span>Total</span><b>${rows.length}</b></div>
+        <div class="${unread?"attention":""}"><span>No leídos</span><b>${unread}</b></div>
+        <div class="${needsReply?"attention":""}"><span>Sin responder</span><b>${needsReply}</b></div>
+        <div class="${handoffs?"attention":""}"><span>Handoffs</span><b>${handoffs}</b></div>
+      </div>
+      <div class="table-toolbar inbox-toolbar">
+        <label class="search"><input id="tableSearch" type="search" placeholder="Buscar nombre, teléfono, servicio o mensaje" /></label>
+        ${clientConversationFilter ? `<select id="conversationClientFilter" class="control" aria-label="Filtrar conversaciones por cliente">
+          <option value="">Todos los clientes</option>
+          ${clientFilterOptions}
+        </select>` : ""}
+        <select id="conversationStateFilter" class="control" aria-label="Filtrar conversaciones por estado">
+          <option value="">Todos los estados</option>
+          <option value="unread">No leídos</option>
+          <option value="reply">Sin responder</option>
+          <option value="handoff">Handoffs</option>
+          <option value="resolved">Resueltos</option>
+          <option value="active">Activos</option>
+        </select>
+        <span class="muted" id="rowCount">${rows.length} conversaciones</span>
+      </div>
+      <section class="card inbox-card">
+        <div class="card-head"><div><h2>${showOrganization?"Inbox de la red NEXO":"Conversaciones"}</h2><p>${showOrganization?"Monitoreo por cliente, estado y actividad reciente.":"Actividad registrada por tu asistente."}</p></div></div>
+        <div id="tableContainer" class="conversation-inbox-list"></div>
+      </section>
+    `;
+
+    const drawInbox=(visibleRows)=>{
+      $("rowCount").textContent=`${visibleRows.length} conversación${visibleRows.length===1?"":"es"}`;
+      $("tableContainer").innerHTML=visibleRows.length?visibleRows.map((row)=>`
+        <article class="conversation-inbox-row ${row.is_unread?"unread":""} ${row.needs_reply?"needs-reply":""}">
+          <div class="conversation-inbox-main">
+            <div class="conversation-inbox-top">
+              <div>
+                ${showOrganization?`<span class="inbox-org">${esc(row.organization_name)}</span>`:""}
+                <strong>${contact360Cell(row)}</strong>
+              </div>
+              <div class="inbox-badges">${inboxStatePill(row)}${row.needs_reply?'<span class="pill amber">Sin responder</span>':""}</div>
+            </div>
+            <p class="inbox-preview">${esc(row.last_message_content||"Sin vista previa disponible")}</p>
+            <div class="inbox-meta">
+              <span>${esc(row.service||"Consulta general")}</span>
+              <span>${esc(row.source||row.channel||"WhatsApp")}</span>
+              <span>${esc(row.phone||row.contacts?.phone||"Sin número")}</span>
+              <span>${dateTime(row.last_message_created_at||row.last_message_at)}</span>
+            </div>
+          </div>
+          <div class="conversation-inbox-actions">
+            ${conversationStatusSelect(row)}
+            ${chatAction(row)}
+          </div>
+        </article>
+      `).join(""):emptyState("No hay conversaciones con estos filtros.","Cambia el filtro o el período seleccionado.");
+      bindStatusControls("conversations");
+      bindChatButtons();
+      bindContact360Buttons();
+    };
+
+    const applyInboxFilters=()=>{
+      const query=($("tableSearch")?.value||"").trim().toLowerCase();
+      const clientId=$("conversationClientFilter")?.value||"";
+      const stateFilter=$("conversationStateFilter")?.value||"";
+      let visible=rows.filter((row)=>{
+        const hay=[row.name,row.contact_name,row.phone,row.service,row.source,row.organization_name,row.last_message_content]
+          .filter(Boolean).join(" ").toLowerCase();
+        if(query && !hay.includes(query)) return false;
+        if(clientId && row.organization_id!==clientId) return false;
+        if(stateFilter==="unread" && !row.is_unread) return false;
+        if(stateFilter==="reply" && !row.needs_reply) return false;
+        if(stateFilter==="handoff" && row.status!=="Requiere atención") return false;
+        if(stateFilter==="resolved" && !["Resuelta","Cerrada"].includes(row.status)) return false;
+        if(stateFilter==="active" && ["Resuelta","Cerrada"].includes(row.status)) return false;
+        return true;
+      });
+      drawInbox(visible);
+    };
+
+    drawInbox(rows);
+    $("tableSearch")?.addEventListener("input",applyInboxFilters);
+    $("conversationClientFilter")?.addEventListener("change",applyInboxFilters);
+    $("conversationStateFilter")?.addEventListener("change",applyInboxFilters);
+    return;
+  }
+
   $("content").innerHTML = `
     <div class="table-toolbar">
       <label class="search"><input id="tableSearch" type="search" placeholder="Buscar nombre, teléfono o servicio" /></label>
-      ${clientConversationFilter ? `<select id="conversationClientFilter" class="control" aria-label="Filtrar conversaciones por cliente">
-        <option value="">Todos los clientes</option>
-        ${clientFilterOptions}
-      </select>` : ""}
       <span class="muted" id="rowCount">${rows.length} registros</span>
     </div>
     <section class="card">
@@ -1484,19 +1629,8 @@ async function renderTablePage(type) {
     bindContact360Buttons();
   };
 
-  const applyTableFilters = () => {
-    const query = $("tableSearch")?.value || "";
-    const clientId = $("conversationClientFilter")?.value || "";
-    let visible = filterRows(rows, query);
-    if (clientConversationFilter && clientId) {
-      visible = visible.filter((row) => row.organization_id === clientId);
-    }
-    draw(visible);
-  };
-
   draw(rows);
-  $("tableSearch").addEventListener("input", applyTableFilters);
-  $("conversationClientFilter")?.addEventListener("change", applyTableFilters);
+  $("tableSearch").addEventListener("input", (event) => draw(filterRows(rows, event.target.value)));
 }
 
 function conversationStatusSelect(row) {
