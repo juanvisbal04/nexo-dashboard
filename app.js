@@ -3305,16 +3305,68 @@ function renderSetupActivation(token) {
   });
 }
 
-async function enterApp(session) {
-  state.session = session;
-  $("loginView").classList.add("hidden");
-  $("appView").classList.remove("hidden");
-  $("topEmail").textContent = session.user.email || "";
-  await loadIdentity();
-  await loadOrganizations();
-  restoreUiState();
-  startRealtime();
-  await render();
+let enterAppPromise = null;
+let activeSessionToken = null;
+
+function resetDashboardUiState() {
+  try { localStorage.removeItem(UI_STATE_KEY); } catch {}
+  state.page = "overview";
+  state.settingsOrgId = null;
+  state.taskOrgFilter = null;
+  window.history.replaceState(null, "", window.location.pathname + window.location.search);
+}
+
+function showLoginLoadError(error) {
+  const box = $("loginMessage");
+  const message = error?.message || "No pudimos cargar el dashboard.";
+  box.textContent = "Tu sesión es válida, pero NEXO no pudo terminar de cargar. Reintenta en unos segundos. Detalle: " + message;
+  box.className = "message error";
+  box.setAttribute("role","alert");
+  $("loginView").classList.remove("hidden");
+  $("appView").classList.add("hidden");
+}
+
+async function enterApp(session, { allowRecovery = true } = {}) {
+  if (!session) return;
+  const token = session.access_token || session.user?.id || "session";
+  if (activeSessionToken === token && !$("appView").classList.contains("hidden")) return;
+  if (enterAppPromise) return enterAppPromise;
+
+  enterAppPromise = (async () => {
+    state.session = session;
+    const box = $("loginMessage");
+    box.textContent = "Cargando tu espacio NEXO…";
+    box.className = "message ok";
+    $("topEmail").textContent = session.user.email || "";
+
+    try {
+      await loadIdentity();
+      await loadOrganizations();
+      restoreUiState();
+      startRealtime();
+      await render();
+
+      activeSessionToken = token;
+      $("loginView").classList.add("hidden");
+      $("appView").classList.remove("hidden");
+      box.className = "message hidden";
+      box.textContent = "";
+    } catch (error) {
+      console.error("NEXO enterApp failed", error);
+      if (allowRecovery) {
+        resetDashboardUiState();
+        enterAppPromise = null;
+        return enterApp(session, { allowRecovery: false });
+      }
+      showLoginLoadError(error);
+    }
+  })();
+
+  try {
+    return await enterAppPromise;
+  } finally {
+    enterAppPromise = null;
+  }
 }
 
 async function boot() {
@@ -3326,12 +3378,18 @@ async function boot() {
     return;
   }
 
-  const { data: { session } } = await supabase.auth.getSession();
-  if (session) {
-    await enterApp(session);
-  } else {
-    $("loginView").classList.remove("hidden");
-    $("appView").classList.add("hidden");
+  try {
+    const { data: { session }, error } = await supabase.auth.getSession();
+    if (error) throw error;
+    if (session) {
+      await enterApp(session);
+    } else {
+      $("loginView").classList.remove("hidden");
+      $("appView").classList.add("hidden");
+    }
+  } catch (error) {
+    console.error("NEXO boot failed", error);
+    showLoginLoadError(error);
   }
 }
 
@@ -3343,6 +3401,9 @@ $("magicButton").addEventListener("click", async () => {
   if (!email) {
     box.textContent = "Escribe tu correo.";
     box.className = "message error";
+    box.setAttribute("role","alert");
+    $("emailInput").focus();
+    box.scrollIntoView({ block: "nearest", behavior: "smooth" });
     return;
   }
 
@@ -3368,17 +3429,39 @@ $("magicButton").addEventListener("click", async () => {
 $("passwordForm").addEventListener("submit", async (event) => {
   event.preventDefault();
   const box = $("loginMessage");
+  const email = $("emailInput").value.trim();
+  const password = $("passwordInput").value;
+  const submit = event.currentTarget.querySelector('button[type="submit"]');
   box.className = "message hidden";
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email: $("emailInput").value.trim(),
-    password: $("passwordInput").value,
-  });
-  if (error) {
-    box.textContent = error.message;
+
+  if (!email) {
+    box.textContent = "Escribe tu correo.";
     box.className = "message error";
+    $("emailInput").focus();
     return;
   }
-  if (data.session) await enterApp(data.session);
+  if (!password) {
+    box.textContent = "Escribe tu contraseña.";
+    box.className = "message error";
+    $("passwordInput").focus();
+    return;
+  }
+
+  submit.disabled = true;
+  submit.textContent = "Ingresando…";
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    if (data.session && activeSessionToken !== data.session.access_token) {
+      await enterApp(data.session);
+    }
+  } catch (error) {
+    box.textContent = error.message || "No pudimos iniciar sesión.";
+    box.className = "message error";
+  } finally {
+    submit.disabled = false;
+    submit.textContent = "Ingresar";
+  }
 });
 
 async function performLogout(sourceButton = null) {
@@ -3546,8 +3629,14 @@ document.addEventListener("visibilitychange", () => {
 });
 
 supabase.auth.onAuthStateChange((event, session) => {
-  if (event === "SIGNED_IN" && session && !state.session) enterApp(session);
-  if (event === "SIGNED_OUT") window.location.reload();
+  if (event === "SIGNED_IN" && session && activeSessionToken !== session.access_token && !enterAppPromise) {
+    enterApp(session);
+  }
+  if (event === "SIGNED_OUT") {
+    activeSessionToken = null;
+    state.session = null;
+    window.location.reload();
+  }
 });
 
 boot();
