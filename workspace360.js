@@ -145,6 +145,7 @@ export async function renderTasks(context=C){
   if(!orgIds.length){C.$("content").innerHTML=C.emptyState("No hay una empresa seleccionada.","Selecciona una empresa.");return;}
 
   let request=C.supabase.from("work_tasks").select("*").order("created_at",{ascending:false}).limit(1000);
+  if(internal)request=request.eq("assigned_to",C.state.session.user.id);
   request=orgIds.length===1?request.eq("organization_id",orgIds[0]):request.in("organization_id",orgIds);
   const {data:tasks,error}=await request;
   if(error)throw error;
@@ -176,7 +177,7 @@ export async function renderTasks(context=C){
         <input id="taskTitle" required placeholder="Qué hay que hacer">
         <select id="taskPriority"><option value="medium">Prioridad media</option><option value="high">Alta</option><option value="urgent">Urgente</option><option value="low">Baja</option></select>
         <input id="taskDue" type="datetime-local">
-        <select id="taskAssignee"><option value="">Sin asignar</option></select>
+        ${internal?`<div class="task-self-assignee">Responsable: Tú</div>`:`<select id="taskAssignee"><option value="">Sin asignar</option></select>`}
         <input id="taskDescription" placeholder="Nota / contexto">
         <button class="btn primary" type="submit">Crear tarea</button>
       </form>
@@ -184,7 +185,7 @@ export async function renderTasks(context=C){
 
     <section class="card task-center-card">
       <div class="card-head">
-        <div><h2>Centro de tareas</h2><p>Trabajo asignable y trazable para NEXO y cada cliente</p></div>
+        <div><h2>${internal?"Mis tareas":"Centro de tareas"}</h2><p>${internal?"Solo tareas asignadas directamente a tu usuario de Super Admin.":"Trabajo asignable y trazable para tu negocio."}</p></div>
         <div class="task-toolbar">
           <select id="taskStatusFilter" class="control"><option value="open">Abiertas</option><option value="">Todas</option><option value="pending">Pendientes</option><option value="in_progress">En progreso</option><option value="completed">Completadas</option></select>
           ${internal?`<select id="taskOrgFilter" class="control"><option value="">Todos los negocios</option>${C.state.organizations.map((org)=>`<option value="${org.id}" ${org.id===C.state.taskOrgFilter?"selected":""}>${esc(org.name)}</option>`).join("")}</select>`:""}
@@ -225,7 +226,6 @@ export async function renderTasks(context=C){
         <div class="task-row-actions">
           ${taskStatusSelect(row,!canEdit)}
           ${canEdit?`<button class="btn small task-edit-button" data-task-id="${row.id}" type="button">Editar</button>`:""}
-          <button class="btn small task-edit-button" data-task-id="${row.id}" type="button">Editar</button>
           ${row.contact_id?`<button class="btn small task-contact-360" data-contact-id="${row.contact_id}" data-org-id="${row.organization_id}" type="button">Contact 360</button>`:""}
         </div>
       </article>`;
@@ -251,7 +251,6 @@ export async function renderTasks(context=C){
         openTaskEditor(task,assigneesByOrg.get(task.organization_id)||[]);
       });
     });
-    document.querySelectorAll(".task-edit-button").forEach((button)=>button.addEventListener("click",()=>{const task=rows.find((row)=>row.id===button.dataset.taskId);if(task)openTaskEditor(task,assigneesByOrg.get(task.organization_id)||[]);}));
     document.querySelectorAll(".task-contact-360").forEach((button)=>button.addEventListener("click",()=>openContact360(C,button.dataset.contactId,button.dataset.orgId)));
   };
   C.$("taskStatusFilter")?.addEventListener("change",draw);
@@ -270,7 +269,7 @@ export async function renderTasks(context=C){
       description:C.$("taskDescription").value.trim()||null,
       priority:C.$("taskPriority").value,
       due_at:due?new Date(due).toISOString():null,
-      assigned_to:C.$("taskAssignee").value||null,
+      assigned_to:internal?C.state.session.user.id:(C.$("taskAssignee")?.value||null),
       created_by:C.state.session.user.id,
       status:"pending",
       source_type:"manual"
