@@ -362,6 +362,13 @@ export async function openCustomer360(context,orgId){
     const settings=settingsR.data||{};
     const integrations=integrationsR.data||[];
     const conversations=conversationsR.data||[];
+    const conversationIds=conversations.map((row)=>row.id);
+    let messages=[];
+    if(conversationIds.length){
+      const {data:messageRows,error:messageError}=await C.supabase.from("messages").select("id,conversation_id,sender,content,created_at").eq("organization_id",orgId).in("conversation_id",conversationIds).order("created_at",{ascending:false}).limit(500);
+      if(messageError)throw messageError;
+      messages=messageRows||[];
+    }
     const leads=leadsR.data||[];
     const appointments=appointmentsR.data||[];
     const invoices=invoicesR.data||[];
@@ -496,6 +503,12 @@ export async function openContact360(context,contactId,organizationId){
     const totalValue=leads.reduce((s,r)=>s+Number(r.value||0),0);
     const confirmed=appointments.filter((r)=>["Confirmada","Completada"].includes(r.status)).length;
     const latestConversation=conversations[0]||null;
+    const consulted=[...new Set([
+      ...conversations.map((r)=>r.service),
+      ...leads.map((r)=>r.service),
+      ...appointments.map((r)=>r.service),
+      ...followups.map((r)=>r.service)
+    ].filter(Boolean))];
     const digits=String(contact.phone||"").replace(/\D/g,"");
     const root=ensureDrawer("contact360Modal");
     root.querySelector(".nexo-drawer-content").innerHTML=`
@@ -507,7 +520,7 @@ export async function openContact360(context,contactId,organizationId){
         ${digits?`<a class="btn primary" href="https://wa.me/${digits}" target="_blank" rel="noopener">WhatsApp</a>`:""}
         <button class="btn" id="contact360Chat" type="button">Ver chat</button>
       </div>
-      <div class="contact360-kpis"><div><span>Conversaciones</span><b>${conversations.length}</b></div><div><span>Leads</span><b>${leads.length}</b></div><div><span>Citas confirmadas</span><b>${confirmed}</b></div><div><span>Valor leads</span><b>${money(totalValue)}</b></div><div><span>Tareas abiertas</span><b>${tasks.filter((r)=>["pending","in_progress"].includes(r.status)).length}</b></div><div><span>Último estado</span><b>${esc(latestConversation?.status||"—")}</b></div></div>
+      <div class="contact360-kpis"><div><span>Conversaciones</span><b>${conversations.length}</b></div><div><span>Mensajes</span><b>${messages.length}${messages.length>=500?"+":""}</b></div><div><span>Tratamientos</span><b>${consulted.length}</b></div><div><span>Leads</span><b>${leads.length}</b></div><div><span>Citas confirmadas</span><b>${confirmed}</b></div><div><span>Valor leads</span><b>${money(totalValue)}</b></div><div><span>Tareas abiertas</span><b>${tasks.filter((r)=>["pending","in_progress"].includes(r.status)).length}</b></div><div><span>Último estado</span><b>${esc(latestConversation?.status||"—")}</b></div></div>
       <div class="contact360-grid">
         <section class="drawer-card">
           <h3>Datos del contacto</h3>
@@ -532,6 +545,14 @@ export async function openContact360(context,contactId,organizationId){
           ${canEdit?`<form id="contactNoteForm" class="contact-note-form"><textarea id="contactNoteText" rows="2" placeholder="Agregar contexto interno sobre este contacto…" required></textarea><button class="btn small" type="submit">Agregar nota</button></form>`:""}
           <div class="contact-note-list">${notes.length?notes.map((n)=>`<div><p>${esc(n.note)}</p><small>${dateTime(n.created_at)}</small></div>`).join(""):'<p class="muted">Sin notas internas.</p>'}</div>
         </section>
+        <section class="drawer-card drawer-wide"><div class="drawer-card-head"><h3>Tratamientos / servicios consultados</h3><span>${consulted.length}</span></div>
+  <div class="contact360-services">${consulted.length?consulted.map((item)=>`<span>${esc(item)}</span>`).join(""):`<p class="muted">Sin servicios identificados.</p>`}</div>
+</section>
+<section class="drawer-card drawer-wide"><div class="drawer-card-head"><h3>Historial de mensajes</h3><span>${messages.length}${messages.length>=500?"+":""}</span></div>
+  <div class="contact360-message-timeline">
+    ${messages.length?messages.map((m)=>`<div class="contact360-message ${esc(m.sender||"system")}"><div><b>${m.sender==="contact"?"Cliente":m.sender==="assistant"?"Asistente":"Sistema"}</b><time>${dateTime(m.created_at)}</time></div><p>${esc(m.content||"")}</p></div>`).join(""):`<p class="muted">Sin mensajes registrados.</p>`}
+  </div>
+</section>
         <section class="drawer-card drawer-wide"><div class="drawer-card-head"><h3>Oportunidades</h3><span>${leads.length}</span></div><div class="drawer-list">${leads.length?leads.map((r)=>`<div><b>${esc(r.service||"Lead")}</b><span>${esc(r.stage)} · ${money(r.value)} · ${dateTime(r.created_at)}</span></div>`).join(""):'<p class="muted">Sin oportunidades registradas.</p>'}</div></section>
         <section class="drawer-card drawer-wide"><div class="drawer-card-head"><h3>Citas</h3><span>${appointments.length}</span></div><div class="drawer-list">${appointments.length?appointments.map((r)=>`<div><b>${esc(r.service||"Cita")}</b><span>${esc(r.status)} · ${money(r.value)} · ${dateTime(r.starts_at)}</span></div>`).join(""):'<p class="muted">Sin citas registradas.</p>'}</div></section>
         <section class="drawer-card drawer-wide"><div class="drawer-card-head"><h3>Seguimientos</h3><span>${followups.length}</span></div><div class="drawer-list">${followups.length?followups.map((r)=>`<div><b>${esc(r.service||"Seguimiento")}</b><span>${esc(r.status)} · ${dateTime(r.due_at)}</span></div>`).join(""):'<p class="muted">Sin seguimientos.</p>'}</div></section>
