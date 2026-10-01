@@ -1034,6 +1034,25 @@ function emptyState(title = "Todavía no hay datos reales en esta sección.", de
   return `<div class="empty"><strong>${esc(title)}</strong>${esc(detail)}</div>`;
 }
 
+function platformHealthForClient(org,metrics,commercial,assistant){
+  let score=0;
+  const assistantOk=assistant?.status==="active";
+  const integrationOk=commercial?.integration_status==="connected";
+  const latest=metrics?.latest_message_at?new Date(metrics.latest_message_at).getTime():null;
+  const recent=latest && Date.now()-latest<=7*86400000;
+  const someActivity=latest && Date.now()-latest<=30*86400000;
+  const noHandoffs=Number(metrics?.attention||0)===0;
+  const orgActive=org?.status==="active";
+  if(assistantOk)score+=25;
+  if(integrationOk)score+=25;
+  if(recent)score+=20; else if(someActivity)score+=10;
+  if(noHandoffs)score+=20;
+  if(orgActive)score+=10;
+  const level=score>=90?"Excelente":score>=75?"Estable":score>=55?"Monitorear":"Requiere atención";
+  const tone=score>=75?"good":score>=55?"watch":"risk";
+  return {score,level,tone};
+}
+
 async function renderOverview() {
   if (state.isAdmin && isInternalOrg()) {
     const clients = clientOrganizations();
@@ -1043,7 +1062,7 @@ async function renderOverview() {
     state.currentRows=conversations;
     const clientRows=clients.map((org)=>{
       const rows=conversations.filter((row)=>row.organization_id===org.id);
-      return {org,metrics:{chats:rows.length,attention:rows.filter((row)=>row.status==="Requiere atención").length}};
+      return {org,metrics:{chats:rows.length,attention:rows.filter((row)=>row.status==="Requiere atención").length,latest_message_at:rows[0]?.last_message_at||null}};
     });
     const totalHandoffs=conversations.filter((row)=>row.status==="Requiere atención").length;
 
@@ -1163,12 +1182,14 @@ async function renderOverview() {
         <div class="card-head"><div><h2>Estado de clientes NEXO</h2><p>Plan, asistente, integración y monitoreo técnico. Los leads, citas y ventas permanecen dentro del workspace de cada cliente.</p></div></div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Cliente</th><th>Estado</th><th>Asistente</th><th>Plan</th><th>Integración</th><th>Chats</th><th>Handoffs</th><th>MRR</th></tr></thead>
+            <thead><tr><th>Cliente</th><th>Health</th><th>Estado</th><th>Asistente</th><th>Plan</th><th>Integración</th><th>Chats</th><th>Handoffs</th><th>MRR</th></tr></thead>
             <tbody>
               ${clientRows.map(({ org, metrics }) => {
                 const commercial=(commandCommercials||[]).find((row)=>row.organization_id===org.id)||{};
+                const health=platformHealthForClient(org,metrics,commercial,assistantForOrg(org.id));
                 return `<tr>
                   <td><b>${esc(org.name)}</b><br><span class="muted">${esc(org.sector||"")}</span></td>
+                  <td><span class="health-badge ${health.tone}">${health.score}/100 · ${esc(health.level)}</span></td>
                   <td><span class="pill ${org.status==="active"?"green":""}">${esc(org.status||"—")}</span></td>
                   <td>${assistantAvatarHtml(assistantForOrg(org.id),org,"org-mini assistant-mini")} ${esc(org.assistant||"—")}</td>
                   <td>${esc(commercial.plan_name||"—")}</td>
@@ -1187,14 +1208,14 @@ async function renderOverview() {
         <section class="card">
           <div class="card-head"><div><h2>Monitoreo de conversaciones</h2><p>Actividad de asistentes por cliente para comprobar que NEXO está operando y detectar handoffs.</p></div></div>
           <div class="portfolio-health-cards">
-            ${clientRows.map(({org,metrics})=>`
+            ${clientRows.map(({org,metrics})=>{ const commercial=(commandCommercials||[]).find((row)=>row.organization_id===org.id)||{}; const health=platformHealthForClient(org,metrics,commercial,assistantForOrg(org.id)); return `
               <article class="portfolio-account">
-                <div class="portfolio-account-top">${assistantAvatarHtml(assistantForOrg(org.id),org,"org-mini assistant-mini")}${metrics.attention?`<span class="count">${metrics.attention}</span>`:`<span class="pill green">OK</span>`}</div>
+                <div class="portfolio-account-top">${assistantAvatarHtml(assistantForOrg(org.id),org,"org-mini assistant-mini")}<span class="health-badge ${health.tone}">${health.score}</span></div>
                 <b>${esc(org.name)}</b>
                 <small>${esc(org.assistant||"Asistente")} · ${metrics.chats} chats</small>
                 <p>${metrics.attention?"Hay conversaciones escaladas para revisión.":"Sin handoffs pendientes."}</p>
               </article>
-            `).join("")}
+            `}).join("")}
           </div>
         </section>
         <section class="card">
