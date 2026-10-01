@@ -514,7 +514,7 @@ export async function renderCrm(context) {
     { data: expenses, error: expenseError },
     { data: invoices, error: invoiceError },
   ] = await Promise.all([
-    C.supabase.from("demo_requests").select("*").order("created_at", { ascending: false }).limit(500),
+    C.supabase.from("demo_requests").select("*").is("archived_at", null).order("created_at", { ascending: false }).limit(500),
     C.supabase.from("organization_commercials").select("*"),
     C.supabase.from("crm_integrations").select("*"),
     C.supabase.from("crm_activities").select("*").order("created_at", { ascending: false }).limit(500),
