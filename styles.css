@@ -1214,3 +1214,8 @@ body.modal-open{overflow:hidden;touch-action:none}
   .mobile-bottom-nav::-webkit-scrollbar{display:none}
   .mobile-bottom-nav .mobile-nav-item{flex:1 0 58px;min-width:58px}
 }
+
+@media(max-width:720px){
+  .alert-item{grid-template-columns:7px minmax(0,1fr)}
+  .alert-item-actions{grid-column:2;width:100%}
+}
