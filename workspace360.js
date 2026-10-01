@@ -10,6 +10,36 @@ function money(v){return C.money(v);}
 function dateTime(v){return C.dateTime(v);}
 function shortDate(v){return C.shortDate(v);}
 
+function technicalHealth({assistant,commercial,settings,integrations,conversations,attention}){
+  let score=0;
+  const checks=[];
+  const assistantOk=assistant?.status==="active";
+  score+=assistantOk?25:0;
+  checks.push({label:"Asistente",ok:assistantOk,detail:assistantOk?"Activo":assistant?.status||"Sin registro"});
+
+  const integrationOk=commercial?.integration_status==="connected" || integrations.some((r)=>["connected","active","ok"].includes(String(r.status||"").toLowerCase()));
+  score+=integrationOk?25:0;
+  checks.push({label:"Integraciones",ok:integrationOk,detail:commercial?.integration_status||"Sin configurar"});
+
+  const whatsappOk=Boolean(settings?.whatsapp);
+  score+=whatsappOk?20:0;
+  checks.push({label:"WhatsApp",ok:whatsappOk,detail:whatsappOk?"Configurado":"Sin número"});
+
+  const latest=conversations?.[0]?.last_message_at ? new Date(conversations[0].last_message_at).getTime() : null;
+  const recent=latest && Date.now()-latest<=7*86400000;
+  const someActivity=latest && Date.now()-latest<=30*86400000;
+  score+=recent?20:someActivity?10:0;
+  checks.push({label:"Última actividad",ok:Boolean(recent),detail:latest?dateTime(conversations[0].last_message_at):"Sin conversaciones"});
+
+  const noHandoffs=(attention||[]).length===0;
+  score+=noHandoffs?10:0;
+  checks.push({label:"Handoffs",ok:noHandoffs,detail:noHandoffs?"Sin pendientes":`${attention.length} pendiente${attention.length===1?"":"s"}`});
+
+  const level=score>=90?"Excelente":score>=75?"Estable":score>=55?"Monitorear":"Requiere atención";
+  const tone=score>=90?"good":score>=75?"good":score>=55?"watch":"risk";
+  return {score,level,tone,checks};
+}
+
 function ensureDrawer(id){
   let root=document.getElementById(id);
   if(root)return root;
@@ -286,7 +316,7 @@ export async function openCustomer360(context,orgId){
   if(!org)return;
   showDrawer("customer360Modal",'<div class="drawer-loading">Cargando Customer 360…</div>');
   try{
-    const [settingsR,commercialR,integrationsR,conversationsR,leadsR,appointmentsR,invoicesR,tasksR,servicesR,assignees]=await Promise.all([
+    const [settingsR,commercialR,integrationsR,conversationsR,leadsR,appointmentsR,invoicesR,tasksR,servicesR,onboardingR,assignees]=await Promise.all([
       C.supabase.from("organization_settings").select("*").eq("organization_id",orgId).maybeSingle(),
       C.supabase.from("organization_commercials").select("*").eq("organization_id",orgId).maybeSingle(),
       C.supabase.from("crm_integrations").select("*").eq("organization_id",orgId).order("created_at"),
@@ -296,6 +326,7 @@ export async function openCustomer360(context,orgId){
       C.supabase.from("client_invoices").select("*").eq("organization_id",orgId).order("due_date",{ascending:false}).limit(500),
       C.supabase.from("work_tasks").select("*").eq("organization_id",orgId).order("created_at",{ascending:false}).limit(200),
       C.supabase.from("services").select("id,name,price,active").eq("organization_id",orgId),
+      C.supabase.from("organization_onboarding").select("*").eq("organization_id",orgId).maybeSingle(),
       assigneesForOrg(orgId)
     ]);
     const commercial=commercialR.data||{};
@@ -308,9 +339,11 @@ export async function openCustomer360(context,orgId){
     const tasks=tasksR.data||[];
     const services=servicesR.data||[];
     const assistant=C.state.assistantProfiles[orgId]||null;
+    const onboarding=onboardingR.data||{};
     const openTasks=tasks.filter((r)=>["pending","in_progress"].includes(r.status));
     const confirmed=appointments.filter((r)=>["Confirmada","Completada"].includes(r.status));
     const attention=conversations.filter((r)=>r.status==="Requiere atención");
+    const health=technicalHealth({assistant,commercial,settings,integrations,conversations,attention});
     const pendingAppointments=appointments.filter((r)=>["Solicitada","Pendiente"].includes(r.status));
     const overdueTasks=openTasks.filter((r)=>r.due_at&&new Date(r.due_at).getTime()<Date.now());
     const overdueInvoices=invoices.filter((r)=>r.status==="overdue"||(r.status==="pending"&&r.due_date&&new Date(String(r.due_date)+"T23:59:59-05:00").getTime()<Date.now()));
@@ -331,7 +364,8 @@ export async function openCustomer360(context,orgId){
         <button class="drawer-close" type="button" data-customer-close>×</button>
       </header>
       <div class="drawer-actions">
-        <button class="btn primary" id="customer360Portal" type="button">Ver portal</button>
+        <button class="btn primary" id="customer360Portal" type="button">Entrar como cliente</button>
+        <button class="btn" id="customer360Conversations" type="button">Ver conversaciones</button>
         <button class="btn" id="customer360Settings" type="button">Configuración</button>
         <button class="btn" id="customer360Tasks" type="button">Tareas</button>
         <button class="btn" id="customer360Billing" type="button">Facturación</button>
@@ -346,6 +380,14 @@ export async function openCustomer360(context,orgId){
         <div><span>Costo mensual</span><b>${money(directCost)}</b></div>
         <div><span>Margen</span><b>${mrr?margin+"%":"—"}</b></div>
       </div>
+      <section class="drawer-card drawer-wide customer-health-card">
+        <div class="customer-health-score ${health.tone}">
+          <div><span>HEALTH SCORE</span><b>${health.score}/100</b><small>${esc(health.level)}</small></div>
+          <div class="customer-health-checks">
+            ${health.checks.map((check)=>`<div class="${check.ok?"ok":"warn"}"><i></i><span>${esc(check.label)}</span><b>${esc(check.detail)}</b></div>`).join("")}
+          </div>
+        </div>
+      </section>
       <div class="customer360-grid">
         <section class="drawer-card">
           <h3>Asistente virtual</h3>
@@ -357,6 +399,8 @@ export async function openCustomer360(context,orgId){
           <div><dt>Integraciones</dt><dd>${esc(commercial.integration_status||"—")}</dd></div>
           <div><dt>Facturación</dt><dd>${esc(commercial.billing_status||"—")}</dd></div>
           <div><dt>Por cobrar</dt><dd>${money(receivable)}</dd></div>
+          <div><dt>Onboarding</dt><dd>${esc(onboarding.overall_status||"—")}</dd></div>
+          <div><dt>Go Live</dt><dd>${commercial.go_live_date?shortDate(commercial.go_live_date):"—"}</dd></div>
         </dl></section>
         <section class="drawer-card"><h3>Contacto del negocio</h3><dl class="drawer-dl">
           <div><dt>Correo</dt><dd>${esc(settings.notification_email||settings.public_email||commercial.billing_email||"—")}</dd></div>
@@ -402,6 +446,7 @@ export async function openCustomer360(context,orgId){
     `;
     current.querySelector("[data-customer-close]")?.addEventListener("click",()=>closeDrawer("customer360Modal"));
     C.$("customer360Portal")?.addEventListener("click",async()=>{closeDrawer("customer360Modal");C.$("orgSelect").value=orgId;C.state.page="overview";C.persistUiState();await C.renderApp();});
+    C.$("customer360Conversations")?.addEventListener("click",async()=>{closeDrawer("customer360Modal");C.$("orgSelect").value=orgId;C.state.page="conversations";C.persistUiState();await C.renderApp();});
     C.$("customer360Settings")?.addEventListener("click",async()=>{closeDrawer("customer360Modal");C.state.settingsOrgId=orgId;C.state.page="settings";C.persistUiState();await C.renderApp();});
     C.$("customer360Tasks")?.addEventListener("click",async()=>{closeDrawer("customer360Modal");C.state.taskOrgFilter=orgId;C.state.page="tasks";C.persistUiState();await C.renderApp();});
     C.$("customer360Billing")?.addEventListener("click",async()=>{closeDrawer("customer360Modal");C.$("orgSelect").value=orgId;C.state.page="billing";C.persistUiState();await C.renderApp();});
