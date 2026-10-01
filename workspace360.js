@@ -231,7 +231,7 @@ export async function renderTasks(context=C){
     ${canEdit?`<section class="card task-create-card">
       <div class="card-head"><div><h2>Nueva tarea</h2><p>Asigna responsable, prioridad y fecha límite</p></div></div>
       <form id="taskCreateForm" class="task-create-form">
-        ${internal?`<select id="taskOrg" required>${C.state.organizations.map((org)=>`<option value="${org.id}">${esc(org.name)}</option>`).join("")}</select>`:""}
+        ${internal?`<select id="taskOrg" required>${C.state.organizations.map((org)=>`<option value="${org.id}" ${org.id===C.state.taskOrgFilter?"selected":""}>${esc(org.name)}</option>`).join("")}</select>`:""}
         <input id="taskTitle" required placeholder="Qué hay que hacer">
         <select id="taskPriority"><option value="medium">Prioridad media</option><option value="high">Alta</option><option value="urgent">Urgente</option><option value="low">Baja</option></select>
         <input id="taskDue" type="datetime-local">
@@ -246,7 +246,7 @@ export async function renderTasks(context=C){
         <div><h2>Centro de tareas</h2><p>Trabajo asignable y trazable para NEXO y cada cliente</p></div>
         <div class="task-toolbar">
           <select id="taskStatusFilter" class="control"><option value="open">Abiertas</option><option value="">Todas</option><option value="pending">Pendientes</option><option value="in_progress">En progreso</option><option value="completed">Completadas</option></select>
-          ${internal?`<select id="taskOrgFilter" class="control"><option value="">Todos los negocios</option>${C.state.organizations.map((org)=>`<option value="${org.id}">${esc(org.name)}</option>`).join("")}</select>`:""}
+          ${internal?`<select id="taskOrgFilter" class="control"><option value="">Todos los negocios</option>${C.state.organizations.map((org)=>`<option value="${org.id}" ${org.id===C.state.taskOrgFilter?"selected":""}>${esc(org.name)}</option>`).join("")}</select>`:""}
         </div>
       </div>
       <div id="taskRows" class="task-list"></div>
@@ -314,7 +314,7 @@ export async function renderTasks(context=C){
     document.querySelectorAll(".task-contact-360").forEach((button)=>button.addEventListener("click",()=>openContact360(C,button.dataset.contactId,button.dataset.orgId)));
   };
   C.$("taskStatusFilter")?.addEventListener("change",draw);
-  C.$("taskOrgFilter")?.addEventListener("change",draw);
+  C.$("taskOrgFilter")?.addEventListener("change",(event)=>{C.state.taskOrgFilter=event.target.value||null;draw();});
   draw();
 
   C.$("taskCreateForm")?.addEventListener("submit",async(event)=>{
@@ -431,7 +431,7 @@ export async function openCustomer360(context,orgId){
     current.querySelector("[data-customer-close]")?.addEventListener("click",()=>closeDrawer("customer360Modal"));
     C.$("customer360Portal")?.addEventListener("click",async()=>{closeDrawer("customer360Modal");C.$("orgSelect").value=orgId;C.state.page="overview";C.persistUiState();await C.renderApp();});
     C.$("customer360Settings")?.addEventListener("click",async()=>{closeDrawer("customer360Modal");C.state.settingsOrgId=orgId;C.state.page="settings";C.persistUiState();await C.renderApp();});
-    C.$("customer360Tasks")?.addEventListener("click",async()=>{closeDrawer("customer360Modal");C.state.page="tasks";C.persistUiState();await C.renderApp();});
+    C.$("customer360Tasks")?.addEventListener("click",async()=>{closeDrawer("customer360Modal");C.state.taskOrgFilter=orgId;C.state.page="tasks";C.persistUiState();await C.renderApp();});
     C.$("customer360Billing")?.addEventListener("click",async()=>{closeDrawer("customer360Modal");C.$("orgSelect").value=orgId;C.state.page="billing";C.persistUiState();await C.renderApp();});
   }catch(error){closeDrawer("customer360Modal");C.showError(error.message||"No pudimos abrir Customer 360.");}
 }
