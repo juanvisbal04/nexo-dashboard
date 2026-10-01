@@ -74,65 +74,6 @@ function priorityPill(value){
   return '<span class="task-priority '+esc(value||"medium")+'">'+esc(priorityLabels[value]||value||"Media")+'</span>';
 }
 
-function toLocalInput(value){
-  if(!value)return "";
-  const d=new Date(value);
-  const local=new Date(d.getTime()-d.getTimezoneOffset()*60000);
-  return local.toISOString().slice(0,16);
-}
-
-async function openTaskEditor(task,assignees=[]){
-  if(!task)return;
-  const editable=canWrite();
-  showDrawer("taskEditorModal",`
-    <header class="drawer-header">
-      <div><span class="eyebrow">NEXO WORK</span><h2>Editar tarea</h2><p>${esc(orgName(task.organization_id))}</p></div>
-      <button class="drawer-close" type="button" data-task-close>×</button>
-    </header>
-    <form id="taskEditForm" class="task-editor-form">
-      <label>Título<input id="taskEditTitle" value="${esc(task.title||"")}" required ${editable?"":"disabled"}></label>
-      <label>Estado<select id="taskEditStatus" ${editable?"":"disabled"}>${Object.entries(taskStatusLabels).map(([v,l])=>`<option value="${v}" ${v===task.status?"selected":""}>${l}</option>`).join("")}</select></label>
-      <label>Prioridad<select id="taskEditPriority" ${editable?"":"disabled"}>${Object.entries(priorityLabels).map(([v,l])=>`<option value="${v}" ${v===task.priority?"selected":""}>${l}</option>`).join("")}</select></label>
-      <label>Fecha límite<input id="taskEditDue" type="datetime-local" value="${toLocalInput(task.due_at)}" ${editable?"":"disabled"}></label>
-      <label>Responsable<select id="taskEditAssignee" ${editable?"":"disabled"}><option value="">Sin asignar</option>${assignees.map((p)=>`<option value="${p.id}" ${p.id===task.assigned_to?"selected":""}>${esc(p.full_name||p.contact_email||"Usuario")} · ${esc(p.role||"")}</option>`).join("")}</select></label>
-      <label class="wide">Notas / contexto<textarea id="taskEditDescription" rows="4" ${editable?"":"disabled"}>${esc(task.description||"")}</textarea></label>
-      <div class="task-editor-actions">
-        ${task.contact_id?`<button id="taskEditContact" class="btn" type="button">Contact 360</button>`:""}
-        ${editable?`<button id="taskDeleteButton" class="btn danger" type="button">Eliminar</button><button class="btn primary" type="submit">Guardar cambios</button>`:""}
-      </div>
-    </form>
-  `);
-  document.querySelector("[data-task-close]")?.addEventListener("click",()=>closeDrawer("taskEditorModal"));
-  document.getElementById("taskEditContact")?.addEventListener("click",async()=>{closeDrawer("taskEditorModal");await openContact360(C,task.contact_id,task.organization_id);});
-  document.getElementById("taskEditForm")?.addEventListener("submit",async(event)=>{
-    event.preventDefault();
-    const status=document.getElementById("taskEditStatus").value;
-    const due=document.getElementById("taskEditDue").value;
-    const payload={
-      title:document.getElementById("taskEditTitle").value.trim(),
-      description:document.getElementById("taskEditDescription").value.trim()||null,
-      status,
-      priority:document.getElementById("taskEditPriority").value,
-      due_at:due?new Date(due).toISOString():null,
-      assigned_to:document.getElementById("taskEditAssignee").value||null,
-      completed_at:status==="completed"?(task.completed_at||new Date().toISOString()):null
-    };
-    const {error}=await C.supabase.from("work_tasks").update(payload).eq("id",task.id);
-    if(error)return C.showError(error.message);
-    C.showToast("Tarea actualizada.");
-    closeDrawer("taskEditorModal");
-    await C.renderApp();
-  });
-  document.getElementById("taskDeleteButton")?.addEventListener("click",async()=>{
-    if(!confirm("¿Eliminar esta tarea? Esta acción quedará registrada en Audit Log."))return;
-    const {error}=await C.supabase.from("work_tasks").delete().eq("id",task.id);
-    if(error)return C.showError(error.message);
-    C.showToast("Tarea eliminada.");
-    closeDrawer("taskEditorModal");
-    await C.renderApp();
-  });
-}
-
 function localDateTimeInput(value){
   if(!value)return "";
   const d=new Date(value);
