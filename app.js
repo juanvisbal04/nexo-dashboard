@@ -66,7 +66,7 @@ function restoreUiState() {
   let page = pageMeta[hashPage] ? hashPage : (pageMeta[saved.page] ? saved.page : "overview");
   const adminOnly = new Set(["crm","clients","operations","quality","audit","admin"]);
   if (adminOnly.has(page) && !state.isAdmin) page = "overview";
-  if (state.isAdmin && isInternalOrg() && !["overview","crm","clients","operations","tasks","quality","settings","audit","profile"].includes(page)) page = "overview";
+  if (state.isAdmin && isInternalOrg() && !["overview","crm","clients","operations","conversations","tasks","quality","settings","audit","profile"].includes(page)) page = "overview";
   if ((!state.isAdmin || !isInternalOrg()) && ["clients","operations","quality","audit","admin","crm"].includes(page)) page = "overview";
   if (page === "team" && !canManageCurrentOrgUsers()) page = "overview";
   state.page = page;
@@ -77,7 +77,7 @@ function restoreUiState() {
 
 const pageMeta = {
   overview: ["Inicio", "NEXO DASHBOARD", "Tu negocio, en perspectiva.", "Lo importante de tu operación en una sola vista."],
-  conversations: ["Conversaciones", "ATENCIÓN AL CLIENTE", "Cada conversación cuenta.", "Consulta la actividad registrada por tus asistentes."],
+  conversations: ["Conversaciones", "NEXO MONITORING", "Conversaciones de la red.", "Monitorea chats por cliente y abre el historial completo cuando necesites revisar una conversación."],
   leads: ["Oportunidades", "NEXO SALES", "Oportunidades en movimiento.", "Leads identificados y su etapa actual."],
   appointments: ["Agenda", "NEXO BOOKING", "Tu agenda, bajo control.", "Solicitudes, citas y reservas."],
   followups: ["Seguimientos", "NEXO RECOVERY", "El siguiente paso importa.", "Oportunidades que necesitan una nueva acción."],
@@ -1931,7 +1931,7 @@ async function renderOperations() {
 
     <div class="operations-columns">
       <section class="card"><div class="card-head"><div><h2>Chats recientes por cliente</h2><p>Monitoreo técnico de actividad</p></div></div>
-        <div class="mini-feed">${recentConversations.map((row)=>`<div><b>${esc(row.name||"Conversación")}</b><span>${esc(orgName(row.organization_id))}</span><small>${dateTime(row.last_message_at)}</small></div>`).join("")||emptyState()}</div>
+        <div class="mini-feed">${recentConversations.map((row)=>`<div><b>${esc(row.name||"Conversación")}</b><span>${esc(orgName(row.organization_id))}</span><small>${dateTime(row.last_message_at)}</small>${row.contact_id?`<button class="btn small chat-button" data-contact-id="${row.contact_id}" data-org-id="${row.organization_id}" type="button">Ver chat</button>`:""}</div>`).join("")||emptyState()}</div>
       </section>
       <section class="card"><div class="card-head"><div><h2>Integraciones</h2><p>Estado de conexión por cliente</p></div></div>
         <div class="mini-feed">${clients.map((org)=>{
@@ -1949,6 +1949,7 @@ async function renderOperations() {
   `;
 
   bindAttentionActions();
+  bindChatButtons();
   document.querySelectorAll("[data-open-org-settings]").forEach((button)=>button.addEventListener("click",async()=>{
     state.settingsOrgId=button.dataset.openOrgSettings;
     state.page="settings";
