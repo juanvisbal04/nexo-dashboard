@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
 import { renderCrm } from "./crm.js?v=20260930-crm25";
+import { renderTasks, openCustomer360, openContact360, closeDrawer } from "./workspace360.js?v=20260930-360a";
 
 const SUPABASE_URL = "https://ixewnbjndguchunwcuhf.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_vFnLRe9cmnOcyz2Fivprhw_8UjBaRGL";
@@ -62,7 +63,7 @@ function restoreUiState() {
   let page = pageMeta[hashPage] ? hashPage : (pageMeta[saved.page] ? saved.page : "overview");
   const adminOnly = new Set(["crm","clients","operations","audit","admin"]);
   if (adminOnly.has(page) && !state.isAdmin) page = "overview";
-  if (state.isAdmin && isInternalOrg() && !["overview","crm","clients","operations","settings","audit","profile"].includes(page)) page = "overview";
+  if (state.isAdmin && isInternalOrg() && !["overview","crm","clients","operations","tasks","settings","audit","profile"].includes(page)) page = "overview";
   if ((!state.isAdmin || !isInternalOrg()) && ["clients","operations","audit","admin","crm"].includes(page)) page = "overview";
   if (page === "team" && !canManageCurrentOrgUsers()) page = "overview";
   state.page = page;
@@ -83,6 +84,7 @@ const pageMeta = {
   crm: ["Ventas & Finanzas", "NEXO CRM", "Pipeline, ingresos y rentabilidad.", "Del prospecto al cliente activo y su economía en un solo módulo."],
   clients: ["Clientes", "NEXO CRM", "Tu cartera de clientes, organizada.", "Empresas, planes, accesos e implementación sin métricas repetidas."],
   operations: ["Operaciones", "NEXO OPERATIONS", "Lo que está pasando ahora.", "Conversaciones, oportunidades y agenda que requieren seguimiento."],
+  tasks: ["Tareas", "NEXO WORK", "Trabajo claro, responsables claros.", "Prioridades, responsables, fechas límite y progreso en un solo lugar."],
   settings: ["Configuración", "NEXO SETTINGS", "Cada negocio, bien configurado.", "Identidad, contacto, asistente, notificaciones y preferencias."],
   audit: ["Audit Log", "NEXO GOVERNANCE", "Cada cambio deja rastro.", "Historial administrativo de configuración, accesos, cobros e integraciones."],
   profile: ["Mi perfil", "CUENTA NEXO", "Tu perfil, bajo tu control.", "Foto, datos de contacto e información personal de tu acceso."],
@@ -1380,7 +1382,7 @@ async function renderTablePage(type) {
       cols: [...(showOrganization ? ["Empresa"] : []), "Contacto", "Teléfono", "Consulta", "Origen", "Estado", "Actividad", "Chat"],
       cells: (row) => [
         ...(showOrganization ? [`<b>${esc(row.organization_name)}</b>`] : []),
-        `<b>${esc(row.contact_name || row.name)}</b>`,
+        `${contact360Cell(row)}`,
         phoneCell(row),
         esc(row.service),
         esc(row.source),
@@ -1394,7 +1396,7 @@ async function renderTablePage(type) {
       cols: [...(showOrganization ? ["Empresa"] : []), "Contacto", "Teléfono", "Servicio", "Origen", "Etapa", "Valor", "Chat"],
       cells: (row) => [
         ...(showOrganization ? [`<b>${esc(row.organization_name)}</b>`] : []),
-        `<b>${esc(row.contact_name || row.name)}</b>`,
+        `${contact360Cell(row)}`,
         phoneCell(row),
         esc(row.service),
         esc(row.source),
@@ -1408,7 +1410,7 @@ async function renderTablePage(type) {
       cols: [...(showOrganization ? ["Empresa"] : []), "Contacto", "Teléfono", "Servicio", "Fecha", "Estado", "Valor", "Chat"],
       cells: (row) => [
         ...(showOrganization ? [`<b>${esc(row.organization_name)}</b>`] : []),
-        `<b>${esc(row.contact_name || row.name)}</b>`,
+        `${contact360Cell(row)}`,
         phoneCell(row),
         esc(row.service),
         dateTime(row.starts_at),
@@ -1422,7 +1424,7 @@ async function renderTablePage(type) {
       cols: [...(showOrganization ? ["Empresa"] : []), "Contacto", "Teléfono", "Servicio", "Fecha objetivo", "Estado", "Creado", "Chat"],
       cells: (row) => [
         ...(showOrganization ? [`<b>${esc(row.organization_name)}</b>`] : []),
-        `<b>${esc(row.contact_name || row.name)}</b>`,
+        `${contact360Cell(row)}`,
         phoneCell(row),
         esc(row.service),
         dateTime(row.due_at),
@@ -1458,6 +1460,7 @@ async function renderTablePage(type) {
     ` : emptyState();
     bindStatusControls(type);
     bindChatButtons();
+    bindContact360Buttons();
   };
 
   draw(rows);
@@ -1723,8 +1726,8 @@ async function renderClients() {
               <td><b>${userCounts[org.id]||0}</b></td>
               <td>${esc(setting.notification_email||setting.whatsapp||"—")}</td>
               <td><div class="row-actions">
-                <button class="btn small client-view-button" data-id="${org.id}" type="button">Ver portal</button>
-                <button class="btn small primary client-configure-button" data-id="${org.id}" type="button">Configurar</button>
+                <button class="btn small primary customer-360-button" data-id="${org.id}" type="button">Customer 360</button>
+                <button class="btn small client-configure-button" data-id="${org.id}" type="button">Configurar</button>
               </div></td>
             </tr>`;
           }).join("") : `<tr><td colspan="10">${emptyState("Todavía no hay clientes.","Crea tu primer negocio NEXO.")}</td></tr>`}
@@ -1760,6 +1763,10 @@ async function renderClients() {
       </details>
     </div>
   `;
+
+  document.querySelectorAll(".customer-360-button").forEach((button)=>{
+    button.addEventListener("click",()=>openCustomer360(workspace360Context(),button.dataset.id));
+  });
 
   document.querySelectorAll(".client-view-button").forEach((button)=>{
     button.addEventListener("click",async()=>{
@@ -2726,7 +2733,8 @@ function isUserEditing() {
   const chat = document.getElementById("chatModal");
   const chatOpen = chat && !chat.classList.contains("hidden");
   const crmOpen = !!document.getElementById("crmModal");
-  return Boolean(formFocused || chatOpen || crmOpen);
+  const drawerOpen = !!document.querySelector(".nexo-drawer:not(.hidden)");
+  return Boolean(formFocused || chatOpen || crmOpen || drawerOpen);
 }
 
 function pageUsesRealtimeTable(table) {
@@ -2739,6 +2747,8 @@ function pageUsesRealtimeTable(table) {
     client_invoices: ["crm","billing"],
     demo_requests: ["crm","admin"],
     crm_activities: ["crm"],
+    work_tasks: ["overview","tasks","clients","operations"],
+    contact_notes: ["tasks"],
   };
   return (map[table] || []).includes(state.page);
 }
@@ -2760,7 +2770,7 @@ function startRealtime() {
   realtimeChannel = supabase.channel("nexo-dashboard-live");
   [
     "conversations","messages","leads","appointments","followups",
-    "client_invoices","demo_requests","crm_activities"
+    "client_invoices","demo_requests","crm_activities","work_tasks","contact_notes"
   ].forEach((table) => {
     realtimeChannel.on("postgres_changes", { event: "*", schema: "public", table }, () => {
       scheduleRealtimeRefresh(table);
@@ -2867,6 +2877,11 @@ function renderSearchResults(query="") {
 async function openSearchResult(index) {
   const item=state.searchIndex[index];
   if (!item) return;
+  if (item.row?.contact_id && ["conversation","lead","appointment"].includes(item.type)) {
+    closeGlobalSearch();
+    await openContact360(workspace360Context(),item.row.contact_id,item.orgId||currentOrgId());
+    return;
+  }
   if (item.orgId && state.organizations.some((org)=>org.id===item.orgId)) $("orgSelect").value=item.orgId;
   state.page=item.page;
   document.querySelectorAll(".nav-item").forEach((el)=>el.classList.toggle("active",el.dataset.page===state.page));
@@ -3030,9 +3045,32 @@ function toggleNotificationPanel(force) {
   if (open) refreshNotifications().catch((error)=>console.warn("NEXO_NOTIFICATIONS",error));
 }
 
+
+function workspace360Context() {
+  return {
+    supabase,state,$,esc,money,dateTime,shortDate,emptyState,showError,showToast,
+    currentOrgId,currentOrgRole,isInternalOrg,assistantAvatarHtml,openContactChat,
+    renderApp:render,persistUiState
+  };
+}
+
+function contact360Cell(row) {
+  const label=row.contact_name||row.name||"Contacto";
+  if(!row.contact_id)return `<b>${esc(label)}</b>`;
+  return `<button class="contact360-link" type="button" data-contact-360="${row.contact_id}" data-contact-org="${row.organization_id||""}">${esc(label)}</button>`;
+}
+
+function bindContact360Buttons() {
+  document.querySelectorAll("[data-contact-360]").forEach((button)=>{
+    button.addEventListener("click",()=>openContact360(workspace360Context(),button.dataset.contact360,button.dataset.contactOrg||currentOrgId()));
+  });
+}
+
 async function render() {
   closeContactChat();
   document.getElementById("crmModal")?.remove();
+  closeDrawer("customer360Modal");
+  closeDrawer("contact360Modal");
   document.body.classList.remove("modal-open");
   document.body.classList.remove("sidebar-open");
   clearError();
@@ -3047,10 +3085,10 @@ async function render() {
   }
 
   persistUiState();
-  const noPeriod = ["crm","billing","clients","settings","audit","profile"].includes(state.page);
+  const noPeriod = ["crm","billing","clients","tasks","settings","audit","profile"].includes(state.page);
   $("periodSelect").classList.toggle("hidden", noPeriod);
   $("exportButton").classList.toggle("hidden", ["settings","profile"].includes(state.page));
-  $("exportButton").textContent = state.page === "crm" ? "Exportar CRM" : state.page === "billing" ? "Exportar cobros" : state.page === "audit" ? "Exportar audit" : state.page === "clients" ? "Exportar clientes" : "Exportar CSV";
+  $("exportButton").textContent = state.page === "crm" ? "Exportar CRM" : state.page === "billing" ? "Exportar cobros" : state.page === "audit" ? "Exportar audit" : state.page === "clients" ? "Exportar clientes" : state.page === "tasks" ? "Exportar tareas" : "Exportar CSV";
 
   $("breadcrumb").textContent = meta[0];
   $("pageEyebrow").textContent = meta[1];
@@ -3069,6 +3107,7 @@ async function render() {
     else if (state.page === "crm") await renderCrm({ supabase, state, $, esc, money, dateTime, shortDate, metricCard, emptyState, showError, showToast, clientOrganizations, loadOrganizations, renderApp: render, persistUiState, downloadInvoicePdf });
     else if (state.page === "clients" || state.page === "admin") await renderClients();
     else if (state.page === "operations") await renderOperations();
+    else if (state.page === "tasks") await renderTasks(workspace360Context());
     else if (state.page === "settings") await renderSettings();
     else if (state.page === "audit") await renderAudit();
     else if (state.page === "profile") await renderProfile();
@@ -3280,7 +3319,7 @@ $("refreshButton").addEventListener("click", async () => {
 $("orgSelect").addEventListener("change", async () => {
   updateNavigationAccess();
   const internal=adminInternalView();
-  if (internal && !["overview","crm","clients","operations","settings","audit","profile"].includes(state.page)) state.page="overview";
+  if (internal && !["overview","crm","clients","operations","tasks","settings","audit","profile"].includes(state.page)) state.page="overview";
   if (!internal && ["crm","clients","operations","audit","admin"].includes(state.page)) state.page="overview";
   if (state.page === "team" && !canManageCurrentOrgUsers()) state.page = "overview";
   document.querySelectorAll(".nav-item").forEach((item) => item.classList.toggle("active", item.dataset.page === state.page));
@@ -3334,7 +3373,8 @@ function repairUiLocks() {
   const chat = document.getElementById("chatModal");
   const chatOpen = chat && !chat.classList.contains("hidden");
   const crmOpen = !!document.getElementById("crmModal");
-  if (!chatOpen && !crmOpen) document.body.classList.remove("modal-open");
+  const drawerOpen = !!document.querySelector(".nexo-drawer:not(.hidden)");
+  if (!chatOpen && !crmOpen && !drawerOpen) document.body.classList.remove("modal-open");
 }
 
 document.addEventListener("focusout", () => {
@@ -3381,6 +3421,8 @@ document.addEventListener("keydown", (event) => {
     closeGlobalSearch();
     closeContactChat();
     document.getElementById("crmModal")?.remove();
+    closeDrawer("customer360Modal");
+    closeDrawer("contact360Modal");
     $("notificationPanel")?.classList.add("hidden");
     $("notificationButton")?.setAttribute("aria-expanded","false");
     document.body.classList.remove("modal-open");
