@@ -487,6 +487,11 @@ async function openCommercialEditor(org, commercial, integrations, plans = []) {
   });
 }
 
+export async function openProspectEditorFromGrowth(context, prospect, plans = []) {
+  C = context;
+  return openProspectEditor(prospect, plans);
+}
+
 export async function renderCrm(context) {
   C = context;
   if (!C.state.isAdmin) {
