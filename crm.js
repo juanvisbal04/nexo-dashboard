@@ -491,6 +491,79 @@ export async function openProspectEditorFromGrowth(context, prospect, plans = []
   C = context;
   return openProspectEditor(prospect, plans);
 }
+export async function openNewProspectFromGrowth(context, plans = []) {
+  C = context;
+  const body = `
+    <form id="crmQuickProspectForm" class="crm-form">
+      <div class="crm-form-grid">
+        <label>Contacto<input id="crmQuickName" required placeholder="Nombre del contacto"></label>
+        <label>Negocio<input id="crmQuickBusiness" required placeholder="Nombre del negocio"></label>
+        <label>WhatsApp<input id="crmQuickPhone" placeholder="+57..."></label>
+        <label>Correo<input id="crmQuickEmail" type="email" placeholder="correo@empresa.com"></label>
+        <label>Sector<input id="crmQuickIndustry" placeholder="Hotel, restaurante, estética..."></label>
+        <label>Plan de interés
+          <select id="crmQuickPlan">
+            <option value="">Sin definir</option>
+            ${plans.filter((plan)=>plan.active).sort((a,b)=>a.sort_order-b.sort_order).map((plan)=>`<option value="${plan.code}">${esc(plan.name)}</option>`).join("")}
+          </select>
+        </label>
+        <label>MRR esperado<input id="crmQuickMrr" type="number" min="0" step="1000" placeholder="0"></label>
+        <label>Setup esperado<input id="crmQuickSetup" type="number" min="0" step="1000" placeholder="0"></label>
+        <label class="wide">Próxima acción<input id="crmQuickNext" type="datetime-local"></label>
+        <label class="wide">Contexto<textarea id="crmQuickMessage" rows="4" placeholder="Qué necesita, cómo llegó, objeciones o próximo paso..."></textarea></label>
+      </div>
+      <div class="crm-form-actions">
+        <button class="btn" type="button" data-crm-close>Cancelar</button>
+        <button id="crmQuickSave" class="btn primary" type="submit">Crear prospecto</button>
+      </div>
+    </form>
+  `;
+
+  const { modal, close } = crmModal("Nuevo prospecto", body);
+  requestAnimationFrame(()=>modal.querySelector("#crmQuickName")?.focus());
+
+  modal.querySelector("#crmQuickProspectForm")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const save=modal.querySelector("#crmQuickSave");
+    save.disabled=true;
+    save.textContent="Creando…";
+    try{
+      const payload={
+        full_name:modal.querySelector("#crmQuickName").value.trim(),
+        business_name:modal.querySelector("#crmQuickBusiness").value.trim(),
+        phone:modal.querySelector("#crmQuickPhone").value.trim()||null,
+        email:modal.querySelector("#crmQuickEmail").value.trim()||null,
+        industry:modal.querySelector("#crmQuickIndustry").value.trim()||null,
+        plan_interest:modal.querySelector("#crmQuickPlan").value||null,
+        message:modal.querySelector("#crmQuickMessage").value.trim()||null,
+        source:"manual",
+        status:"Nuevo",
+        stage:"prospecto",
+        expected_mrr:nullableNumber(modal.querySelector("#crmQuickMrr").value),
+        expected_setup_fee:nullableNumber(modal.querySelector("#crmQuickSetup").value),
+        next_action_at:modal.querySelector("#crmQuickNext").value?new Date(modal.querySelector("#crmQuickNext").value).toISOString():null,
+      };
+      const {data,error}=await C.supabase.from("demo_requests").insert(payload).select("id").single();
+      if(error)throw error;
+      await C.supabase.from("crm_activities").insert({
+        demo_request_id:data.id,
+        organization_id:null,
+        activity_type:"note",
+        title:"Prospecto creado manualmente",
+        details:payload.message||null,
+        created_by:C.state.session.user.id,
+      });
+      C.showToast("Prospecto creado.");
+      close();
+      if(typeof C.renderApp==="function") await C.renderApp();
+    }catch(error){
+      C.showError(error.message||"No pudimos crear el prospecto.");
+      save.disabled=false;
+      save.textContent="Crear prospecto";
+    }
+  });
+}
+
 
 export async function renderCrm(context) {
   C = context;
