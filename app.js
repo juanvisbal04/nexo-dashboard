@@ -1443,9 +1443,22 @@ async function renderTablePage(type) {
     },
   }[type];
 
+  const clientConversationFilter = showOrganization && type === "conversations";
+  const clientFilterOptions = clientConversationFilter
+    ? clientOrganizations().map((org) => {
+        const assistant = assistantForOrg(org.id);
+        const label = assistant?.name ? `${org.name} · ${assistant.name}` : org.name;
+        return `<option value="${esc(org.id)}">${esc(label)}</option>`;
+      }).join("")
+    : "";
+
   $("content").innerHTML = `
     <div class="table-toolbar">
       <label class="search"><input id="tableSearch" type="search" placeholder="Buscar nombre, teléfono o servicio" /></label>
+      ${clientConversationFilter ? `<select id="conversationClientFilter" class="control" aria-label="Filtrar conversaciones por cliente">
+        <option value="">Todos los clientes</option>
+        ${clientFilterOptions}
+      </select>` : ""}
       <span class="muted" id="rowCount">${rows.length} registros</span>
     </div>
     <section class="card">
@@ -1471,8 +1484,19 @@ async function renderTablePage(type) {
     bindContact360Buttons();
   };
 
+  const applyTableFilters = () => {
+    const query = $("tableSearch")?.value || "";
+    const clientId = $("conversationClientFilter")?.value || "";
+    let visible = filterRows(rows, query);
+    if (clientConversationFilter && clientId) {
+      visible = visible.filter((row) => row.organization_id === clientId);
+    }
+    draw(visible);
+  };
+
   draw(rows);
-  $("tableSearch").addEventListener("input", (event) => draw(filterRows(rows, event.target.value)));
+  $("tableSearch").addEventListener("input", applyTableFilters);
+  $("conversationClientFilter")?.addEventListener("change", applyTableFilters);
 }
 
 function conversationStatusSelect(row) {
