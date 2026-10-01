@@ -857,7 +857,7 @@ function updateNavigationAccess() {
       $("profileRole").textContent = "Platform Admin · Vista cliente";
     } else {
       const role = currentOrgRole();
-      const labels = { owner: "Propietario", admin: "Administrador", operator: "Operador", viewer: "Solo lectura" };
+      const labels = { owner: "Propietario", admin: "Administrador", operator: "Operaciones", finance: "Finanzas", support: "Soporte", viewer: "Solo lectura" };
       $("profileRole").textContent = labels[role] ? `${labels[role]} · Cliente NEXO` : "Cliente NEXO";
     }
   }
@@ -2561,6 +2561,9 @@ async function renderAdmin() {
           <select id="clientRole">
             <option value="owner">Propietario</option>
             <option value="admin">Administrador</option>
+            <option value="operator">Operaciones</option>
+            <option value="finance">Finanzas</option>
+            <option value="support">Soporte</option>
             <option value="viewer">Solo lectura</option>
           </select>
           <button id="createClientAccess" class="btn primary" type="submit">Generar acceso</button>
@@ -2942,13 +2945,13 @@ async function renderTeam() {
 
   const requesterRole = data.requester_role;
   const roleOptions = requesterRole === "platform_admin"
-    ? ["owner", "admin", "operator", "viewer"]
+    ? ["owner", "admin", "operator", "finance", "support", "viewer"]
     : requesterRole === "owner"
-      ? ["admin", "operator", "viewer"]
-      : ["operator", "viewer"];
+      ? ["admin", "operator", "finance", "support", "viewer"]
+      : ["operator", "finance", "support", "viewer"];
 
   const roleLabel = (role) => ({
-    owner: "Propietario", admin: "Administrador", operator: "Operador", viewer: "Solo lectura", platform_admin: "Platform Admin",
+    owner: "Propietario", admin: "Administrador", operator: "Operaciones", finance: "Finanzas", support: "Soporte", viewer: "Solo lectura", platform_admin: "Platform Admin",
   }[role] || role);
 
   $("content").innerHTML = `
