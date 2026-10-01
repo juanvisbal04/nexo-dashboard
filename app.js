@@ -256,6 +256,18 @@ function healthBadge(health, compact = false) {
   return `<span class="health-badge ${health.tone}">${compact ? health.score : `${health.score}/100 · ${esc(health.level)}`}</span>`;
 }
 
+function alertCategoryLabel(type){
+  return ({
+    attention:"Operativa",
+    appointments_pending:"Operativa",
+    no_show:"Cliente",
+    cancellation_rate:"Cliente",
+    response_time:"Plataforma",
+    integration:"Integración",
+    billing:"Facturación",
+  }[type]||"Operativa");
+}
+
 function alertCenterHtml(alerts, title = "Centro de alertas") {
   if (!alerts.length) {
     return `
@@ -267,14 +279,25 @@ function alertCenterHtml(alerts, title = "Centro de alertas") {
   }
   return `
     <section class="card alert-center">
-      <div class="card-head"><div><h2>${esc(title)}</h2><p>Priorizadas por impacto operativo · puedes completar una alerta cuando ya fue revisada</p></div><span class="count">${alerts.length} alerta${alerts.length === 1 ? "" : "s"}</span></div>
+      <div class="card-head"><div><h2>${esc(title)}</h2><p>Alertas accionables: abre, conviértelas en tarea, siléncialas o complétalas.</p></div><span class="count">${alerts.length} alerta${alerts.length === 1 ? "" : "s"}</span></div>
       <div class="alert-list">
         ${alerts.slice(0, 8).map((alert) => `
           <div class="alert-item ${alert.tone}">
             <i></i>
-            <div class="alert-item-copy"><b>${esc(alert.title)}</b><span>${esc(alert.detail)}</span></div>
+            <div class="alert-item-copy">
+              <div class="alert-copy-head"><span class="alert-category">${esc(alertCategoryLabel(alert.alert_type))}</span><b>${esc(alert.title)}</b></div>
+              <span>${esc(alert.detail)}</span>
+            </div>
             <div class="alert-item-actions">
               <button class="alert-open btn small" type="button" data-alert-page="${esc(alert.page || "overview")}" data-alert-org="${esc(alert.organization_id||"")}">Ver</button>
+              <button class="alert-task btn small" type="button"
+                data-alert-org="${esc(alert.organization_id||"")}"
+                data-alert-title="${esc(alert.title||"Alerta NEXO")}"
+                data-alert-detail="${esc(alert.detail||"")}">Crear tarea</button>
+              <button class="alert-snooze btn small" type="button"
+                data-alert-org="${esc(alert.organization_id||"")}"
+                data-alert-key="${esc(alert.alert_key||"")}"
+                data-alert-type="${esc(alert.alert_type||"operational")}">24 h</button>
               <button class="alert-complete btn small" type="button"
                 data-alert-org="${esc(alert.organization_id||"")}"
                 data-alert-key="${esc(alert.alert_key||"")}"
@@ -337,6 +360,56 @@ function bindAlertNavigation() {
     });
   });
 
+  document.querySelectorAll(".alert-task").forEach((button)=>{
+    button.addEventListener("click",async()=>{
+      const orgId=button.dataset.alertOrg||currentOrgId();
+      if(!orgId)return;
+      button.disabled=true;button.textContent="Creando…";
+      try{
+        const {error}=await supabase.from("work_tasks").insert({
+          organization_id:orgId,
+          title:button.dataset.alertTitle||"Revisar alerta NEXO",
+          description:button.dataset.alertDetail||null,
+          status:"pending",
+          priority:"high",
+          assigned_to:state.session.user.id,
+          created_by:state.session.user.id,
+          source_type:"alert"
+        });
+        if(error)throw error;
+        showToast("Tarea creada y asignada a ti.");
+        button.textContent="Creada";
+      }catch(error){
+        showError(error.message||"No pudimos crear la tarea.");
+        button.disabled=false;button.textContent="Crear tarea";
+      }
+    });
+  });
+
+  document.querySelectorAll(".alert-snooze").forEach((button)=>{
+    button.addEventListener("click",async()=>{
+      const orgId=button.dataset.alertOrg||currentOrgId();
+      const alertKey=button.dataset.alertKey;
+      if(!orgId||!alertKey)return;
+      button.disabled=true;button.textContent="…";
+      try{
+        const until=new Date(Date.now()+24*60*60*1000).toISOString();
+        const {error}=await supabase.from("alert_acknowledgements").upsert({
+          organization_id:orgId,
+          alert_key:alertKey,
+          alert_type:button.dataset.alertType||"operational",
+          status:"snoozed",
+          snoozed_until:until,
+          resolved_by:state.session.user.id,
+          resolved_at:new Date().toISOString(),
+        },{onConflict:"organization_id,alert_key"});
+        if(error)throw error;
+        showToast("Alerta silenciada por 24 horas.");
+        await render();
+      }catch(error){showError(error.message||"No pudimos silenciar la alerta.");button.disabled=false;button.textContent="24 h";}
+    });
+  });
+
   document.querySelectorAll(".alert-complete").forEach((button)=>{
     button.addEventListener("click",async()=>{
       const orgId=button.dataset.alertOrg||currentOrgId();
@@ -349,6 +422,7 @@ function bindAlertNavigation() {
           alert_key:alertKey,
           alert_type:button.dataset.alertType||"operational",
           status:"completed",
+          snoozed_until:null,
           resolved_by:state.session.user.id,
           resolved_at:new Date().toISOString(),
         },{onConflict:"organization_id,alert_key"});
@@ -565,11 +639,16 @@ async function loadAlertAcknowledgements(orgIds) {
   state.alertAckKeys = new Set();
   const ids=(orgIds||[]).filter(Boolean);
   if(!ids.length)return;
-  let request=supabase.from("alert_acknowledgements").select("organization_id,alert_key,status");
+  let request=supabase.from("alert_acknowledgements").select("organization_id,alert_key,status,snoozed_until");
   request=ids.length===1?request.eq("organization_id",ids[0]):request.in("organization_id",ids);
   const {data,error}=await request;
   if(error)throw error;
-  state.alertAckKeys=new Set((data||[]).filter((row)=>row.status==="completed"||row.status==="dismissed").map((row)=>`${row.organization_id}:${row.alert_key}`));
+  const now=Date.now();
+  state.alertAckKeys=new Set((data||[]).filter((row)=>{
+    if(row.status==="completed"||row.status==="dismissed")return true;
+    if(row.status==="snoozed"&&row.snoozed_until&&new Date(row.snoozed_until).getTime()>now)return true;
+    return false;
+  }).map((row)=>`${row.organization_id}:${row.alert_key}`));
 }
 
 function visibleOperationalAlerts(alerts) {
