@@ -3739,12 +3739,27 @@ function resetDashboardUiState() {
   window.history.replaceState(null, "", window.location.pathname + window.location.search);
 }
 
+function showBootView(message="Restaurando tu sesión…") {
+  const boot=$("bootView");
+  if(!boot)return;
+  const label=boot.querySelector(".boot-card>span");
+  if(label) label.textContent=message;
+  boot.classList.remove("hidden");
+  $("loginView")?.classList.add("hidden");
+  $("appView")?.classList.add("hidden");
+}
+
+function hideBootView() {
+  $("bootView")?.classList.add("hidden");
+}
+
 function showLoginLoadError(error) {
   const box = $("loginMessage");
   const message = error?.message || "No pudimos cargar el dashboard.";
   box.textContent = "Tu sesión es válida, pero NEXO no pudo terminar de cargar. Reintenta en unos segundos. Detalle: " + message;
   box.className = "message error";
   box.setAttribute("role","alert");
+  hideBootView();
   $("loginView").classList.remove("hidden");
   $("appView").classList.add("hidden");
 }
@@ -3758,8 +3773,9 @@ async function enterApp(session, { allowRecovery = true } = {}) {
   enterAppPromise = (async () => {
     state.session = session;
     const box = $("loginMessage");
-    box.textContent = "Cargando tu espacio NEXO…";
-    box.className = "message ok";
+    showBootView("Cargando tu espacio NEXO…");
+    box.className = "message hidden";
+    box.textContent = "";
     $("topEmail").textContent = session.user.email || "";
 
     try {
@@ -3772,6 +3788,7 @@ async function enterApp(session, { allowRecovery = true } = {}) {
       activeSessionToken = token;
       $("loginView").classList.add("hidden");
       $("appView").classList.remove("hidden");
+      hideBootView();
       box.className = "message hidden";
       box.textContent = "";
     } catch (error) {
@@ -3793,6 +3810,7 @@ async function enterApp(session, { allowRecovery = true } = {}) {
 }
 
 async function boot() {
+  showBootView("Restaurando tu sesión…");
   const setupToken = new URLSearchParams(window.location.search).get("setup");
   if (setupToken) {
     $("loginView").classList.remove("hidden");
@@ -3807,6 +3825,7 @@ async function boot() {
     if (session) {
       await enterApp(session);
     } else {
+      hideBootView();
       $("loginView").classList.remove("hidden");
       $("appView").classList.add("hidden");
     }
@@ -3876,6 +3895,7 @@ $("passwordForm").addEventListener("submit", async (event) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
     if (data.session && activeSessionToken !== data.session.access_token) {
+      showBootView("Abriendo tu espacio NEXO…");
       await enterApp(data.session);
     }
   } catch (error) {
