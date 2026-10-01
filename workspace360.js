@@ -218,7 +218,14 @@ export async function renderTasks(context=C){
         <div><h2>${internal?"Mis tareas":"Centro de tareas"}</h2><p>${internal?"Solo tareas asignadas directamente a tu usuario de Super Admin.":"Trabajo asignable y trazable para tu negocio."}</p></div>
         <div class="task-toolbar">
           <select id="taskStatusFilter" class="control"><option value="open">Abiertas</option><option value="">Todas</option><option value="pending">Pendientes</option><option value="in_progress">En progreso</option><option value="completed">Completadas</option></select>
-          ${internal?`<select id="taskOrgFilter" class="control"><option value="">Todos los negocios</option>${C.state.organizations.map((org)=>`<option value="${org.id}" ${org.id===C.state.taskOrgFilter?"selected":""}>${esc(org.name)}</option>`).join("")}</select>`:""}
+          <select id="taskTimeFilter" class="control">
+            <option value="">Cualquier fecha</option>
+            <option value="today">Hoy</option>
+            <option value="overdue">Vencidas</option>
+            <option value="week">Esta semana</option>
+            <option value="nodate">Sin fecha</option>
+          </select>
+          ${internal?`<select id="taskOrgFilter" class="control"><option value="">Todos los clientes</option>${C.state.organizations.filter((org)=>org.name!=="NEXO Internal").map((org)=>`<option value="${org.id}" ${org.id===C.state.taskOrgFilter?"selected":""}>${esc(org.name)}</option>`).join("")}</select>`:""}
         </div>
       </div>
       <div id="taskRows" class="task-list"></div>
@@ -236,11 +243,21 @@ export async function renderTasks(context=C){
 
   const draw=()=>{
     const status=C.$("taskStatusFilter")?.value||"";
+    const timeFilter=C.$("taskTimeFilter")?.value||"";
     const orgFilter=C.$("taskOrgFilter")?.value||"";
+    const now=new Date();
+    const todayStart=new Date(now);todayStart.setHours(0,0,0,0);
+    const tomorrow=new Date(todayStart);tomorrow.setDate(tomorrow.getDate()+1);
+    const weekEnd=new Date(todayStart);weekEnd.setDate(weekEnd.getDate()+7);
     const visible=rows.filter((row)=>{
       if(orgFilter&&row.organization_id!==orgFilter)return false;
       if(status==="open"&&!["pending","in_progress"].includes(row.status))return false;
       if(status&&status!=="open"&&row.status!==status)return false;
+      const due=row.due_at?new Date(row.due_at):null;
+      if(timeFilter==="today"&&(!due||due<todayStart||due>=tomorrow))return false;
+      if(timeFilter==="overdue"&&(!due||due>=now||!["pending","in_progress"].includes(row.status)))return false;
+      if(timeFilter==="week"&&(!due||due<todayStart||due>=weekEnd))return false;
+      if(timeFilter==="nodate"&&due)return false;
       return true;
     });
     C.$("taskRows").innerHTML=visible.length?visible.map((row)=>{
@@ -284,6 +301,7 @@ export async function renderTasks(context=C){
     document.querySelectorAll(".task-contact-360").forEach((button)=>button.addEventListener("click",()=>openContact360(C,button.dataset.contactId,button.dataset.orgId)));
   };
   C.$("taskStatusFilter")?.addEventListener("change",draw);
+  C.$("taskTimeFilter")?.addEventListener("change",draw);
   C.$("taskOrgFilter")?.addEventListener("change",(event)=>{C.state.taskOrgFilter=event.target.value||null;draw();});
   draw();
 
