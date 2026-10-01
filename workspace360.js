@@ -72,7 +72,7 @@ document.addEventListener("keydown",(event)=>{
 function orgById(id){return C.state.organizations.find((o)=>o.id===id)||null;}
 function orgName(id){return orgById(id)?.name||"NEXO";}
 function currentRole(){return C.state.isAdmin?"platform_admin":C.currentOrgRole();}
-function canWrite(){return C.state.isAdmin || ["owner","admin","operator"].includes(currentRole());}
+function canWrite(){return C.state.isAdmin || ["owner","admin","operator","support"].includes(currentRole());}
 
 async function assigneesForOrg(orgId){
   try{
