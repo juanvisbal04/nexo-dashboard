@@ -362,13 +362,6 @@ export async function openCustomer360(context,orgId){
     const settings=settingsR.data||{};
     const integrations=integrationsR.data||[];
     const conversations=conversationsR.data||[];
-    const conversationIds=conversations.map((row)=>row.id);
-    let messages=[];
-    if(conversationIds.length){
-      const {data:messageRows,error:messageError}=await C.supabase.from("messages").select("id,conversation_id,sender,content,created_at").eq("organization_id",orgId).in("conversation_id",conversationIds).order("created_at",{ascending:false}).limit(500);
-      if(messageError)throw messageError;
-      messages=messageRows||[];
-    }
     const leads=leadsR.data||[];
     const appointments=appointmentsR.data||[];
     const invoices=invoicesR.data||[];
@@ -493,6 +486,13 @@ export async function openContact360(context,contactId,organizationId){
     if(contactR.error)throw contactR.error;
     const contact=contactR.data;
     const conversations=conversationsR.data||[];
+    const conversationIds=conversations.map((row)=>row.id);
+    let messages=[];
+    if(conversationIds.length){
+      const {data:messageRows,error:messageError}=await C.supabase.from("messages").select("id,conversation_id,sender,content,created_at").eq("organization_id",orgId).in("conversation_id",conversationIds).order("created_at",{ascending:false}).limit(500);
+      if(messageError)throw messageError;
+      messages=messageRows||[];
+    }
     const leads=leadsR.data||[];
     const appointments=appointmentsR.data||[];
     const followups=followupsR.data||[];
