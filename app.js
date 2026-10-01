@@ -86,7 +86,7 @@ const pageMeta = {
   team: ["Usuarios", "CONTROL DE ACCESO", "Tu equipo, con el acceso correcto.", "Invita y administra usuarios de este dashboard."],
   crm: ["Ventas & Finanzas", "NEXO CRM", "Pipeline, ingresos y rentabilidad.", "Del prospecto al cliente activo y su economía en un solo módulo."],
   clients: ["Clientes", "NEXO CRM", "Tu cartera de clientes, organizada.", "Empresas, planes, accesos e implementación sin métricas repetidas."],
-  operations: ["Operaciones", "NEXO OPERATIONS", "Lo que está pasando ahora.", "Conversaciones, oportunidades y agenda que requieren seguimiento."],
+  operations: ["Operaciones", "NEXO OPERATIONS", "La plataforma, bajo control.", "Integraciones, asistentes, handoffs y salud operativa de NEXO."],
   quality: ["Calidad de datos", "NEXO DATA QUALITY", "Datos confiables para decidir.", "Duplicados, precios, pruebas, integridad y onboarding en una sola vista."],
   tasks: ["Tareas", "NEXO WORK", "Trabajo claro, responsables claros.", "Prioridades, responsables, fechas límite y progreso en un solo lugar."],
   settings: ["Configuración", "NEXO SETTINGS", "Cada negocio, bien configurado.", "Identidad, contacto, asistente, notificaciones y preferencias."],
@@ -964,16 +964,6 @@ async function renderOverview() {
     const totalHandoffs=conversations.filter((row)=>row.status==="Requiere atención").length;
 
     const clientName = (id) => clients.find((org) => org.id === id)?.name || "Cliente NEXO";
-    const attentionRows = m.conversations
-      .filter((row) => row.status === "Requiere atención")
-      .sort((a, b) => String(b.last_message_at).localeCompare(String(a.last_message_at)))
-      .slice(0, 8);
-    await loadAlertAcknowledgements(clients.map((org)=>org.id));
-    const networkAlerts = visibleOperationalAlerts(clientRows.flatMap((row) => row.alerts)).sort((a, b) => b.priority - a.priority);
-    const stableClients = clientRows.filter((row) => row.health.tone === "good").length;
-    const watchClients = clientRows.filter((row) => row.health.tone === "watch").length;
-    const riskClients = clientRows.filter((row) => row.health.tone === "risk").length;
-
     const [{data:commandProspects},{data:commandInvoices},{data:commandCommercials},{data:manualTasks}] = await Promise.all([
       supabase.from("demo_requests").select("*").in("stage",["prospecto","demo","propuesta"]).order("created_at",{ascending:false}).limit(50),
       supabase.from("client_invoices").select("*").in("status",["pending","overdue"]).order("due_date",{ascending:true}).limit(50),
@@ -1057,7 +1047,7 @@ async function renderOverview() {
         ${metricCard("Clientes activos", clients.length, "Organizaciones en producción", null, true)}
         ${metricCard("MRR NEXO", money(mrr), "Ingreso recurrente mensual")}
         ${metricCard("Margen bruto", money(grossMargin), `${money(monthlyCost)} de costo mensual`)}
-        ${metricCard("Chats monitoreados", m.chats, `${m.attention} handoffs pendientes`)}
+        ${metricCard("Chats monitoreados", conversations.length, `${totalHandoffs} handoffs pendientes`)}
       </div>
 
       <section class="card command-today-card">
@@ -1082,7 +1072,7 @@ async function renderOverview() {
         <div><span>Costos mensuales</span><b>${money(monthlyCost)}</b><small>infraestructura y operación</small></div>
         <div><span>Margen bruto</span><b>${money(grossMargin)}</b><small>MRR menos costos</small></div>
         <div><span>Integraciones por revisar</span><b>${integrationIssues}</b><small>clientes activos</small></div>
-        <div><span>Handoffs</span><b>${m.attention}</b><small>solo monitoreo de chats</small></div>
+        <div><span>Handoffs</span><b>${totalHandoffs}</b><small>solo monitoreo de chats</small></div>
       </div>
 
       <section class="card">
@@ -1129,7 +1119,7 @@ async function renderOverview() {
             <div class="item-row"><div><strong>Clientes activos</strong><small>Organizaciones en producción</small></div><b>${clients.length}</b></div>
             <div class="item-row"><div><strong>Integraciones por revisar</strong><small>Pendientes, parciales o con atención</small></div><b>${integrationIssues}</b></div>
             <div class="item-row"><div><strong>Mis tareas abiertas</strong><small>Asignadas directamente a Juan</small></div><b>${(manualTasks||[]).length}</b></div>
-            <div class="item-row"><div><strong>Handoffs de clientes</strong><small>Solo monitoreo transversal de chats</small></div><b>${m.attention}</b></div>
+            <div class="item-row"><div><strong>Handoffs de clientes</strong><small>Solo monitoreo transversal de chats</small></div><b>${totalHandoffs}</b></div>
           </div>
         </section>
       </div>
@@ -1153,6 +1143,9 @@ async function renderOverview() {
     }));
     return;
   }
+
+  const m = await getMetrics();
+  state.currentRows = m.conversations;
 
   const attentionRows = m.conversations
     .filter((row) => row.status === "Requiere atención")
