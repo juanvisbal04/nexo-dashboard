@@ -373,17 +373,7 @@ export async function openOnboarding(context=Q,orgId){
     if(!confirm(`¿Activar ${org.name} como cliente LIVE? Esto actualizará su etapa comercial y fecha de Go Live.`))return;
     const button=root.querySelector("#onboardingGoLive");
     button.disabled=true;button.textContent="Activando…";
-    const today=new Intl.DateTimeFormat("en-CA",{timeZone:"America/Bogota",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
-    const [onb,orgUpdate,commercialUpdate]=await Promise.all([
-      Q.supabase.from("organization_onboarding").update({
-        overall_status:"live",go_live_status:"done",testing_status:row.testing_status==="pending"?"done":row.testing_status,updated_by:Q.state.session.user.id
-      }).eq("organization_id",orgId),
-      Q.supabase.from("organizations").update({status:"active",updated_at:new Date().toISOString()}).eq("id",orgId),
-      Q.supabase.from("organization_commercials").update({
-        lifecycle_stage:"activo",implementation_status:"done",go_live_date:commercial.go_live_date||today,updated_at:new Date().toISOString()
-      }).eq("organization_id",orgId),
-    ]);
-    const goError=onb.error||orgUpdate.error||commercialUpdate.error;
+    const {error:goError}=await Q.supabase.rpc("platform_activate_go_live",{p_organization_id:orgId});
     if(goError){Q.showError(goError.message||"No pudimos activar Go Live.");button.disabled=false;button.textContent="Activar Go Live";return;}
     Q.showToast(org.name+" está LIVE.");
     closeQualityDrawer("onboardingDrawer");
