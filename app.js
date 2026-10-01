@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
 import { renderCrm } from "./crm.js?v=20260930-crm25";
-import { renderTasks, openCustomer360, openContact360, closeDrawer } from "./workspace360.js?v=20261001-360b";
+import { renderTasks, openCustomer360, openContact360, closeDrawer } from "./workspace360.js?v=20261001-360c";
 
 const SUPABASE_URL = "https://ixewnbjndguchunwcuhf.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_vFnLRe9cmnOcyz2Fivprhw_8UjBaRGL";
@@ -948,6 +948,23 @@ function emptyState(title = "Todavía no hay datos reales en esta sección.", de
 async function renderOverview() {
   const m = await getMetrics();
   state.currentRows = m.conversations;
+
+  (workTaskResult.data || []).forEach((row) => {
+    const due=row.due_at?new Date(row.due_at).getTime():null;
+    const overdue=due && due<Date.now();
+    const urgent=row.priority==="urgent";
+    const dueSoon=due && due>=Date.now() && due<=Date.now()+48*60*60*1000;
+    if(!overdue && !urgent && !dueSoon) return;
+    items.push({
+      tone:overdue||urgent?"risk":"watch",
+      priority:overdue?98:urgent?93:72,
+      page:"tasks",
+      orgId:row.organization_id,
+      title:overdue?"Tarea vencida":urgent?"Tarea urgente":"Tarea próxima a vencer",
+      detail:(row.title||"Tarea")+" · "+notificationOrgName(row.organization_id),
+      date:row.due_at,
+    });
+  });
 
   if (state.isAdmin && isInternalOrg()) {
     const clients = clientOrganizations();
@@ -2809,6 +2826,8 @@ function searchLabelFor(type,row) {
   if (type==="appointment") return row.name || row.service || "Cita";
   if (type==="invoice") return row.invoice_number || row.reference || "Cuenta de cobro";
   if (type==="prospect") return row.business_name || row.full_name || "Prospecto";
+  if (type==="contact") return row.name || row.phone || "Contacto";
+  if (type==="task") return row.title || "Tarea";
   return "Registro";
 }
 
@@ -2821,8 +2840,13 @@ function searchDetailFor(type,row) {
   if (type==="appointment") bits.push(row.status || row.service || "");
   if (type==="invoice") bits.push(money(row.amount_cop), row.status || "");
   if (type==="prospect") bits.push(row.stage || row.status || "");
+  if (type==="contact") bits.push(row.phone || row.email || row.source || "");
+  if (type==="task") bits.push(taskStatusSearchLabel(row.status), taskPrioritySearchLabel(row.priority), row.due_at ? shortDate(row.due_at) : "");
   return bits.filter(Boolean).join(" · ");
 }
+
+function taskStatusSearchLabel(value){return ({pending:"Pendiente",in_progress:"En progreso",completed:"Completada",cancelled:"Cancelada"}[value]||value||"");}
+function taskPrioritySearchLabel(value){return ({low:"Baja",medium:"Media",high:"Alta",urgent:"Urgente"}[value]||value||"");}
 
 async function buildSearchIndex() {
   const orgIds=searchOrgIds();
@@ -2836,12 +2860,17 @@ async function buildSearchIndex() {
     scope(supabase.from("leads").select("*").order("created_at",{ascending:false}).limit(250)),
     scope(supabase.from("appointments").select("*").order("created_at",{ascending:false}).limit(250)),
     scope(supabase.from("client_invoices").select("*").order("created_at",{ascending:false}).limit(250)),
+    scope(supabase.from("contacts").select("*").order("created_at",{ascending:false}).limit(350)),
+    scope(supabase.from("work_tasks").select("*").order("created_at",{ascending:false}).limit(350)),
   ];
-  if (state.isAdmin && isInternalOrg()) jobs.push(supabase.from("demo_requests").select("*").order("created_at",{ascending:false}).limit(250));
+  const types=["conversation","lead","appointment","invoice","contact","task"];
+  if (state.isAdmin && isInternalOrg()) {
+    jobs.push(supabase.from("demo_requests").select("*").order("created_at",{ascending:false}).limit(250));
+    types.push("prospect");
+  }
 
   const results=await Promise.all(jobs);
-  const types=["conversation","lead","appointment","invoice","prospect"];
-  const pages={conversation:"conversations",lead:"leads",appointment:"appointments",invoice:"billing",prospect:"crm"};
+  const pages={conversation:"conversations",lead:"leads",appointment:"appointments",invoice:"billing",contact:"conversations",task:"tasks",prospect:"crm"};
   const index=[];
 
   results.forEach((result,i)=>{
@@ -2861,7 +2890,7 @@ async function buildSearchIndex() {
 }
 
 function searchTypeLabel(type) {
-  return ({conversation:"Chat",lead:"Lead",appointment:"Cita",invoice:"Cobro",prospect:"Prospecto"}[type]||type);
+  return ({conversation:"Chat",lead:"Lead",appointment:"Cita",invoice:"Cobro",contact:"Contacto",task:"Tarea",prospect:"Prospecto"}[type]||type);
 }
 
 function renderSearchResults(query="") {
@@ -2893,6 +2922,11 @@ function renderSearchResults(query="") {
 async function openSearchResult(index) {
   const item=state.searchIndex[index];
   if (!item) return;
+  if (item.type==="contact" && item.row?.id) {
+    closeGlobalSearch();
+    await openContact360(workspace360Context(),item.row.id,item.orgId||currentOrgId());
+    return;
+  }
   if (item.row?.contact_id && ["conversation","lead","appointment"].includes(item.type)) {
     closeGlobalSearch();
     await openContact360(workspace360Context(),item.row.contact_id,item.orgId||currentOrgId());
@@ -2948,9 +2982,10 @@ async function refreshNotifications() {
     scoped(supabase.from("conversations").select("id,organization_id,name,status,last_message_at").eq("status","Requiere atención").order("last_message_at",{ascending:false}).limit(12)),
     scoped(supabase.from("appointments").select("id,organization_id,name,status,starts_at,created_at").in("status",["Solicitada","Pendiente"]).order("created_at",{ascending:false}).limit(12)),
     scoped(supabase.from("client_invoices").select("id,organization_id,invoice_number,status,due_date,amount_cop,reference").in("status",["pending","overdue"]).order("due_date",{ascending:true}).limit(20)),
+    scoped(supabase.from("work_tasks").select("id,organization_id,title,status,priority,due_at,contact_id").in("status",["pending","in_progress"]).order("due_at",{ascending:true,nullsFirst:false}).limit(30)),
   ];
 
-  const [conversationResult, appointmentResult, invoiceResult] = await Promise.all(tasks);
+  const [conversationResult, appointmentResult, invoiceResult, workTaskResult] = await Promise.all(tasks);
 
   (conversationResult.data || []).forEach((row) => items.push({
     tone:"risk", priority:100, page:"conversations", orgId:row.organization_id,
