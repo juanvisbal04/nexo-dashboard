@@ -1024,3 +1024,83 @@ body.modal-open{overflow:hidden;touch-action:none}
   .contact360-message{max-width:94%}
   .contact360-message-timeline{max-height:360px}
 }
+
+
+/* Data Quality and onboarding */
+.quality-summary{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px
+}
+.quality-summary>div{
+  padding:18px;border:1px solid #e2e8f0;background:#fff;border-radius:12px
+}
+.quality-summary>div.risk{background:#fff8f5;border-color:#efd8cf}
+.quality-summary span{display:block;font-size:8px;text-transform:uppercase;letter-spacing:.65px;color:#8796a8;font-weight:800}
+.quality-summary b{display:block;margin-top:7px;font-family:"Manrope";font-size:23px;color:#2d4968}
+.quality-summary small{display:block;margin-top:4px;font-size:8px;color:#94a0ae}
+.quality-card{margin-bottom:18px}
+.quality-score{
+  display:inline-grid;place-items:center;min-width:38px;height:28px;padding:0 8px;border-radius:999px;
+  font-family:"Manrope";font-size:10px;font-weight:800;background:#eef2f6;color:#5f7289
+}
+.quality-score.good{background:#e9f6ef;color:#35775b}
+.quality-score.watch{background:#fff5df;color:#98702a}
+.quality-score.risk{background:#fff0e9;color:#a85f3f}
+.quality-zero{color:#9ea9b6}
+.quality-progress{width:110px;height:6px;border-radius:999px;background:#eef2f6;overflow:hidden;margin-bottom:5px}
+.quality-progress i{display:block;height:100%;border-radius:inherit;background:#5b84d7}
+.quality-rules-card{margin-bottom:20px}
+.quality-rule-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:0 18px 18px}
+.quality-rule-grid>div{padding:13px;border:1px solid #e5eaf0;border-radius:9px;background:#fafbfd}
+.quality-rule-grid b{display:block;font-size:9px;color:#34506c}
+.quality-rule-grid span{display:block;margin-top:4px;font-size:8px;line-height:1.45;color:#7c8b9d}
+
+.onboarding-overview{
+  display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:center;padding:16px;
+  border:1px solid #e5eaf0;border-radius:12px;background:#fafbfd;margin-bottom:16px
+}
+.onboarding-progress-ring{
+  width:86px;height:86px;border-radius:50%;display:grid;place-items:center;align-content:center;
+  background:#edf4ff;border:1px solid #d8e5fb;color:#3565b6
+}
+.onboarding-progress-ring strong{font-family:"Manrope";font-size:20px}
+.onboarding-progress-ring span{font-size:7px;text-transform:uppercase;letter-spacing:.55px;margin-top:2px}
+.onboarding-overview>div:last-child>span{font-size:7px;text-transform:uppercase;letter-spacing:.55px;color:#91a0b0;font-weight:800}
+.onboarding-overview>div:last-child>b{display:block;margin-top:4px;font-size:13px;color:#304d6b;text-transform:capitalize}
+.onboarding-overview p{font-size:8px;color:#7d8ca0;margin:5px 0 0}
+.onboarding-steps{display:grid;gap:8px}
+.onboarding-step{
+  display:grid;grid-template-columns:38px 1fr 150px;gap:12px;align-items:center;
+  padding:11px 12px;border:1px solid #e5eaf0;border-radius:10px;background:#fff
+}
+.onboarding-step.good{border-left:3px solid #54a47b}
+.onboarding-step.watch{border-left:3px solid #d7a44d}
+.onboarding-step.risk{border-left:3px solid #d06c4a}
+.onboarding-step-number{
+  width:30px;height:30px;display:grid;place-items:center;border-radius:8px;background:#f1f5f9;
+  font-family:"Manrope";font-size:8px;font-weight:800;color:#697d95
+}
+.onboarding-step-copy b{display:block;font-size:9px;color:#314c68}
+.onboarding-step-copy span{display:block;margin-top:3px;font-size:8px;color:#8492a3}
+.onboarding-step-select{
+  width:100%;border:1px solid #dfe6ee;border-radius:8px;background:#fbfcfe;padding:8px 9px;
+  font-size:8px;color:#405873;outline:none
+}
+.onboarding-notes{display:flex;flex-direction:column;gap:6px;margin-top:14px;font-size:8px;font-weight:800;color:#65788f}
+.onboarding-notes textarea{border:1px solid #dfe6ee;border-radius:9px;background:#fbfcfe;padding:10px;font:inherit;font-size:9px;color:#344e69}
+.onboarding-actions{display:flex;justify-content:flex-end;gap:7px;flex-wrap:wrap;margin-top:14px}
+
+@media(max-width:1000px){
+  .quality-summary{grid-template-columns:1fr 1fr}
+  .quality-rule-grid{grid-template-columns:1fr 1fr}
+}
+@media(max-width:720px){
+  .quality-summary{grid-template-columns:1fr 1fr}
+  .quality-rule-grid{grid-template-columns:1fr}
+  .onboarding-step{grid-template-columns:34px 1fr}
+  .onboarding-step-select{grid-column:2}
+  .onboarding-actions{justify-content:stretch}
+  .onboarding-actions .btn{flex:1 1 45%}
+}
+@media(max-width:480px){
+  .quality-summary{grid-template-columns:1fr}
+}
