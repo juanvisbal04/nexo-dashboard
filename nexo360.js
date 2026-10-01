@@ -178,7 +178,7 @@ async function renderBillingPage(){
 }
 async function createWompi(invoiceId,button){
   button.disabled=true;button.textContent="Generando…";
-  try{const r=await db.functions.invoke("wompi-create-payment",{body:{invoice_id:invoiceId}});if(r.error)throw r.error;if(!r.data?.ok)throw new Error(r.data?.error||"No se pudo generar el link.");toast("Link Wompi generado.");renderBillingPage()}
+  try{const r=await db.functions.invoke("create-invoice-payment",{body:{invoice_id:invoiceId}});if(r.error)throw r.error;if(!r.data?.ok)throw new Error(r.data?.error||"No se pudo generar el link.");toast("Link Wompi generado.");renderBillingPage()}
   catch(e){err((e.message||"Wompi todavía no está configurado.")+" Revisa llaves y secretos del backend.");button.disabled=false;button.textContent="Generar Wompi"}
 }
 
