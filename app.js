@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
-import { renderCrm, openProspectEditorFromGrowth } from "./crm.js?v=20261001-growth2";
+import { renderCrm, openProspectEditorFromGrowth, openNewProspectFromGrowth } from "./crm.js?v=20261001-growth3";
 import { renderTasks, openCustomer360, openContact360, closeDrawer } from "./workspace360.js?v=20261001-360h";
 import { renderDataQuality, openOnboarding, closeQualityDrawer } from "./qualityOnboarding.js?v=20261001-quality2";
 
@@ -41,15 +41,33 @@ function readStoredUiState() {
   }
 }
 
-function persistUiState() {
+function persistUiState({ historyMode = "replace" } = {}) {
   const orgId = $("orgSelect")?.value || null;
   const period = $("periodSelect")?.value || "30";
   const value = { page: state.page, orgId, period, settingsOrgId: state.settingsOrgId || null, taskOrgFilter: state.taskOrgFilter || null };
   try { localStorage.setItem(UI_STATE_KEY, JSON.stringify(value)); } catch {}
   const nextHash = state.page && state.page !== "overview" ? "#" + state.page : "";
+  const nextUrl = window.location.pathname + window.location.search + nextHash;
   if (window.location.hash !== nextHash) {
-    history.replaceState(null, "", window.location.pathname + window.location.search + nextHash);
+    const method = historyMode === "push" ? "pushState" : "replaceState";
+    history[method]({ nexo: true, page: state.page }, "", nextUrl);
+  } else if (historyMode === "replace") {
+    history.replaceState({ nexo: true, page: state.page }, "", nextUrl);
   }
+}
+
+async function navigateToPage(page, { historyMode = "push", scrollTop = true } = {}) {
+  if (!pageMeta[page]) return;
+  if (["admin","crm","growth","clients","operations","quality","audit"].includes(page) && !state.isAdmin) return;
+  if (["crm","growth","clients","operations","quality","audit"].includes(page) && !adminInternalView()) return;
+  if (page === "team" && !canManageCurrentOrgUsers()) return;
+
+  state.page = page;
+  document.querySelectorAll(".nav-item").forEach((item) => item.classList.toggle("active", item.dataset.page === state.page));
+  document.body.classList.remove("sidebar-open");
+  persistUiState({ historyMode });
+  await render();
+  if (scrollTop) requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: "auto" }));
 }
 
 function restoreUiState() {
@@ -2606,12 +2624,11 @@ async function renderGrowth(){
   });
   document.querySelectorAll(".growth-action-row[data-growth-edit]").forEach((button)=>button.addEventListener("click",()=>{const row=rows.find((item)=>item.id===button.dataset.growthEdit);if(row)openProspectEditorFromGrowth(crmContext,row,planRows);}));
   $("growthNewProspect")?.addEventListener("click",async()=>{
-    state.page="crm";
-    persistUiState();
-    await render();
-    requestAnimationFrame(()=>document.querySelector(".crm-new-prospect input")?.focus());
+    await openNewProspectFromGrowth(crmContext,planRows);
   });
-  $("growthOpenCrm")?.addEventListener("click",async()=>{state.page="crm";persistUiState();await render();});
+  $("growthOpenCrm")?.addEventListener("click",async()=>{
+    await navigateToPage("crm",{historyMode:"push",scrollTop:true});
+  });
 }
 
 async function renderAudit() {
@@ -4088,15 +4105,8 @@ $("periodSelect").addEventListener("change", async () => {
 $("exportButton").addEventListener("click", exportCsv);
 
 document.querySelectorAll(".nav-item").forEach((button) => {
-  button.addEventListener("click", () => {
-    if (["admin","crm","growth","clients","operations","quality","audit"].includes(button.dataset.page) && !state.isAdmin) return;
-    if (["crm","growth","clients","operations","quality","audit"].includes(button.dataset.page) && !adminInternalView()) return;
-    if (button.dataset.page === "team" && !canManageCurrentOrgUsers()) return;
-    state.page = button.dataset.page;
-    document.querySelectorAll(".nav-item").forEach((item) => item.classList.toggle("active", item.dataset.page === state.page));
-    document.body.classList.remove("sidebar-open");
-    persistUiState();
-    render();
+  button.addEventListener("click", async () => {
+    await navigateToPage(button.dataset.page, { historyMode: "push", scrollTop: true });
   });
 });
 
@@ -4150,16 +4160,22 @@ document.addEventListener("pointerdown", (event) => {
   repairUiLocks();
 }, { passive: true });
 
-window.addEventListener("hashchange", () => {
+async function renderPageFromBrowserHistory() {
   if (!state.session) return;
   const page = window.location.hash.replace(/^#/, "") || "overview";
-  if (!pageMeta[page]) return;
+  if (!pageMeta[page] || page === state.page) return;
   if (["admin","crm","growth","clients","operations","quality","audit"].includes(page) && !state.isAdmin) return;
   if (["crm","growth","clients","operations","quality","audit"].includes(page) && !adminInternalView()) return;
+  if (page === "team" && !canManageCurrentOrgUsers()) return;
   state.page = page;
   document.querySelectorAll(".nav-item").forEach((item) => item.classList.toggle("active", item.dataset.page === state.page));
-  render();
-});
+  try { localStorage.setItem(UI_STATE_KEY, JSON.stringify({ ...readStoredUiState(), page: state.page })); } catch {}
+  await render();
+  requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: "auto" }));
+}
+
+window.addEventListener("popstate", renderPageFromBrowserHistory);
+window.addEventListener("hashchange", renderPageFromBrowserHistory);
 
 window.addEventListener("focus", repairUiLocks);
 window.addEventListener("touchend", repairUiLocks, { passive: true });
