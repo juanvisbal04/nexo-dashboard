@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
 import { renderCrm } from "./crm.js?v=20260930-crm25";
-import { renderTasks, openCustomer360, openContact360, closeDrawer } from "./workspace360.js?v=20261001-360c";
+import { renderTasks, openCustomer360, openContact360, closeDrawer } from "./workspace360.js?v=20261001-360d";
 
 const SUPABASE_URL = "https://ixewnbjndguchunwcuhf.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_vFnLRe9cmnOcyz2Fivprhw_8UjBaRGL";
@@ -25,6 +25,7 @@ const state = {
   settingsOrgId: null,
   assistantProfiles: {},
   alertAckKeys: new Set(),
+  taskOrgFilter: null,
 };
 let realtimeChannel = null;
 let realtimeTimer = null;
@@ -42,7 +43,7 @@ function readStoredUiState() {
 function persistUiState() {
   const orgId = $("orgSelect")?.value || null;
   const period = $("periodSelect")?.value || "30";
-  const value = { page: state.page, orgId, period, settingsOrgId: state.settingsOrgId || null };
+  const value = { page: state.page, orgId, period, settingsOrgId: state.settingsOrgId || null, taskOrgFilter: state.taskOrgFilter || null };
   try { localStorage.setItem(UI_STATE_KEY, JSON.stringify(value)); } catch {}
   const nextHash = state.page && state.page !== "overview" ? "#" + state.page : "";
   if (window.location.hash !== nextHash) {
@@ -55,6 +56,7 @@ function restoreUiState() {
   const hashPage = window.location.hash.replace(/^#/, "");
   const savedOrg = saved.orgId && state.organizations.some((org) => org.id === saved.orgId) ? saved.orgId : null;
   state.settingsOrgId = saved.settingsOrgId && state.organizations.some((org) => org.id === saved.settingsOrgId) ? saved.settingsOrgId : null;
+  state.taskOrgFilter = saved.taskOrgFilter && state.organizations.some((org) => org.id === saved.taskOrgFilter) ? saved.taskOrgFilter : null;
   if (savedOrg) $("orgSelect").value = savedOrg;
 
   const allowedPeriods = new Set(["1","7","30","90"]);
@@ -1678,6 +1680,16 @@ function auditAreaLabel(table) {
     organization_members: "Usuarios",
     client_invoices: "Facturación",
     crm_integrations: "Integraciones",
+    assistants: "Asistentes",
+    profiles: "Perfiles",
+    contacts: "Contactos",
+    conversations: "Conversaciones",
+    leads: "Oportunidades",
+    appointments: "Citas",
+    followups: "Seguimientos",
+    work_tasks: "Tareas",
+    contact_notes: "Notas internas",
+    alert_acknowledgements: "Alertas",
   }[table] || table);
 }
 
@@ -1700,6 +1712,11 @@ function auditChangedSummary(row) {
     billing_day:"día de cobro", auto_invoice:"facturación automática", lifecycle_stage:"etapa",
     plan_name:"plan", implementation_status:"implementación", integration_status:"integraciones",
     role:"rol", status:"estado", amount_cop:"valor", due_date:"vencimiento", email_status:"correo",
+    title:"título", description:"nota / contexto", priority:"prioridad", assigned_to:"responsable",
+    due_at:"fecha límite", completed_at:"completada", created_by:"creado por",
+    service:"servicio", value:"valor", starts_at:"fecha de cita", stage:"etapa",
+    note:"nota interna", alert_type:"tipo de alerta", alert_key:"clave de alerta",
+    resolved_at:"resuelta", resolved_by:"resuelta por", contact_id:"contacto",
   };
   return fields.slice(0,5).map((field)=>labels[field]||field.replaceAll("_"," ")).join(", ") + (fields.length>5 ? ` +${fields.length-5}` : "");
 }
