@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
 import { renderCrm } from "./crm.js?v=20260930-crm25";
-import { renderTasks, openCustomer360, openContact360, closeDrawer } from "./workspace360.js?v=20261001-360e";
+import { renderTasks, openCustomer360, openContact360, closeDrawer } from "./workspace360.js?v=20261001-360f";
 
 const SUPABASE_URL = "https://ixewnbjndguchunwcuhf.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_vFnLRe9cmnOcyz2Fivprhw_8UjBaRGL";
@@ -795,7 +795,8 @@ async function loadIdentity() {
   const { data: profileData, error: profileError } = await supabase
     .from("profiles")
     .select("full_name, platform_role, contact_email, phone, job_title, avatar_url, bio")
-    .single();
+    .eq("id", state.session.user.id)
+    .maybeSingle();
 
   if (profileError && profileError.code !== "PGRST116") throw profileError;
   state.profile = profileData || null;
