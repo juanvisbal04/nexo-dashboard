@@ -1693,6 +1693,8 @@ function auditAreaLabel(table) {
     work_tasks: "Tareas",
     contact_notes: "Notas internas",
     alert_acknowledgements: "Alertas",
+    organization_onboarding: "Onboarding",
+    ingest_exclusions: "Exclusiones de ingestión",
   }[table] || table);
 }
 
@@ -1720,6 +1722,7 @@ function auditChangedSummary(row) {
     service:"servicio", value:"valor", starts_at:"fecha de cita", stage:"etapa",
     note:"nota interna", alert_type:"tipo de alerta", alert_key:"clave de alerta",
     resolved_at:"resuelta", resolved_by:"resuelta por", contact_id:"contacto",
+    overall_status:"estado general", company_status:"empresa", assistant_status:"asistente", catalog_status:"catálogo", integrations_status:"integraciones", users_status:"usuarios", testing_status:"pruebas", go_live_status:"go live", normalized_phone:"teléfono normalizado", reason:"motivo de exclusión", active:"activo",
   };
   return fields.slice(0,5).map((field)=>labels[field]||field.replaceAll("_"," ")).join(", ") + (fields.length>5 ? ` +${fields.length-5}` : "");
 }
