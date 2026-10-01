@@ -45,10 +45,23 @@ function currentRole(){return C.state.isAdmin?"platform_admin":C.currentOrgRole(
 function canWrite(){return C.state.isAdmin || ["owner","admin","operator"].includes(currentRole());}
 
 async function assigneesForOrg(orgId){
-  const {data,error}=await C.supabase.functions.invoke("task-assignees",{body:{organization_id:orgId}});
-  if(error)throw error;
-  if(!data?.ok)throw new Error(data?.error||"No pudimos cargar los responsables.");
-  return data.assignees||[];
+  try{
+    const {data,error}=await C.supabase.functions.invoke("task-assignees",{body:{organization_id:orgId}});
+    if(error)throw error;
+    if(!data?.ok)throw new Error(data?.error||"No pudimos cargar los responsables.");
+    return data.assignees||[];
+  }catch(error){
+    console.warn("NEXO_TASK_ASSIGNEES",error);
+    const profile=C.state.profile||{};
+    return C.state.session?.user?.id ? [{
+      id:C.state.session.user.id,
+      full_name:profile.full_name||C.state.session.user.email||"Usuario",
+      contact_email:profile.contact_email||C.state.session.user.email||"",
+      job_title:profile.job_title||"",
+      avatar_url:profile.avatar_url||null,
+      role:C.state.isAdmin?"platform_admin":C.currentOrgRole()
+    }] : [];
+  }
 }
 function assigneeName(map,id){return id?(map.get(id)?.full_name||map.get(id)?.contact_email||"Usuario"):"Sin asignar";}
 
@@ -59,6 +72,70 @@ function taskStatusSelect(row,disabled=false){
 }
 function priorityPill(value){
   return '<span class="task-priority '+esc(value||"medium")+'">'+esc(priorityLabels[value]||value||"Media")+'</span>';
+}
+
+function localDateTimeInput(value){
+  if(!value)return "";
+  const d=new Date(value);
+  if(Number.isNaN(d.getTime()))return "";
+  const pad=(n)=>String(n).padStart(2,"0");
+  return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())+"T"+pad(d.getHours())+":"+pad(d.getMinutes());
+}
+
+async function openTaskEditor(task,assignees=[]){
+  if(!canWrite())return;
+  showDrawer("taskEditModal",`
+    <header class="drawer-header">
+      <div><span class="eyebrow">NEXO WORK</span><h2>Editar tarea</h2><p>${esc(orgName(task.organization_id))}</p></div>
+      <button class="drawer-close" type="button" data-task-edit-close>×</button>
+    </header>
+    <form id="taskEditForm" class="task-editor-form">
+      <label class="wide">Título<input id="taskEditTitle" value="${esc(task.title||"")}" required></label>
+      <label>Estado<select id="taskEditStatus">
+        ${Object.entries(taskStatusLabels).map(([value,label])=>`<option value="${value}" ${task.status===value?"selected":""}>${label}</option>`).join("")}
+      </select></label>
+      <label>Prioridad<select id="taskEditPriority">
+        ${Object.entries(priorityLabels).map(([value,label])=>`<option value="${value}" ${task.priority===value?"selected":""}>${label}</option>`).join("")}
+      </select></label>
+      <label>Responsable<select id="taskEditAssignee"><option value="">Sin asignar</option>
+        ${assignees.map((person)=>`<option value="${person.id}" ${task.assigned_to===person.id?"selected":""}>${esc(person.full_name||person.contact_email||"Usuario")} · ${esc(person.role||"")}</option>`).join("")}
+      </select></label>
+      <label>Fecha límite<input id="taskEditDue" type="datetime-local" value="${localDateTimeInput(task.due_at)}"></label>
+      <label class="wide">Notas / contexto<textarea id="taskEditDescription" rows="5">${esc(task.description||"")}</textarea></label>
+      <div class="task-editor-actions wide">
+        <button id="taskCancelButton" class="btn" type="button">Cancelar tarea</button>
+        <button class="btn primary" type="submit">Guardar cambios</button>
+      </div>
+    </form>
+  `);
+  const root=ensureDrawer("taskEditModal");
+  root.querySelector("[data-task-edit-close]")?.addEventListener("click",()=>closeDrawer("taskEditModal"));
+  root.querySelector("#taskCancelButton")?.addEventListener("click",async()=>{
+    const button=root.querySelector("#taskCancelButton");
+    button.disabled=true;button.textContent="Cancelando…";
+    const {error}=await C.supabase.from("work_tasks").update({status:"cancelled"}).eq("id",task.id).eq("organization_id",task.organization_id);
+    if(error){C.showError(error.message||"No pudimos cancelar la tarea.");button.disabled=false;button.textContent="Cancelar tarea";return;}
+    closeDrawer("taskEditModal");C.showToast("Tarea cancelada.");await C.renderApp();
+  });
+  root.querySelector("#taskEditForm")?.addEventListener("submit",async(event)=>{
+    event.preventDefault();
+    const button=event.currentTarget.querySelector('button[type="submit"]');
+    button.disabled=true;button.textContent="Guardando…";
+    const due=root.querySelector("#taskEditDue").value;
+    const status=root.querySelector("#taskEditStatus").value;
+    const payload={
+      title:root.querySelector("#taskEditTitle").value.trim(),
+      description:root.querySelector("#taskEditDescription").value.trim()||null,
+      status,
+      priority:root.querySelector("#taskEditPriority").value,
+      assigned_to:root.querySelector("#taskEditAssignee").value||null,
+      due_at:due?new Date(due).toISOString():null,
+      completed_at:status==="completed"?(task.completed_at||new Date().toISOString()):null
+    };
+    const {error}=await C.supabase.from("work_tasks").update(payload).eq("id",task.id).eq("organization_id",task.organization_id);
+    if(error){C.showError(error.message||"No pudimos actualizar la tarea.");button.disabled=false;button.textContent="Guardar cambios";return;}
+    closeDrawer("taskEditModal");C.showToast("Tarea actualizada.");await C.renderApp();
+  });
 }
 
 export async function renderTasks(context=C){
@@ -147,6 +224,7 @@ export async function renderTasks(context=C){
         </div>
         <div class="task-row-actions">
           ${taskStatusSelect(row,!canEdit)}
+          ${canEdit?`<button class="btn small task-edit-button" data-task-id="${row.id}" type="button">Editar</button>`:""}
           ${row.contact_id?`<button class="btn small task-contact-360" data-contact-id="${row.contact_id}" data-org-id="${row.organization_id}" type="button">Contacto 360</button>`:""}
         </div>
       </article>`;
@@ -163,6 +241,13 @@ export async function renderTasks(context=C){
         if(error){C.showError(error.message);select.disabled=false;return;}
         C.showToast("Tarea actualizada.");
         await C.renderApp();
+      });
+    });
+    document.querySelectorAll(".task-edit-button").forEach((button)=>{
+      button.addEventListener("click",()=>{
+        const task=rows.find((row)=>row.id===button.dataset.taskId);
+        if(!task)return;
+        openTaskEditor(task,assigneesByOrg.get(task.organization_id)||[]);
       });
     });
     document.querySelectorAll(".task-contact-360").forEach((button)=>button.addEventListener("click",()=>openContact360(C,button.dataset.contactId,button.dataset.orgId)));
@@ -224,6 +309,7 @@ export async function openCustomer360(context,orgId){
     const assistant=C.state.assistantProfiles[orgId]||null;
     const openTasks=tasks.filter((r)=>["pending","in_progress"].includes(r.status));
     const confirmed=appointments.filter((r)=>["Confirmada","Completada"].includes(r.status));
+    const attention=conversations.filter((r)=>r.status==="Requiere atención");
     const receivable=invoices.filter((r)=>["pending","overdue"].includes(r.status)).reduce((s,r)=>s+Number(r.amount_cop||0),0);
     const directCost=Number(commercial.monthly_cost||0);
     const mrr=Number(commercial.mrr||0);
@@ -247,8 +333,10 @@ export async function openCustomer360(context,orgId){
         <div><span>Conversaciones</span><b>${conversations.length}</b></div>
         <div><span>Leads</span><b>${leads.length}</b></div>
         <div><span>Citas confirmadas</span><b>${confirmed.length}</b></div>
+        <div><span>Atención humana</span><b>${attention.length}</b></div>
         <div><span>Tareas abiertas</span><b>${openTasks.length}</b></div>
         <div><span>MRR</span><b>${money(mrr)}</b></div>
+        <div><span>Costo mensual</span><b>${money(directCost)}</b></div>
         <div><span>Margen</span><b>${mrr?margin+"%":"—"}</b></div>
       </div>
       <div class="customer360-grid">
@@ -314,6 +402,7 @@ export async function openContact360(context,contactId,organizationId){
     const assigneeMap=new Map(assignees.map((r)=>[r.id,r]));
     const totalValue=leads.reduce((s,r)=>s+Number(r.value||0),0);
     const confirmed=appointments.filter((r)=>["Confirmada","Completada"].includes(r.status)).length;
+    const latestConversation=conversations[0]||null;
     const digits=String(contact.phone||"").replace(/\D/g,"");
     const root=ensureDrawer("contact360Modal");
     root.querySelector(".nexo-drawer-content").innerHTML=`
@@ -325,7 +414,7 @@ export async function openContact360(context,contactId,organizationId){
         ${digits?`<a class="btn primary" href="https://wa.me/${digits}" target="_blank" rel="noopener">WhatsApp</a>`:""}
         <button class="btn" id="contact360Chat" type="button">Ver chat</button>
       </div>
-      <div class="contact360-kpis"><div><span>Conversaciones</span><b>${conversations.length}</b></div><div><span>Leads</span><b>${leads.length}</b></div><div><span>Citas confirmadas</span><b>${confirmed}</b></div><div><span>Valor leads</span><b>${money(totalValue)}</b></div><div><span>Tareas abiertas</span><b>${tasks.filter((r)=>["pending","in_progress"].includes(r.status)).length}</b></div></div>
+      <div class="contact360-kpis"><div><span>Conversaciones</span><b>${conversations.length}</b></div><div><span>Leads</span><b>${leads.length}</b></div><div><span>Citas confirmadas</span><b>${confirmed}</b></div><div><span>Valor leads</span><b>${money(totalValue)}</b></div><div><span>Tareas abiertas</span><b>${tasks.filter((r)=>["pending","in_progress"].includes(r.status)).length}</b></div><div><span>Último estado</span><b>${esc(latestConversation?.status||"—")}</b></div></div>
       <div class="contact360-grid">
         <section class="drawer-card">
           <h3>Datos del contacto</h3>
