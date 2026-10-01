@@ -1405,7 +1405,7 @@ async function renderTablePage(type) {
         ...(showOrganization ? [`<b>${esc(row.organization_name)}</b>`] : []),
         `${contact360Cell(row)}`,
         phoneCell(row),
-        esc(row.service),
+        esc(row.service || "Consulta general"),
         esc(row.source),
         conversationStatusSelect(row),
         dateTime(row.last_message_at),
