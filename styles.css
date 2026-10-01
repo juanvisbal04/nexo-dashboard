@@ -1208,3 +1208,9 @@ body.modal-open{overflow:hidden;touch-action:none}
   .alert-item-actions{width:100%;justify-content:flex-start}
   .alert-item-actions .btn{flex:1 1 calc(50% - 5px)}
 }
+
+@media(max-width:720px){
+  .mobile-bottom-nav{display:flex;grid-template-columns:none;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;justify-content:flex-start}
+  .mobile-bottom-nav::-webkit-scrollbar{display:none}
+  .mobile-bottom-nav .mobile-nav-item{flex:1 0 58px;min-width:58px}
+}
