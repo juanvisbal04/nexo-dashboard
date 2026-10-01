@@ -954,23 +954,6 @@ async function renderOverview() {
   const m = await getMetrics();
   state.currentRows = m.conversations;
 
-  (workTaskResult.data || []).forEach((row) => {
-    const due=row.due_at?new Date(row.due_at).getTime():null;
-    const overdue=due && due<Date.now();
-    const urgent=row.priority==="urgent";
-    const dueSoon=due && due>=Date.now() && due<=Date.now()+48*60*60*1000;
-    if(!overdue && !urgent && !dueSoon) return;
-    items.push({
-      tone:overdue||urgent?"risk":"watch",
-      priority:overdue?98:urgent?93:72,
-      page:"tasks",
-      orgId:row.organization_id,
-      title:overdue?"Tarea vencida":urgent?"Tarea urgente":"Tarea próxima a vencer",
-      detail:(row.title||"Tarea")+" · "+notificationOrgName(row.organization_id),
-      date:row.due_at,
-    });
-  });
-
   if (state.isAdmin && isInternalOrg()) {
     const clients = clientOrganizations();
     const clientRows = await Promise.all(clients.map(async (org) => {
@@ -3049,6 +3032,23 @@ async function refreshNotifications() {
       title:overdue?"Cobro vencido":"Cobro pendiente",
       detail:(row.invoice_number || "Cuenta de cobro") + " · " + money(row.amount_cop) + " · " + notificationOrgName(row.organization_id),
       date:row.due_date,
+    });
+  });
+
+  (workTaskResult.data || []).forEach((row) => {
+    const due=row.due_at?new Date(row.due_at).getTime():null;
+    const overdue=due && due<Date.now();
+    const urgent=row.priority==="urgent";
+    const dueSoon=due && due>=Date.now() && due<=Date.now()+48*60*60*1000;
+    if(!overdue && !urgent && !dueSoon) return;
+    items.push({
+      tone:overdue||urgent?"risk":"watch",
+      priority:overdue?98:urgent?93:72,
+      page:"tasks",
+      orgId:row.organization_id,
+      title:overdue?"Tarea vencida":urgent?"Tarea urgente":"Tarea próxima a vencer",
+      detail:(row.title||"Tarea")+" · "+notificationOrgName(row.organization_id),
+      date:row.due_at,
     });
   });
 
