@@ -1878,57 +1878,98 @@ async function renderClients() {
 
 async function renderOperations() {
   if (!adminInternalView()) {
-    $("content").innerHTML=emptyState("Selecciona NEXO Internal.","Operaciones consolida la actividad de todos los clientes.");
+    $("content").innerHTML=emptyState("Selecciona NEXO Internal.","Operaciones muestra la salud técnica de NEXO y el monitoreo de conversaciones por cliente.");
     return;
   }
-  const orgIds=clientOrganizations().map((org)=>org.id);
+
+  const clients=clientOrganizations();
+  const orgIds=clients.map((org)=>org.id);
   const window=periodWindow(currentDays());
-  const [conversations,leads,appointments]=await Promise.all([
+  const [conversations,commercialsResult,assistantsResult,myTasksResult]=await Promise.all([
     fetchMetricRows("conversations",orgIds,{...window,order:"last_message_at",timeField:"last_message_at"}),
-    fetchMetricRows("leads",orgIds,window),
-    fetchMetricRows("appointments",orgIds,window),
+    supabase.from("organization_commercials").select("*"),
+    supabase.from("assistants").select("*"),
+    supabase.from("work_tasks").select("*").eq("assigned_to",state.session.user.id).in("status",["pending","in_progress"]).order("due_at",{ascending:true,nullsFirst:false})
   ]);
+
+  const commercialRows=commercialsResult.data||[];
+  const assistantRows=assistantsResult.data||[];
+  const taskRows=myTasksResult.data||[];
   const attention=conversations.filter((row)=>row.status==="Requiere atención").sort((a,b)=>String(b.last_message_at).localeCompare(String(a.last_message_at)));
-  const pendingAppointments=appointments.filter((row)=>["Solicitada","Pendiente"].includes(row.status));
-  const recentConversations=[...conversations].sort((a,b)=>String(b.last_message_at).localeCompare(String(a.last_message_at))).slice(0,10);
-  const recentLeads=[...leads].sort((a,b)=>String(b.created_at).localeCompare(String(a.created_at))).slice(0,10);
-  const recentAppointments=[...appointments].sort((a,b)=>String(b.created_at).localeCompare(String(a.created_at))).slice(0,10);
+  const recentConversations=[...conversations].sort((a,b)=>String(b.last_message_at).localeCompare(String(a.last_message_at))).slice(0,12);
+  const integrationIssues=commercialRows.filter((row)=>row.lifecycle_stage==="activo" && ["attention","pending","partial"].includes(row.integration_status));
+  const activeAssistants=assistantRows.filter((row)=>row.status==="active").length;
   const orgName=(id)=>state.organizations.find((org)=>org.id===id)?.name||"Cliente NEXO";
 
-  state.currentRows=[...conversations.map((r)=>({...r,type:"conversation"})),...leads.map((r)=>({...r,type:"lead"})),...appointments.map((r)=>({...r,type:"appointment"}))];
+  state.currentRows=conversations.map((r)=>({...r,type:"conversation"}));
 
   $("content").innerHTML=`
     <div class="operations-summary">
-      <div><span>Conversaciones</span><b>${conversations.length}</b><small>en el período</small></div>
-      <div class="${attention.length?"attention":""}"><span>Atención humana</span><b>${attention.length}</b><small>requieren intervención</small></div>
-      <div><span>Leads</span><b>${leads.length}</b><small>oportunidades detectadas</small></div>
-      <div><span>Citas pendientes</span><b>${pendingAppointments.length}</b><small>por confirmar</small></div>
+      <div><span>Clientes activos</span><b>${clients.length}</b><small>en NEXO</small></div>
+      <div><span>Asistentes activos</span><b>${activeAssistants}</b><small>agentes conectados</small></div>
+      <div><span>Chats monitoreados</span><b>${conversations.length}</b><small>en el período</small></div>
+      <div class="${attention.length?"attention":""}"><span>Handoffs pendientes</span><b>${attention.length}</b><small>requieren intervención</small></div>
     </div>
 
     <section class="card operations-priority">
-      <div class="card-head"><div><h2>Prioridad operativa</h2><p>Conversaciones que necesitan intervención humana</p></div><span class="count">${attention.length}</span></div>
+      <div class="card-head"><div><h2>Estado operativo de NEXO</h2><p>Integraciones, asistentes y tus tareas como administrador.</p></div><span class="count">${integrationIssues.length+taskRows.length}</span></div>
+      <div class="operations-list">
+        ${integrationIssues.map((row)=>`<div class="operations-row">
+          <div><b>Integración por revisar</b><small>${esc(orgName(row.organization_id))} · ${esc(row.integration_status||"pendiente")}</small></div>
+          <span>Plataforma</span>
+          <button class="btn small" type="button" data-open-org-settings="${row.organization_id}">Revisar</button>
+        </div>`).join("")}
+        ${taskRows.map((row)=>`<div class="operations-row">
+          <div><b>${esc(row.title)}</b><small>Mi tarea · ${esc(orgName(row.organization_id))}</small></div>
+          <span>${row.due_at?dateTime(row.due_at):"Sin fecha"}</span>
+          <button class="btn small" type="button" data-open-my-tasks>Ver tareas</button>
+        </div>`).join("")}
+        ${!integrationIssues.length&&!taskRows.length?emptyState("Plataforma estable.","No tienes tareas abiertas ni integraciones que requieran revisión."):""}
+      </div>
+    </section>
+
+    <section class="card operations-priority">
+      <div class="card-head"><div><h2>Monitoreo de handoffs</h2><p>La operación del cliente solo aparece aquí cuando un asistente escala una conversación.</p></div><span class="count">${attention.length}</span></div>
       <div class="operations-list">
         ${attention.slice(0,12).map((row)=>`<div class="operations-row">
           <div><b>${esc(row.name||"Conversación")}</b><small>${esc(orgName(row.organization_id))} · ${esc(row.service||row.channel||"WhatsApp")}</small></div>
           <span>${dateTime(row.last_message_at)}</span>
           <div class="operations-row-actions">${attentionActionHtml(row)}</div>
-        </div>`).join("") || emptyState("Sin handoffs pendientes.","La red de asistentes no tiene conversaciones escaladas ahora mismo.")}
+        </div>`).join("") || emptyState("Sin handoffs pendientes.","Los asistentes de los clientes están operando sin escalaciones ahora mismo.")}
       </div>
     </section>
 
     <div class="operations-columns">
-      <section class="card"><div class="card-head"><div><h2>Chats recientes</h2><p>Última actividad de la red</p></div></div>
+      <section class="card"><div class="card-head"><div><h2>Chats recientes por cliente</h2><p>Monitoreo técnico de actividad</p></div></div>
         <div class="mini-feed">${recentConversations.map((row)=>`<div><b>${esc(row.name||"Conversación")}</b><span>${esc(orgName(row.organization_id))}</span><small>${dateTime(row.last_message_at)}</small></div>`).join("")||emptyState()}</div>
       </section>
-      <section class="card"><div class="card-head"><div><h2>Leads recientes</h2><p>Oportunidades detectadas</p></div></div>
-        <div class="mini-feed">${recentLeads.map((row)=>`<div><b>${esc(row.name||"Lead")}</b><span>${esc(orgName(row.organization_id))} · ${esc(row.stage||row.status||"Nuevo")}</span><small>${dateTime(row.created_at)}</small></div>`).join("")||emptyState()}</div>
+      <section class="card"><div class="card-head"><div><h2>Integraciones</h2><p>Estado de conexión por cliente</p></div></div>
+        <div class="mini-feed">${clients.map((org)=>{
+          const row=commercialRows.find((item)=>item.organization_id===org.id)||{};
+          return `<div><b>${esc(org.name)}</b><span>${esc(row.integration_status||"Sin configurar")}</span><small>${esc(row.implementation_status||"—")}</small></div>`;
+        }).join("")||emptyState()}</div>
       </section>
-      <section class="card"><div class="card-head"><div><h2>Agenda reciente</h2><p>Solicitudes y reservas</p></div></div>
-        <div class="mini-feed">${recentAppointments.map((row)=>`<div><b>${esc(row.name||"Cita")}</b><span>${esc(orgName(row.organization_id))} · ${esc(row.status||"—")}</span><small>${row.starts_at?dateTime(row.starts_at):dateTime(row.created_at)}</small></div>`).join("")||emptyState()}</div>
+      <section class="card"><div class="card-head"><div><h2>Asistentes</h2><p>Disponibilidad por cliente</p></div></div>
+        <div class="mini-feed">${clients.map((org)=>{
+          const row=assistantRows.find((item)=>item.organization_id===org.id);
+          return `<div><b>${esc(row?.name||org.assistant||"Asistente")}</b><span>${esc(org.name)}</span><small>${esc(row?.status||"Sin registro")}</small></div>`;
+        }).join("")||emptyState()}</div>
       </section>
     </div>
   `;
+
   bindAttentionActions();
+  document.querySelectorAll("[data-open-org-settings]").forEach((button)=>button.addEventListener("click",async()=>{
+    state.settingsOrgId=button.dataset.openOrgSettings;
+    state.page="settings";
+    persistUiState();
+    await render();
+  }));
+  document.querySelectorAll("[data-open-my-tasks]").forEach((button)=>button.addEventListener("click",async()=>{
+    state.page="tasks";
+    persistUiState();
+    await render();
+  }));
 }
 
 async function renderSettings() {
