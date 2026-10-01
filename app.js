@@ -981,8 +981,14 @@ async function renderOverview() {
       supabase.from("demo_requests").select("*").in("stage",["prospecto","demo","propuesta"]).order("created_at",{ascending:false}).limit(50),
       supabase.from("client_invoices").select("*").in("status",["pending","overdue"]).order("due_date",{ascending:true}).limit(50),
       supabase.from("organization_commercials").select("*"),
-      supabase.from("work_tasks").select("*").in("status",["pending","in_progress"]).order("due_at",{ascending:true}).limit(100),
+      supabase.from("work_tasks").select("*").eq("assigned_to",state.session.user.id).in("status",["pending","in_progress"]).order("due_at",{ascending:true,nullsFirst:false}).limit(100),
     ]);
+
+    const activeCommercials=(commandCommercials||[]).filter((row)=>row.lifecycle_stage==="activo");
+    const mrr=activeCommercials.reduce((sum,row)=>sum+Number(row.mrr||0),0);
+    const monthlyCost=activeCommercials.reduce((sum,row)=>sum+Number(row.monthly_cost||0),0);
+    const grossMargin=mrr-monthlyCost;
+    const integrationIssues=activeCommercials.filter((row)=>["attention","pending","partial"].includes(row.integration_status)).length;
 
     const commandTasks=[];
     const nowMs=Date.now();
@@ -1003,12 +1009,6 @@ async function renderOverview() {
         });
       }
     });
-
-    attentionRows.forEach((row)=>commandTasks.push({
-      priority:100,tone:"risk",page:"operations",orgId:row.organization_id,
-      title:"Atender conversación",detail:`${clientName(row.organization_id)} · ${row.name||"Contacto WhatsApp"}`,
-      meta:dateTime(row.last_message_at)
-    }));
 
     (commandProspects||[]).forEach((row)=>{
       const next=row.next_action_at?new Date(row.next_action_at).getTime():null;
@@ -1053,19 +1053,19 @@ async function renderOverview() {
     commandTasks.sort((a,b)=>b.priority-a.priority);
 
     $("pageTitle").textContent = "NEXO, en una sola vista.";
-    $("pageSubtitle").textContent = "Rendimiento consolidado de todos los clientes activos. Visible solo para Platform Admin.";
+    $("pageSubtitle").textContent = "Salud de plataforma, clientes, ingresos e integraciones. Las métricas comerciales de cada negocio viven dentro de su propio workspace.";
 
     $("content").innerHTML = `
       <div class="stats-grid">
-        ${metricCard("Clientes activos", clients.length, `${m.activeClientCount} con actividad en el período`, null, true)}
-        ${metricCard("Conversaciones", m.chats, "Todas las organizaciones activas", m.delta?.chats)}
-        ${metricCard("Leads generados", m.leadCount, `${m.leadRate}% de conversaciones`, m.delta?.leads)}
-        ${metricCard("Citas confirmadas", m.confirmed, money(m.value) + " estimados", m.delta?.confirmed)}
+        ${metricCard("Clientes activos", clients.length, "Organizaciones en producción", null, true)}
+        ${metricCard("MRR NEXO", money(mrr), "Ingreso recurrente mensual")}
+        ${metricCard("Margen bruto", money(grossMargin), `${money(monthlyCost)} de costo mensual`)}
+        ${metricCard("Chats monitoreados", m.chats, `${m.attention} handoffs pendientes`)}
       </div>
 
       <section class="card command-today-card">
         <div class="card-head">
-          <div><span class="eyebrow">PRIORIDAD EJECUTIVA</span><h2>Qué necesita Juan hoy</h2><p>Acciones ordenadas por urgencia. Menos monitoreo manual, más ejecución.</p></div>
+          <div><span class="eyebrow">MI PRIORIDAD</span><h2>Qué necesita Juan hoy</h2><p>Solo tus tareas y asuntos administrativos de NEXO. La operación interna de cada cliente permanece en su propio workspace.</p></div>
           <span class="count">${commandTasks.length} pendiente${commandTasks.length===1?"":"s"}</span>
         </div>
         <div class="command-task-list">
@@ -1076,16 +1076,16 @@ async function renderOverview() {
               <small>${esc(task.meta||"")}</small>
               <em>→</em>
             </button>
-          `).join(""):`<div class="command-empty"><span>✓</span><div><b>Todo bajo control</b><p>No hay acciones prioritarias detectadas en este momento.</p></div></div>`}
+          `).join(""):`<div class="command-empty"><span>✓</span><div><b>Todo bajo control</b><p>No tienes tareas ni asuntos administrativos prioritarios en este momento.</p></div></div>`}
         </div>
       </section>
 
       <div class="executive-strip">
-        <div><span>Automatización</span><b>${m.automated}%</b><small>sin intervención humana</small></div>
-        <div><span>Conversión lead → cita</span><b>${m.conversion}%</b><small>${m.leadCount} leads · ${m.confirmed} citas</small></div>
-        <div><span>Respuesta media</span><b>${m.response.toFixed(1)} s</b><small>mediana ${m.medianResponse.toFixed(1)} s</small></div>
-        <div><span>Requieren atención</span><b>${m.attention}</b><small>${m.escalationRate}% de conversaciones</small></div>
-        <div><span>Valor confirmado</span><b>${money(m.value)}</b><small>ticket medio ${money(m.avgTicket)}</small></div>
+        <div><span>MRR</span><b>${money(mrr)}</b><small>recurrente mensual</small></div>
+        <div><span>Costos mensuales</span><b>${money(monthlyCost)}</b><small>infraestructura y operación</small></div>
+        <div><span>Margen bruto</span><b>${money(grossMargin)}</b><small>MRR menos costos</small></div>
+        <div><span>Integraciones por revisar</span><b>${integrationIssues}</b><small>clientes activos</small></div>
+        <div><span>Handoffs</span><b>${m.attention}</b><small>solo monitoreo de chats</small></div>
       </div>
 
       <div class="portfolio-health">
