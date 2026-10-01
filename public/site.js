@@ -60,3 +60,35 @@ if(mobileDemoCta&&contactSection&&"IntersectionObserver" in window){
   },{threshold:.15});
   ctaObserver.observe(contactSection);
 }
+
+
+// NEXO Growth V2: operational calculator
+(function(){
+  const conversations=document.getElementById("roiConversations");
+  const minutes=document.getElementById("roiMinutes");
+  const repeat=document.getElementById("roiRepeat");
+  const cValue=document.getElementById("roiConversationsValue");
+  const mValue=document.getElementById("roiMinutesValue");
+  const rValue=document.getElementById("roiRepeatValue");
+  const hours=document.getElementById("roiHours");
+  function updateROI(){
+    if(!conversations||!minutes||!repeat||!hours)return;
+    const c=Number(conversations.value||0);
+    const m=Number(minutes.value||0);
+    const r=Number(repeat.value||0);
+    cValue.textContent=c.toLocaleString("es-CO");
+    mValue.textContent=m+" min";
+    rValue.textContent=r+"%";
+    hours.textContent=Math.round((c*m*(r/100))/60).toLocaleString("es-CO");
+  }
+  [conversations,minutes,repeat].forEach(el=>el?.addEventListener("input",updateROI));
+  updateROI();
+})();
+
+const floatingWhatsapp=document.querySelector(".floating-whatsapp");
+if(floatingWhatsapp&&contactSection&&"IntersectionObserver" in window){
+  const waObserver=new IntersectionObserver((entries)=>{
+    entries.forEach(entry=>floatingWhatsapp.classList.toggle("is-hidden",entry.isIntersecting));
+  },{threshold:.2});
+  waObserver.observe(contactSection);
+}
