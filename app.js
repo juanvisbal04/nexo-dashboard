@@ -2455,6 +2455,7 @@ async function renderGrowth(){
   const rawRows=allRows||[];
   const rows=rawRows.filter((row)=>!row.archived_at);
   const archivedRows=rawRows.filter((row)=>Boolean(row.archived_at));
+  state.growthVisibilityFilter=state.growthVisibilityFilter||"active";
   const activityRows=activities||[];
   const planRows=plans||[];
   const sinceMs=new Date(since).getTime();
@@ -2507,7 +2508,7 @@ async function renderGrowth(){
         <label class="search"><input id="growthSearch" type="search" placeholder="Buscar negocio, contacto, fuente o industria"></label>
         <select id="growthStageFilter" class="control"><option value="">Todas las etapas</option>${["prospecto","demo","propuesta","cliente","implementacion","activo","perdido"].map((stage)=>`<option value="${stage}">${stageLabel(stage)}</option>`).join("")}</select>
         <select id="growthActionFilter" class="control"><option value="">Cualquier seguimiento</option><option value="overdue">Vencido</option><option value="upcoming">Programado</option><option value="none">Sin próxima acción</option><option value="novalue">Sin valor definido</option></select>
-        <select id="growthVisibilityFilter" class="control"><option value="active">Activos</option><option value="archived">Archivados (${archivedRows.length})</option></select>
+        <select id="growthVisibilityFilter" class="control"><option value="active" ${state.growthVisibilityFilter==="active"?"selected":""}>Activos</option><option value="archived" ${state.growthVisibilityFilter==="archived"?"selected":""}>Archivados (${archivedRows.length})</option></select>
       </div>
       <div id="growthPipelineRows" class="growth-pipeline-list"></div>
     </section>
@@ -2526,7 +2527,8 @@ async function renderGrowth(){
     const query=($("growthSearch")?.value||"").trim().toLowerCase();
     const stage=$("growthStageFilter")?.value||"";
     const action=$("growthActionFilter")?.value||"";
-    const visibility=$("growthVisibilityFilter")?.value||"active";
+    const visibility=$("growthVisibilityFilter")?.value||state.growthVisibilityFilter||"active";
+    state.growthVisibilityFilter=visibility;
     const baseRows=visibility==="archived"?archivedRows:rows;
     const visible=baseRows.filter((row)=>{
       const hay=[row.business_name,row.full_name,row.email,row.phone,row.industry,row.source,row.plan_interest,row.crm_notes].filter(Boolean).join(" ").toLowerCase();
@@ -2564,6 +2566,7 @@ async function renderGrowth(){
       if(!row)return;
       const {error}=await supabase.from("demo_requests").update({archived_at:null,archived_by:null,archive_reason:null}).eq("id",row.id);
       if(error)return showError(error.message);
+      state.growthVisibilityFilter="archived";
       showToast("Registro restaurado.");
       await renderGrowth();
     }));
@@ -2571,15 +2574,36 @@ async function renderGrowth(){
       const row=archivedRows.find((item)=>item.id===button.dataset.growthDelete);
       if(!row||row.organization_id)return;
       if(!confirm(`Eliminar definitivamente ${row.business_name||row.full_name||"este registro"}? Esta acción también elimina su actividad CRM y no se puede deshacer.`))return;
-      const {error}=await supabase.from("demo_requests").delete().eq("id",row.id).is("organization_id",null);
-      if(error)return showError(error.message);
+      button.disabled=true;
+      button.textContent="Eliminando…";
+      const {data:deleted,error}=await supabase.from("demo_requests")
+        .delete()
+        .eq("id",row.id)
+        .is("organization_id",null)
+        .not("archived_at","is",null)
+        .select("id");
+      if(error){
+        button.disabled=false;
+        button.textContent="Eliminar";
+        return showError(error.message);
+      }
+      if(!deleted?.length){
+        button.disabled=false;
+        button.textContent="Eliminar";
+        return showError("No se eliminó el registro. Actualiza la página e inténtalo de nuevo.");
+      }
+      state.growthVisibilityFilter="archived";
       showToast("Registro eliminado definitivamente.");
       await renderGrowth();
     }));
   };
 
   drawPipeline();
-  ["growthSearch","growthStageFilter","growthActionFilter","growthVisibilityFilter"].forEach((id)=>$(id)?.addEventListener(id==="growthSearch"?"input":"change",drawPipeline));
+  ["growthSearch","growthStageFilter","growthActionFilter"].forEach((id)=>$(id)?.addEventListener(id==="growthSearch"?"input":"change",drawPipeline));
+  $("growthVisibilityFilter")?.addEventListener("change",(event)=>{
+    state.growthVisibilityFilter=event.target.value||"active";
+    drawPipeline();
+  });
   document.querySelectorAll(".growth-action-row[data-growth-edit]").forEach((button)=>button.addEventListener("click",()=>{const row=rows.find((item)=>item.id===button.dataset.growthEdit);if(row)openProspectEditorFromGrowth(crmContext,row,planRows);}));
   $("growthNewProspect")?.addEventListener("click",async()=>{
     state.page="crm";
