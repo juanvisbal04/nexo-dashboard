@@ -2484,7 +2484,7 @@ async function renderGrowth(){
   $("content").innerHTML=`
     <div class="growth-toolbar">
       <div><span class="eyebrow">CONTROL COMERCIAL</span><h2>Pipeline NEXO</h2><p>Visibilidad de adquisición, valor potencial y siguientes pasos. Edita cualquier oportunidad directamente desde aquí.</p></div>
-      <div class="growth-toolbar-actions"><button id="growthOpenCrm" class="btn" type="button">Abrir CRM completo</button></div>
+      <div class="growth-toolbar-actions"><button id="growthNewProspect" class="btn primary" type="button">+ Nuevo prospecto</button><button id="growthOpenCrm" class="btn" type="button">Abrir CRM completo</button></div>
     </div>
     <div class="stats-grid">
       ${metricCard("Nuevos prospectos",periodRows.length,`Últimos ${currentDays()} días`,null,true)}
@@ -2546,6 +2546,12 @@ async function renderGrowth(){
   drawPipeline();
   ["growthSearch","growthStageFilter","growthActionFilter"].forEach((id)=>$(id)?.addEventListener(id==="growthSearch"?"input":"change",drawPipeline));
   document.querySelectorAll(".growth-action-row[data-growth-edit]").forEach((button)=>button.addEventListener("click",()=>{const row=rows.find((item)=>item.id===button.dataset.growthEdit);if(row)openProspectEditorFromGrowth(crmContext,row,planRows);}));
+  $("growthNewProspect")?.addEventListener("click",async()=>{
+    state.page="crm";
+    persistUiState();
+    await render();
+    requestAnimationFrame(()=>document.querySelector(".crm-new-prospect input")?.focus());
+  });
   $("growthOpenCrm")?.addEventListener("click",async()=>{state.page="crm";persistUiState();await render();});
 }
 
