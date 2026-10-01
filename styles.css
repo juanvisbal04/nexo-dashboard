@@ -980,3 +980,47 @@ body.modal-open{overflow:hidden;touch-action:none}
 .contact360-kpis{grid-template-columns:repeat(6,minmax(0,1fr))}
 @media(max-width:1200px){.customer360-kpis{grid-template-columns:repeat(4,minmax(0,1fr))}.contact360-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:720px){.task-editor-form{grid-template-columns:1fr}.task-editor-form label.wide,.task-editor-actions.wide{grid-column:auto}.customer360-kpis,.contact360-kpis{grid-template-columns:1fr 1fr}}
+
+
+/* 360 audit completion */
+.btn.danger{border-color:#f0d2c8;background:#fff7f4;color:#a85c3e}
+.btn.danger:hover{background:#ffeee8;border-color:#e7bdaa}
+
+.customer360-alerts{display:flex;gap:8px;flex-wrap:wrap}
+.customer360-alerts>div{min-width:150px;display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid #e4e9ef;border-radius:9px;background:#fafbfd}
+.customer360-alerts>div.risk{background:#fff7f3;border-color:#efd7cd}
+.customer360-alerts>div.watch{background:#fffaf0;border-color:#eedfb9}
+.customer360-alerts b{font-family:"Manrope";font-size:15px;color:#34516f}
+.customer360-alerts span{font-size:8px;color:#72849a}
+
+.customer360-economics{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.customer360-economics>div{padding:11px;border:1px solid #e8edf2;border-radius:9px;background:#fafbfd}
+.customer360-economics span{display:block;font-size:7px;text-transform:uppercase;letter-spacing:.5px;color:#8d9aab;font-weight:800}
+.customer360-economics b{display:block;margin-top:5px;font-family:"Manrope";font-size:13px;color:#304d6b}
+
+.contact360-services{display:flex;gap:6px;flex-wrap:wrap}
+.contact360-services>span{display:inline-flex;padding:6px 8px;border-radius:999px;background:#edf4ff;color:#476fa9;font-size:7px;font-weight:800}
+
+.contact360-message-timeline{display:flex;flex-direction:column;gap:8px;max-height:430px;overflow:auto;padding:2px 3px 2px 0;overscroll-behavior:contain}
+.contact360-message{max-width:88%;padding:9px 11px;border:1px solid #e4eaf0;border-radius:11px;background:#fafbfd}
+.contact360-message.contact{align-self:flex-start;background:#fff;border-color:#dfe6ee}
+.contact360-message.assistant{align-self:flex-end;background:#edf4ff;border-color:#d9e6fb}
+.contact360-message.system{align-self:center;max-width:95%;background:#f3f4f6;border-style:dashed}
+.contact360-message>div{display:flex;justify-content:space-between;gap:14px;align-items:center}
+.contact360-message b{font-size:7px;text-transform:uppercase;letter-spacing:.45px;color:#5e748c}
+.contact360-message time{font-size:7px;color:#97a2af}
+.contact360-message p{margin:5px 0 0;font-size:8px;line-height:1.48;color:#405971;white-space:pre-wrap;word-break:break-word}
+
+.task-editor-actions{grid-column:1/-1}
+.task-row-actions .task-edit-button{background:#fff}
+.task-row-actions .task-edit-button:hover{background:#f4f7fb}
+
+@media(max-width:900px){
+  .customer360-economics{grid-template-columns:1fr 1fr}
+}
+@media(max-width:720px){
+  .customer360-alerts>div{flex:1 1 calc(50% - 4px);min-width:0}
+  .customer360-economics{grid-template-columns:1fr 1fr}
+  .contact360-message{max-width:94%}
+  .contact360-message-timeline{max-height:360px}
+}
