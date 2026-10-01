@@ -1088,57 +1088,54 @@ async function renderOverview() {
         <div><span>Handoffs</span><b>${m.attention}</b><small>solo monitoreo de chats</small></div>
       </div>
 
-      <div class="portfolio-health">
-        <div class="portfolio-health-summary">
-          <span>Salud operativa de clientes</span>
-          <div><b class="health-dot good"></b>${stableClients} estables</div>
-          <div><b class="health-dot watch"></b>${watchClients} por monitorear</div>
-          <div><b class="health-dot risk"></b>${riskClients} requieren atención</div>
-        </div>
-        <div class="portfolio-health-cards">
-          ${clientRows.map(({ org, metrics, health }) => `
-            <article class="portfolio-account">
-              <div class="portfolio-account-top">${assistantAvatarHtml(assistantForOrg(org.id),org,"org-mini assistant-mini")}${healthBadge(health)}</div>
-              <b>${esc(org.name)}</b>
-              <small>${esc(org.assistant || "Asistente")} · ${metrics.chats} conversaciones</small>
-              <p>${esc(health.reasons[0])}</p>
-            </article>
-          `).join("")}
-        </div>
-      </div>
-
-      <div class="grid-two executive-grid">
-        <section class="card">
-          <div class="card-head"><div><h2>Actividad de la red NEXO</h2><p>Conversaciones, leads y citas por día</p></div></div>
-          <div class="chart-wrap">${activityChart(m.activitySeries)}</div>
-        </section>
-        ${alertCenterHtml(networkAlerts, "Alertas de clientes")}
-      </div>
-
       <section class="card">
-        <div class="card-head"><div><h2>Rendimiento por cliente</h2><p>Comparativa operativa de organizaciones activas</p></div></div>
+        <div class="card-head"><div><h2>Estado de clientes NEXO</h2><p>Plan, asistente, integración y monitoreo técnico. Los leads, citas y ventas permanecen dentro del workspace de cada cliente.</p></div></div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Cliente</th><th>Estado</th><th>Asistente</th><th>Conversaciones</th><th>Leads</th><th>Conversión</th><th>Automatización</th><th>Respuesta</th><th>Valor</th><th>Atención</th></tr></thead>
+            <thead><tr><th>Cliente</th><th>Estado</th><th>Asistente</th><th>Plan</th><th>Integración</th><th>Chats</th><th>Handoffs</th><th>MRR</th></tr></thead>
             <tbody>
-              ${clientRows.map(({ org, metrics, health }) => `
-                <tr>
-                  <td><b>${esc(org.name)}</b><br><span class="muted">${esc(org.sector)}</span></td>
-                  <td>${healthBadge(health, true)}</td>
-                  <td>${esc(org.assistant || "—")}</td>
+              ${clientRows.map(({ org, metrics }) => {
+                const commercial=(commandCommercials||[]).find((row)=>row.organization_id===org.id)||{};
+                return `<tr>
+                  <td><b>${esc(org.name)}</b><br><span class="muted">${esc(org.sector||"")}</span></td>
+                  <td><span class="pill ${org.status==="active"?"green":""}">${esc(org.status||"—")}</span></td>
+                  <td>${assistantAvatarHtml(assistantForOrg(org.id),org,"org-mini assistant-mini")} ${esc(org.assistant||"—")}</td>
+                  <td>${esc(commercial.plan_name||"—")}</td>
+                  <td>${esc(commercial.integration_status||"—")}</td>
                   <td>${metrics.chats}</td>
-                  <td>${metrics.leadCount}</td>
-                  <td><b>${metrics.conversion}%</b></td>
-                  <td>${metrics.automated}%</td>
-                  <td>${metrics.response.toFixed(1)} s</td>
-                  <td>${money(metrics.value)}</td>
-                  <td>${metrics.attention ? `<span class="count">${metrics.attention}</span>` : '<span class="pill green">0</span>'}</td>
-                </tr>
-              `).join("")}
+                  <td>${metrics.attention?`<span class="count">${metrics.attention}</span>`:"<span class=\"pill green\">0</span>"}</td>
+                  <td>${money(commercial.mrr||0)}</td>
+                </tr>`;
+              }).join("")}
             </tbody>
           </table>
         </div>
       </section>
+
+      <div class="grid-two executive-grid">
+        <section class="card">
+          <div class="card-head"><div><h2>Monitoreo de conversaciones</h2><p>Actividad de asistentes por cliente para comprobar que NEXO está operando y detectar handoffs.</p></div></div>
+          <div class="portfolio-health-cards">
+            ${clientRows.map(({org,metrics})=>`
+              <article class="portfolio-account">
+                <div class="portfolio-account-top">${assistantAvatarHtml(assistantForOrg(org.id),org,"org-mini assistant-mini")}${metrics.attention?`<span class="count">${metrics.attention}</span>`:`<span class="pill green">OK</span>`}</div>
+                <b>${esc(org.name)}</b>
+                <small>${esc(org.assistant||"Asistente")} · ${metrics.chats} chats</small>
+                <p>${metrics.attention?"Hay conversaciones escaladas para revisión.":"Sin handoffs pendientes."}</p>
+              </article>
+            `).join("")}
+          </div>
+        </section>
+        <section class="card">
+          <div class="card-head"><div><h2>Salud de plataforma</h2><p>Indicadores administrativos de NEXO</p></div></div>
+          <div class="rows">
+            <div class="item-row"><div><strong>Clientes activos</strong><small>Organizaciones en producción</small></div><b>${clients.length}</b></div>
+            <div class="item-row"><div><strong>Integraciones por revisar</strong><small>Pendientes, parciales o con atención</small></div><b>${integrationIssues}</b></div>
+            <div class="item-row"><div><strong>Mis tareas abiertas</strong><small>Asignadas directamente a Juan</small></div><b>${(manualTasks||[]).length}</b></div>
+            <div class="item-row"><div><strong>Handoffs de clientes</strong><small>Solo monitoreo transversal de chats</small></div><b>${m.attention}</b></div>
+          </div>
+        </section>
+      </div>
     `;
     document.querySelectorAll("[data-command-index]").forEach((button)=>{
       button.addEventListener("click",async()=>{
