@@ -371,10 +371,16 @@ export async function openCustomer360(context,orgId){
     const openTasks=tasks.filter((r)=>["pending","in_progress"].includes(r.status));
     const confirmed=appointments.filter((r)=>["Confirmada","Completada"].includes(r.status));
     const attention=conversations.filter((r)=>r.status==="Requiere atención");
+    const pendingAppointments=appointments.filter((r)=>["Solicitada","Pendiente"].includes(r.status));
+    const overdueTasks=openTasks.filter((r)=>r.due_at&&new Date(r.due_at).getTime()<Date.now());
+    const overdueInvoices=invoices.filter((r)=>r.status==="overdue"||(r.status==="pending"&&r.due_date&&new Date(String(r.due_date)+"T23:59:59-05:00").getTime()<Date.now()));
     const receivable=invoices.filter((r)=>["pending","overdue"].includes(r.status)).reduce((s,r)=>s+Number(r.amount_cop||0),0);
     const directCost=Number(commercial.monthly_cost||0);
     const mrr=Number(commercial.mrr||0);
+    const setupFee=Number(commercial.setup_fee||0);
     const margin=mrr?Math.round(((mrr-directCost)/mrr)*100):0;
+    const clientUsers=assignees.filter((r)=>r.role!=="platform_admin");
+    const alertCount=attention.length+pendingAppointments.length+overdueInvoices.length+overdueTasks.length;
     const current=ensureDrawer("customer360Modal");
     current.querySelector(".nexo-drawer-content").innerHTML=`
       <header class="drawer-header">
@@ -416,11 +422,37 @@ export async function openCustomer360(context,orgId){
           <div><dt>Correo</dt><dd>${esc(settings.notification_email||settings.public_email||commercial.billing_email||"—")}</dd></div>
           <div><dt>WhatsApp</dt><dd>${esc(settings.whatsapp||"—")}</dd></div>
           <div><dt>Ciudad</dt><dd>${esc(settings.city||"—")}</dd></div>
-          <div><dt>Usuarios</dt><dd>${assignees.length}</dd></div>
+          <div><dt>Usuarios cliente</dt><dd>${clientUsers.length}</dd></div>
           <div><dt>Servicios</dt><dd>${services.filter((s)=>s.active!==false).length}</dd></div>
         </dl></section>
         <section class="drawer-card"><h3>Integraciones</h3><div class="drawer-list">${integrations.length?integrations.map((r)=>`<div><b>${esc(r.integration_name)}</b><span>${esc(r.provider||"")} · ${esc(r.status)}</span></div>`).join(""):'<p class="muted">Sin integraciones registradas.</p>'}</div></section>
       </div>
+      <section class="drawer-card drawer-wide">
+        <div class="drawer-card-head"><h3>Alertas actuales</h3><span>${alertCount}</span></div>
+        <div class="customer360-alerts">
+          ${attention.length?`<div class="risk"><b>${attention.length}</b><span>Chats requieren atención</span></div>`:""}
+          ${pendingAppointments.length?`<div class="watch"><b>${pendingAppointments.length}</b><span>Citas por confirmar</span></div>`:""}
+          ${overdueInvoices.length?`<div class="risk"><b>${overdueInvoices.length}</b><span>Cobros vencidos</span></div>`:""}
+          ${overdueTasks.length?`<div class="risk"><b>${overdueTasks.length}</b><span>Tareas vencidas</span></div>`:""}
+          ${!alertCount?`<p class="muted">Sin alertas activas.</p>`:""}
+        </div>
+      </section>
+      <section class="drawer-card drawer-wide">
+        <div class="drawer-card-head"><h3>Economía del cliente</h3><span>${esc(commercial.pricing_type||"standard")}</span></div>
+        <div class="customer360-economics">
+          <div><span>Setup</span><b>${money(setupFee)}</b></div>
+          <div><span>MRR</span><b>${money(mrr)}</b></div>
+          <div><span>Costo mensual</span><b>${money(directCost)}</b></div>
+          <div><span>Margen estimado</span><b>${mrr?margin+"%":"—"}</b></div>
+          <div><span>Por cobrar</span><b>${money(receivable)}</b></div>
+        </div>
+      </section>
+      <section class="drawer-card drawer-wide"><div class="drawer-card-head"><h3>Usuarios con acceso</h3><span>${clientUsers.length}</span></div><div class="drawer-list">
+        ${clientUsers.length?clientUsers.map((u)=>`<div><b>${esc(u.full_name||u.contact_email||"Usuario")}</b><span>${esc(u.role||"")} · ${esc(u.contact_email||"sin correo de contacto")}</span></div>`).join(""):`<p class="muted">Sin usuarios cliente registrados.</p>`}
+      </div></section>
+      <section class="drawer-card drawer-wide"><div class="drawer-card-head"><h3>Cartera reciente</h3><span>${invoices.length}</span></div><div class="drawer-list">
+        ${invoices.length?invoices.slice(0,6).map((r)=>`<div><b>${esc(r.invoice_number||"Cuenta de cobro")} · ${money(r.amount_cop)}</b><span>${esc(r.status)} · vence ${shortDate(r.due_date)}</span></div>`).join(""):`<p class="muted">Sin cuentas de cobro registradas.</p>`}
+      </div></section>
       <section class="drawer-card drawer-wide"><div class="drawer-card-head"><h3>Tareas abiertas</h3><span>${openTasks.length}</span></div><div class="drawer-list">
         ${openTasks.length?openTasks.slice(0,8).map((r)=>`<div><b>${esc(r.title)}</b><span>${esc(priorityLabels[r.priority]||r.priority)} · ${r.due_at?dateTime(r.due_at):"Sin fecha"}</span></div>`).join(""):'<p class="muted">No hay tareas abiertas.</p>'}
       </div></section>
