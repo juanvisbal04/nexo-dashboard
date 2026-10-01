@@ -2816,6 +2816,18 @@ async function renderBillingPortal() {
   if (error) throw error;
 
   const rows = invoices || [];
+  const invoiceIds=rows.map((row)=>row.id);
+  let paymentAttempts=[];
+  if(invoiceIds.length){
+    const paymentResult=await supabase.from("invoice_payments").select("*").in("invoice_id",invoiceIds).order("created_at",{ascending:false}).limit(2000);
+    if(paymentResult.error)throw paymentResult.error;
+    paymentAttempts=paymentResult.data||[];
+  }
+  const attemptsByInvoice=paymentAttempts.reduce((map,row)=>{
+    if(!map.has(row.invoice_id))map.set(row.invoice_id,[]);
+    map.get(row.invoice_id).push(row);
+    return map;
+  },new Map());
   const orgName = (id) => state.organizations.find((org) => org.id === id)?.name || "Cliente NEXO";
   const pending = rows.filter((row) => ["pending","overdue"].includes(derivedInvoiceStatus(row)));
   const overdue = rows.filter((row) => derivedInvoiceStatus(row) === "overdue");
@@ -2833,7 +2845,7 @@ async function renderBillingPortal() {
       ${metricCard("Por pagar", money(receivable), `${pending.length} documento${pending.length===1?"":"s"} pendiente${pending.length===1?"":"s"}`, null, true)}
       ${metricCard("Vencidos", overdue.length, overdue.length ? "Requieren atención" : "Sin vencimientos")}
       ${metricCard("Pagado histórico", money(paidTotal), `${paid.length} pago${paid.length===1?"":"s"} registrado${paid.length===1?"":"s"}`)}
-      ${metricCard("Pagado " + currentYear, money(paidThisYear), "Acumulado del año")}
+      ${metricCard("Wompi", rows.filter((row)=>row.payment_provider==="wompi"||row.payment_url).length, `${paymentAttempts.filter((row)=>row.status==="approved").length} pago${paymentAttempts.filter((row)=>row.status==="approved").length===1?"":"s"} aprobado${paymentAttempts.filter((row)=>row.status==="approved").length===1?"":"s"}`)}
     </div>
 
     <section class="card billing-portal-card">
@@ -2857,9 +2869,13 @@ async function renderBillingPortal() {
                 <td>${row.paid_at ? dateTime(row.paid_at) : "—"}</td>
                 <td>
                   ${["pending","overdue"].includes(status)
-                    ? `<button class="btn primary small billing-pay-button" data-invoice-id="${row.id}" type="button">Pagar ahora</button>
-                       <span class="billing-payment-state">${row.payment_status === "pending" ? "Link generado" : row.payment_status === "declined" ? "Pago rechazado" : row.payment_status === "error" ? "Error de pago" : ""}</span>`
-                    : row.payment_status === "approved" ? '<span class="pill green">Pago confirmado</span>' : "—"}
+                    ? `<div class="billing-online-actions">
+                        <button class="btn primary small billing-pay-button" data-invoice-id="${row.id}" type="button">${row.payment_url&&row.payment_status==="pending"?"Abrir Wompi":"Generar link"}</button>
+                        ${row.payment_url?`<button class="btn small billing-copy-link" data-payment-url="${esc(row.payment_url)}" type="button">Copiar link</button>`:""}
+                        <span class="billing-payment-state">${row.payment_status === "pending" ? "Pendiente en Wompi" : row.payment_status === "declined" ? "Pago rechazado" : row.payment_status === "error" ? "Error de pago" : row.payment_status === "expired" ? "Link vencido" : ""}</span>
+                        ${(attemptsByInvoice.get(row.id)||[]).length?`<small>${(attemptsByInvoice.get(row.id)||[]).length} intento${(attemptsByInvoice.get(row.id)||[]).length===1?"":"s"} registrado${(attemptsByInvoice.get(row.id)||[]).length===1?"":"s"}</small>`:""}
+                       </div>`
+                    : row.payment_status === "approved" ? `<span class="pill green">Pago confirmado</span>${row.payment_method_type?`<small class="billing-method">${esc(row.payment_method_type)}</small>`:""}` : "—"}
                 </td>
                 <td><button class="btn small billing-pdf-button" data-invoice-id="${row.id}" type="button">Descargar PDF</button></td>
               </tr>`;
@@ -2877,6 +2893,15 @@ async function renderBillingPortal() {
   const byId=new Map(rows.map((row)=>[row.id,row]));
   document.querySelectorAll(".billing-pay-button").forEach((button)=>{
     button.addEventListener("click",()=>startInvoicePayment(button.dataset.invoiceId,button));
+  });
+
+  document.querySelectorAll(".billing-copy-link").forEach((button)=>{
+    button.addEventListener("click",async()=>{
+      try{
+        await navigator.clipboard.writeText(button.dataset.paymentUrl||"");
+        showToast("Link de Wompi copiado.");
+      }catch(error){showError("No pudimos copiar el link de pago.");}
+    });
   });
 
   document.querySelectorAll(".billing-pdf-button").forEach((button)=>{
