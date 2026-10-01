@@ -972,16 +972,32 @@ async function renderOverview() {
     const watchClients = clientRows.filter((row) => row.health.tone === "watch").length;
     const riskClients = clientRows.filter((row) => row.health.tone === "risk").length;
 
-    const [{data:commandProspects},{data:commandInvoices},{data:commandCommercials}] = await Promise.all([
+    const [{data:commandProspects},{data:commandInvoices},{data:commandCommercials},{data:manualTasks}] = await Promise.all([
       supabase.from("demo_requests").select("*").in("stage",["prospecto","demo","propuesta"]).order("created_at",{ascending:false}).limit(50),
       supabase.from("client_invoices").select("*").in("status",["pending","overdue"]).order("due_date",{ascending:true}).limit(50),
       supabase.from("organization_commercials").select("*"),
+      supabase.from("work_tasks").select("*").in("status",["pending","in_progress"]).order("due_at",{ascending:true}).limit(100),
     ]);
 
     const commandTasks=[];
     const nowMs=Date.now();
     const sevenDays=7*86400000;
     const thirtyDays=30*86400000;
+
+    (manualTasks||[]).forEach((row)=>{
+      const due=row.due_at?new Date(row.due_at).getTime():null;
+      const overdue=due&&due<nowMs;
+      if(overdue || row.priority==="urgent" || row.priority==="high"){
+        commandTasks.push({
+          priority:overdue?98:row.priority==="urgent"?94:74,
+          tone:overdue||row.priority==="urgent"?"risk":"watch",
+          page:"tasks",orgId:row.organization_id,
+          title:overdue?"Tarea vencida":"Tarea prioritaria",
+          detail:`${clientName(row.organization_id)} · ${row.title}`,
+          meta:row.due_at?dateTime(row.due_at):"Sin fecha límite"
+        });
+      }
+    });
 
     attentionRows.forEach((row)=>commandTasks.push({
       priority:100,tone:"risk",page:"operations",orgId:row.organization_id,
