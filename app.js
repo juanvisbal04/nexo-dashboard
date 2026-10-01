@@ -951,20 +951,17 @@ function emptyState(title = "Todavía no hay datos reales en esta sección.", de
 }
 
 async function renderOverview() {
-  const m = await getMetrics();
-  state.currentRows = m.conversations;
-
   if (state.isAdmin && isInternalOrg()) {
     const clients = clientOrganizations();
-    const clientRows = await Promise.all(clients.map(async (org) => {
-      const metrics = await getMetrics(org.id, currentDays(), { comparison: false });
-      return {
-        org,
-        metrics,
-        health: operationalHealth(metrics),
-        alerts: buildOperationalAlerts(metrics, org.name, org.id),
-      };
-    }));
+    const orgIds=clients.map((org)=>org.id);
+    const window=periodWindow(currentDays());
+    const conversations=await fetchMetricRows("conversations",orgIds,{...window,order:"last_message_at",timeField:"last_message_at"});
+    state.currentRows=conversations;
+    const clientRows=clients.map((org)=>{
+      const rows=conversations.filter((row)=>row.organization_id===org.id);
+      return {org,metrics:{chats:rows.length,attention:rows.filter((row)=>row.status==="Requiere atención").length}};
+    });
+    const totalHandoffs=conversations.filter((row)=>row.status==="Requiere atención").length;
 
     const clientName = (id) => clients.find((org) => org.id === id)?.name || "Cliente NEXO";
     const attentionRows = m.conversations
