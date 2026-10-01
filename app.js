@@ -64,10 +64,10 @@ function restoreUiState() {
   if (allowedPeriods.has(String(saved.period || ""))) $("periodSelect").value = String(saved.period);
 
   let page = pageMeta[hashPage] ? hashPage : (pageMeta[saved.page] ? saved.page : "overview");
-  const adminOnly = new Set(["crm","clients","operations","quality","audit","admin"]);
+  const adminOnly = new Set(["crm","growth","clients","operations","quality","audit","admin"]);
   if (adminOnly.has(page) && !state.isAdmin) page = "overview";
-  if (state.isAdmin && isInternalOrg() && !["overview","crm","clients","operations","conversations","tasks","quality","settings","audit","profile"].includes(page)) page = "overview";
-  if ((!state.isAdmin || !isInternalOrg()) && ["clients","operations","quality","audit","admin","crm"].includes(page)) page = "overview";
+  if (state.isAdmin && isInternalOrg() && !["overview","crm","growth","clients","operations","conversations","tasks","quality","settings","audit","profile"].includes(page)) page = "overview";
+  if ((!state.isAdmin || !isInternalOrg()) && ["clients","operations","quality","audit","admin","crm","growth"].includes(page)) page = "overview";
   if (page === "team" && !canManageCurrentOrgUsers()) page = "overview";
   state.page = page;
   updateNavigationAccess();
@@ -85,6 +85,7 @@ const pageMeta = {
   billing: ["Facturación", "NEXO BILLING", "Tus cobros y pagos, claros.", "Cuentas de cobro, vencimientos, pagos y documentos."],
   team: ["Usuarios", "CONTROL DE ACCESO", "Tu equipo, con el acceso correcto.", "Invita y administra usuarios de este dashboard."],
   crm: ["Ventas & Finanzas", "NEXO CRM", "Pipeline, ingresos y rentabilidad.", "Del prospecto al cliente activo y su economía en un solo módulo."],
+  growth: ["Growth", "NEXO GROWTH", "Cómo está creciendo NEXO.", "Prospectos, demos, propuestas, cierres, MRR potencial y fuentes de adquisición."],
   clients: ["Clientes", "NEXO CRM", "Tu cartera de clientes, organizada.", "Empresas, planes, accesos e implementación sin métricas repetidas."],
   operations: ["Operaciones", "NEXO OPERATIONS", "La plataforma, bajo control.", "Integraciones, asistentes, handoffs y salud operativa de NEXO."],
   quality: ["Calidad de datos", "NEXO DATA QUALITY", "Datos confiables para decidir.", "Duplicados, precios, pruebas, integridad y onboarding en una sola vista."],
@@ -2414,6 +2415,71 @@ async function renderSettings() {
   });
 }
 
+async function renderGrowth(){
+  if(!adminInternalView()){
+    $("content").innerHTML=emptyState("Growth es privado de NEXO.","Selecciona NEXO Internal para revisar adquisición y pipeline.");
+    return;
+  }
+  const since=sinceIso(currentDays());
+  const [{data:allRows,error},{data:activities}]=await Promise.all([
+    supabase.from("demo_requests").select("*").order("created_at",{ascending:false}).limit(1000),
+    supabase.from("crm_activities").select("*").order("created_at",{ascending:false}).limit(1000)
+  ]);
+  if(error)throw error;
+  const rows=allRows||[];
+  const periodRows=rows.filter((row)=>new Date(row.created_at).getTime()>=new Date(since).getTime());
+  const openStages=new Set(["prospecto","demo","propuesta"]);
+  const wonStages=new Set(["cliente","implementacion","activo"]);
+  const open=rows.filter((row)=>openStages.has(row.stage));
+  const won=rows.filter((row)=>wonStages.has(row.stage));
+  const lost=rows.filter((row)=>row.stage==="perdido");
+  const closed=won.length+lost.length;
+  const closeRate=closed?Math.round((won.length/closed)*100):0;
+  const potentialMrr=open.reduce((sum,row)=>sum+Number(row.expected_mrr||0),0);
+  const setupPipeline=open.reduce((sum,row)=>sum+Number(row.expected_setup_fee||0),0);
+  const sources=Object.entries(periodRows.reduce((map,row)=>{const key=row.source||"Sin fuente";map[key]=(map[key]||0)+1;return map;},{})).sort((a,b)=>b[1]-a[1]);
+  const stages=["prospecto","demo","propuesta","cliente","implementacion","activo","perdido"].map((stage)=>[stage,rows.filter((row)=>row.stage===stage).length]);
+  const upcoming=rows.filter((row)=>row.next_action_at && new Date(row.next_action_at).getTime()>=Date.now()).sort((a,b)=>new Date(a.next_action_at)-new Date(b.next_action_at)).slice(0,8);
+  const overdue=rows.filter((row)=>openStages.has(row.stage)&&row.next_action_at&&new Date(row.next_action_at).getTime()<Date.now()).length;
+
+  state.currentRows=rows;
+  $("content").innerHTML=`
+    <div class="stats-grid">
+      ${metricCard("Nuevos prospectos",periodRows.length,`Últimos ${currentDays()} días`,null,true)}
+      ${metricCard("MRR potencial",money(potentialMrr),`${open.length} oportunidades abiertas`)}
+      ${metricCard("Setup potencial",money(setupPipeline),"Pipeline abierto")}
+      ${metricCard("Tasa de cierre",closeRate+"%",`${won.length} ganados · ${lost.length} perdidos`)}
+    </div>
+    <div class="executive-strip">
+      <div><span>Prospectos abiertos</span><b>${open.length}</b><small>pipeline activo</small></div>
+      <div><span>Demos</span><b>${rows.filter((r)=>r.stage==="demo").length}</b><small>en etapa demo</small></div>
+      <div><span>Propuestas</span><b>${rows.filter((r)=>r.stage==="propuesta").length}</b><small>por cerrar</small></div>
+      <div><span>Seguimientos vencidos</span><b>${overdue}</b><small>requieren acción</small></div>
+      <div><span>Clientes ganados</span><b>${won.length}</b><small>cliente / implementación / activo</small></div>
+    </div>
+    <div class="grid-two">
+      <section class="card">
+        <div class="card-head"><div><h2>Embudo NEXO</h2><p>Distribución actual del pipeline</p></div></div>
+        <div class="growth-funnel">
+          ${stages.map(([stage,count])=>`<div><span>${esc(({prospecto:"Prospecto",demo:"Demo",propuesta:"Propuesta",cliente:"Cliente",implementacion:"Implementación",activo:"Activo",perdido:"Perdido"}[stage]||stage))}</span><b>${count}</b><i><em style="width:${rows.length?Math.max(3,(count/rows.length)*100):0}%"></em></i></div>`).join("")}
+        </div>
+      </section>
+      <section class="card">
+        <div class="card-head"><div><h2>Fuentes de prospectos</h2><p>Nuevos registros del período</p></div></div>
+        <div class="growth-sources">
+          ${sources.length?sources.map(([source,count])=>`<div><span>${esc(source)}</span><b>${count}</b></div>`).join(""):emptyState("Aún no hay fuentes en este período.","Los nuevos prospectos aparecerán aquí.")}
+        </div>
+      </section>
+    </div>
+    <section class="card">
+      <div class="card-head"><div><h2>Próximas acciones comerciales</h2><p>Seguimientos programados para NEXO</p></div><span class="count">${upcoming.length}</span></div>
+      <div class="rows">
+        ${upcoming.length?upcoming.map((row)=>`<div class="item-row"><div><strong>${esc(row.business_name||row.full_name||"Prospecto")}</strong><small>${esc(row.stage||"prospecto")} · ${esc(row.source||"sin fuente")}</small></div><div class="muted">${dateTime(row.next_action_at)}</div></div>`).join(""):emptyState("No hay acciones futuras programadas.","Programa la próxima acción desde Ventas & Finanzas.")}
+      </div>
+    </section>
+  `;
+}
+
 async function renderAudit() {
   if (!adminInternalView()) {
     $("content").innerHTML=emptyState("Audit Log es privado de NEXO.","Selecciona NEXO Internal para revisar el historial administrativo.");
@@ -3506,7 +3572,7 @@ async function render() {
   clearError();
   const meta = pageMeta[state.page];
 
-  if (["crm","clients","operations","quality","audit"].includes(state.page) && state.isAdmin) {
+  if (["crm","growth","clients","operations","quality","audit"].includes(state.page) && state.isAdmin) {
     const internal = state.organizations.find((org) => org.name === "NEXO Internal");
     if (internal && $("orgSelect").value !== internal.id) {
       $("orgSelect").value = internal.id;
@@ -3518,7 +3584,7 @@ async function render() {
   const noPeriod = ["crm","billing","clients","tasks","quality","settings","audit","profile"].includes(state.page);
   $("periodSelect").classList.toggle("hidden", noPeriod);
   $("exportButton").classList.toggle("hidden", ["settings","profile"].includes(state.page));
-  $("exportButton").textContent = state.page === "crm" ? "Exportar CRM" : state.page === "billing" ? "Exportar cobros" : state.page === "audit" ? "Exportar audit" : state.page === "clients" ? "Exportar clientes" : state.page === "tasks" ? "Exportar tareas" : state.page === "quality" ? "Exportar calidad" : "Exportar CSV";
+  $("exportButton").textContent = state.page === "crm" ? "Exportar CRM" : state.page === "growth" ? "Exportar growth" : state.page === "billing" ? "Exportar cobros" : state.page === "audit" ? "Exportar audit" : state.page === "clients" ? "Exportar clientes" : state.page === "tasks" ? "Exportar tareas" : state.page === "quality" ? "Exportar calidad" : "Exportar CSV";
 
   $("breadcrumb").textContent = meta[0];
   $("pageEyebrow").textContent = meta[1];
@@ -3535,6 +3601,7 @@ async function render() {
     else if (state.page === "billing") await renderBillingPortal();
     else if (state.page === "team") await renderTeam();
     else if (state.page === "crm") await renderCrm({ supabase, state, $, esc, money, dateTime, shortDate, metricCard, emptyState, showError, showToast, clientOrganizations, loadOrganizations, renderApp: render, persistUiState, downloadInvoicePdf });
+    else if (state.page === "growth") await renderGrowth();
     else if (state.page === "clients" || state.page === "admin") await renderClients();
     else if (state.page === "operations") await renderOperations();
     else if (state.page === "tasks") await renderTasks(workspace360Context());
@@ -3847,7 +3914,7 @@ $("orgSelect").addEventListener("change", async () => {
   updateNavigationAccess();
   const internal=adminInternalView();
   if (internal && !["overview","crm","clients","operations","conversations","tasks","quality","settings","audit","profile","growth"].includes(state.page)) state.page="overview";
-  if (!internal && ["crm","clients","operations","quality","audit","admin"].includes(state.page)) state.page="overview";
+  if (!internal && ["crm","growth","clients","operations","quality","audit","admin"].includes(state.page)) state.page="overview";
   if (state.page === "team" && !canManageCurrentOrgUsers()) state.page = "overview";
   document.querySelectorAll(".nav-item").forEach((item) => item.classList.toggle("active", item.dataset.page === state.page));
   persistUiState();
@@ -3861,8 +3928,8 @@ $("exportButton").addEventListener("click", exportCsv);
 
 document.querySelectorAll(".nav-item").forEach((button) => {
   button.addEventListener("click", () => {
-    if (["admin","crm","clients","operations","quality","audit"].includes(button.dataset.page) && !state.isAdmin) return;
-    if (["crm","clients","operations","quality","audit"].includes(button.dataset.page) && !adminInternalView()) return;
+    if (["admin","crm","growth","clients","operations","quality","audit"].includes(button.dataset.page) && !state.isAdmin) return;
+    if (["crm","growth","clients","operations","quality","audit"].includes(button.dataset.page) && !adminInternalView()) return;
     if (button.dataset.page === "team" && !canManageCurrentOrgUsers()) return;
     state.page = button.dataset.page;
     document.querySelectorAll(".nav-item").forEach((item) => item.classList.toggle("active", item.dataset.page === state.page));
@@ -3926,8 +3993,8 @@ window.addEventListener("hashchange", () => {
   if (!state.session) return;
   const page = window.location.hash.replace(/^#/, "") || "overview";
   if (!pageMeta[page]) return;
-  if (["admin","crm","clients","operations","quality","audit"].includes(page) && !state.isAdmin) return;
-  if (["crm","clients","operations","quality","audit"].includes(page) && !adminInternalView()) return;
+  if (["admin","crm","growth","clients","operations","quality","audit"].includes(page) && !state.isAdmin) return;
+  if (["crm","growth","clients","operations","quality","audit"].includes(page) && !adminInternalView()) return;
   state.page = page;
   document.querySelectorAll(".nav-item").forEach((item) => item.classList.toggle("active", item.dataset.page === state.page));
   render();
