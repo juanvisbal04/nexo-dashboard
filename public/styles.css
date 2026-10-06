@@ -2701,3 +2701,163 @@ p{
     right:16px;
   }
 }
+
+
+/* === NEXO INDUSTRY PORTFOLIO · 2026-10-06 === */
+.industries-v2{
+  background:#f8fafc;
+  overflow:hidden;
+}
+.industries-v2 .section-heading.center{
+  max-width:980px;
+  margin-bottom:52px;
+}
+.industry-link-grid{
+  display:grid;
+  grid-template-columns:repeat(12,minmax(0,1fr));
+  gap:0;
+  border-top:1px solid #d9e3ec;
+  border-left:1px solid #d9e3ec;
+}
+.industry-link-card{
+  position:relative;
+  min-height:360px;
+  padding:30px 30px 28px;
+  border:0;
+  border-right:1px solid #d9e3ec;
+  border-bottom:1px solid #d9e3ec;
+  border-radius:0;
+  background:transparent;
+  color:#0B1F3B;
+  overflow:hidden;
+  box-shadow:none;
+  transition:background .2s ease,color .2s ease;
+}
+.industry-link-card.beauty{grid-column:1/7}
+.industry-link-card.hotel{grid-column:7/13}
+.industry-link-card.restaurant{grid-column:1/5}
+.industry-link-card.clinic{grid-column:5/13}
+
+.industry-link-card:before{
+  position:absolute;
+  right:-6px;
+  bottom:-24px;
+  font-size:clamp(66px,8vw,126px);
+  line-height:.8;
+  font-weight:800;
+  letter-spacing:-6px;
+  color:rgba(11,31,59,.025);
+  pointer-events:none;
+  white-space:nowrap;
+}
+.industry-link-card.beauty:before{content:"ESTÉTICA"}
+.industry-link-card.hotel:before{content:"HOTEL"}
+.industry-link-card.restaurant:before{content:"FOOD"}
+.industry-link-card.clinic:before{content:"CLÍNICA"}
+
+.industry-link-card:after{
+  content:"";
+  position:absolute;
+  left:auto;
+  right:26px;
+  top:27px;
+  bottom:auto;
+  width:12px;
+  height:12px;
+  border:0;
+  background:#2D9CFF;
+  transform:rotate(45deg);
+  opacity:.8;
+}
+.industry-link-card:hover{
+  background:#0B1F3B;
+  color:#fff;
+}
+.industry-link-card:hover:before{
+  color:rgba(45,156,255,.06);
+}
+.industry-link-card:hover:after{
+  opacity:1;
+}
+.industry-code{
+  color:#6c8298;
+  font-size:7px;
+  letter-spacing:1.35px;
+  font-weight:800;
+}
+.industry-link-card:hover .industry-code{
+  color:#66b9ff;
+}
+.industry-link-card h3{
+  max-width:520px;
+  margin:86px 0 15px;
+  font-size:clamp(27px,3vw,42px);
+  line-height:1.02;
+  letter-spacing:-1.6px;
+  color:inherit;
+}
+.industry-link-card p{
+  max-width:520px;
+  margin:0;
+  color:#718398;
+  font-size:10px;
+  line-height:1.68;
+}
+.industry-link-card:hover p{
+  color:#9fb2c7;
+}
+.industry-link-card b{
+  position:absolute;
+  left:30px;
+  bottom:27px;
+  color:#2b7fca;
+  font-size:8px;
+  letter-spacing:.01em;
+}
+.industry-link-card:hover b{
+  color:#71c0ff;
+}
+.industries-v2 .industry-tags{
+  justify-content:flex-start;
+  margin-top:22px;
+}
+.industries-v2 .industry-tags span{
+  background:transparent;
+  border:0;
+  border-left:1px solid #d5e0ea;
+  border-radius:0;
+  padding:3px 14px;
+  min-height:auto;
+  color:#7c8ea1;
+}
+.industries-v2 .industry-tags span:first-child{
+  border-left:0;
+  padding-left:0;
+}
+@media(max-width:820px){
+  .industry-link-card.beauty,
+  .industry-link-card.hotel,
+  .industry-link-card.restaurant,
+  .industry-link-card.clinic{
+    grid-column:1/13;
+  }
+  .industry-link-card{
+    min-height:290px;
+    padding:25px 24px;
+  }
+  .industry-link-card h3{
+    margin-top:62px;
+    font-size:31px;
+  }
+  .industry-link-card b{
+    left:24px;
+    bottom:23px;
+  }
+  .industry-link-card:after{
+    right:22px;
+    top:24px;
+  }
+  .industries-v2 .industry-tags{
+    gap:8px 0;
+  }
+}
