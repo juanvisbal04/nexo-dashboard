@@ -256,6 +256,7 @@ if(floatingWhatsapp&&contactSection&&"IntersectionObserver" in window){
 // === NEXO PRIVACY-CONSCIOUS FUNNEL · 2026-10-06 ===
 (function(){
   const STORAGE_KEY="nexo.web.funnel.v2";
+  const LEGACY_STORAGE_KEY="nexo.web.funnel.v1";
   const PREF_KEY="nexo.analytics";
   const MAX_PAGES=20;
   const MAX_EVENTS=30;
@@ -268,6 +269,7 @@ if(floatingWhatsapp&&contactSection&&"IntersectionObserver" in window){
   let preference="";
   try{preference=localStorage.getItem(PREF_KEY)||"";}catch{}
   const analyticsEnabled=preference!=="off"&&!gpc&&!dnt;
+  try{sessionStorage.removeItem(LEGACY_STORAGE_KEY);}catch{}
 
   function safeUUID(){
     return crypto?.randomUUID?.()||"00000000-0000-4000-8000-"+Math.random().toString(16).slice(2,14).padEnd(12,"0").slice(0,12);
