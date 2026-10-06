@@ -2861,3 +2861,166 @@ p{
     gap:8px 0;
   }
 }
+
+
+/* === NEXO CASE DOSSIER · 2026-10-06 === */
+.case{
+  grid-template-columns:1.02fr .98fr;
+  gap:0;
+  padding:0;
+  background:#fff;
+  border-top:1px solid #e1e8ef;
+  border-bottom:1px solid #e1e8ef;
+}
+.case-art{
+  min-height:650px;
+  background:
+    linear-gradient(rgba(45,156,255,.035) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(45,156,255,.035) 1px,transparent 1px),
+    #07172b;
+  background-size:46px 46px;
+  overflow:hidden;
+}
+.case-art:before{
+  content:"CASE / 001";
+  position:absolute;
+  left:28px;
+  top:26px;
+  color:#54738f;
+  font-size:7px;
+  letter-spacing:1.6px;
+  font-weight:800;
+}
+.case-art:after{
+  content:"LÍA";
+  position:absolute;
+  right:-22px;
+  bottom:-28px;
+  color:rgba(45,156,255,.055);
+  font-size:170px;
+  line-height:1;
+  font-weight:800;
+  letter-spacing:-10px;
+}
+.case-orb{
+  width:260px;
+  height:260px;
+  border-radius:0;
+  border:1px solid rgba(45,156,255,.12);
+  background:transparent;
+  box-shadow:none;
+  transform:rotate(45deg);
+}
+.lia-device{
+  width:min(320px,68%);
+  min-height:475px;
+  border-radius:0;
+  border:1px solid rgba(255,255,255,.16);
+  background:#f8fbfd;
+  box-shadow:0 28px 70px rgba(0,0,0,.28);
+  clip-path:polygon(0 0,calc(100% - 20px) 0,100% 20px,100% 100%,20px 100%,0 calc(100% - 20px));
+  padding-top:58px;
+}
+.phone-top{
+  height:46px;
+  border-bottom:1px solid #e5ebf1;
+}
+.phone-top span{
+  width:22px;
+  height:22px;
+  border-radius:0;
+  background:#2D9CFF;
+  transform:rotate(45deg);
+}
+.lia-chat{
+  border-radius:0;
+  clip-path:polygon(0 0,calc(100% - 8px) 0,100% 8px,100% 100%,8px 100%,0 calc(100% - 8px));
+}
+.lia-chat.bot{
+  background:#eaf4ff;
+}
+.lia-chat.user{
+  background:#0B1F3B;
+}
+.case-badge{
+  min-width:170px;
+  padding:11px 13px;
+  border-radius:0;
+  border-left:2px solid #2D9CFF;
+  background:rgba(255,255,255,.96);
+  box-shadow:0 12px 30px rgba(0,0,0,.16);
+}
+.case-badge small{
+  color:#7e91a4;
+  letter-spacing:.08em;
+}
+.b1{left:5%;top:24%}
+.b2{right:4%;bottom:17%}
+
+.case-copy{
+  padding:clamp(64px,8vw,108px) max(28px,7vw);
+  align-self:stretch;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  background:#fff;
+}
+.case-copy h2{
+  max-width:620px;
+  font-size:clamp(36px,4.4vw,60px);
+  line-height:1.02;
+  letter-spacing:-2.5px;
+}
+.case-copy>p{
+  max-width:590px;
+}
+.case-features{
+  grid-template-columns:1fr;
+  gap:0;
+  margin-top:35px;
+  border-top:1px solid #dce5ed;
+}
+.case-features div{
+  display:grid;
+  grid-template-columns:36px 1fr;
+  gap:10px;
+  padding:15px 0;
+  border-top:0;
+  border-bottom:1px solid #dce5ed;
+}
+.case-features span{
+  padding-top:2px;
+}
+.case-features b{
+  margin:0;
+  font-size:10px;
+}
+.case-features p{
+  grid-column:2;
+  margin:3px 0 0;
+}
+.case-link{
+  align-self:flex-start;
+  margin-top:25px;
+}
+@media(max-width:820px){
+  .case{
+    grid-template-columns:1fr;
+  }
+  .case-art{
+    order:2;
+    min-height:550px;
+  }
+  .case-copy{
+    order:1;
+    padding:66px 20px;
+  }
+  .case-copy h2{
+    font-size:40px;
+    letter-spacing:-2px;
+  }
+  .lia-device{
+    width:285px;
+    min-height:430px;
+  }
+}
