@@ -686,6 +686,14 @@ export async function renderCrm(context) {
   const pipelineMrr = opportunityRows
     .filter((row) => pipelineStages.has(row.stage))
     .reduce((sum, row) => sum + Number(row.expected_mrr || 0), 0);
+
+  const websiteRows = opportunityRows.filter((row) => String(row.source || "").includes("nexobyjv.online"));
+  const websiteDemoStages = new Set(["demo", "propuesta", "cliente", "implementacion", "activo"]);
+  const websiteCustomerStages = new Set(["cliente", "implementacion", "activo"]);
+  const websiteDemoCount = websiteRows.filter((row) => websiteDemoStages.has(row.stage)).length;
+  const websiteCustomerCount = websiteRows.filter((row) => websiteCustomerStages.has(row.stage)).length;
+  const websiteLeadToDemo = websiteRows.length ? Math.round((websiteDemoCount / websiteRows.length) * 100) : 0;
+  const websiteLeadToCustomer = websiteRows.length ? Math.round((websiteCustomerCount / websiteRows.length) * 100) : 0;
   const implementationCount = clientFinancials.filter((row) => row.commercial?.lifecycle_stage === "implementacion").length;
   const integrationAttention = integrationRows.filter((row) => ["pending", "configuration", "attention"].includes(row.status)).length;
 
@@ -724,6 +732,9 @@ export async function renderCrm(context) {
       ${C.metricCard("Resultado operativo", money(netOperatingProfit), activeMrr ? `Margen neto ${netOperatingMargin}%` : "Etapa de inversión")}
       ${C.metricCard("Pipeline MRR", money(pipelineMrr), "Prospecto + Demo + Propuesta")}
       ${C.metricCard("Seguimientos vencidos", overdue, `${nextActions.length} próximas acciones`)}
+      ${C.metricCard("Leads desde la web", websiteRows.length, `${websiteDemoCount} llegaron a Demo+`)}
+      ${C.metricCard("Web → Demo", websiteLeadToDemo + "%", "Conversión de leads web")}
+      ${C.metricCard("Web → Cliente", websiteLeadToCustomer + "%", `${websiteCustomerCount} convertidos`)}
     </div>
 
     <div class="crm-finance-strip">
