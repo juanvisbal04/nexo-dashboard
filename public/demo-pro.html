@@ -122,8 +122,12 @@
             <input id="demoWebsite" name="website" tabindex="-1" autocomplete="off"/>
           </label>
         </div>
+        <label class="form-consent">
+          <input id="privacyConsent" name="privacy_consent" type="checkbox" required/>
+          <span>Autorizo el tratamiento de los datos que envío para atender esta solicitud de Demo, de acuerdo con la <a href="./privacidad.html" target="_blank" rel="noopener">política de privacidad</a>.</span>
+        </label>
         <button id="demoSubmit" class="btn primary bright demo-submit" type="submit">Solicitar mi demo <span>→</span></button>
-        <p class="form-note">Al enviar aceptas que NEXO use estos datos únicamente para contactarte sobre tu solicitud. Consulta nuestra <a href="./privacidad.html">política de privacidad</a>.</p>
+        <p class="form-note">El envío queda sujeto a la autorización marcada arriba. Puedes ejercer tus derechos de habeas data mediante los canales indicados en nuestra política.</p>
         <div id="demoResult" class="demo-result hidden"></div>
       </form>
     </section>
