@@ -116,8 +116,8 @@ if(floatingWhatsapp&&contactSection&&"IntersectionObserver" in window){
 
   const scenarios={
     beauty:{
-      title:"Estética & wellness",
-      description:"Una consulta de servicio se organiza como una solicitud lista para seguimiento.",
+      title:"Consulta de servicio → solicitud organizada",
+      description:"Una conversación frecuente de estética conserva contexto, identifica el servicio de interés y deja una solicitud lista para seguimiento.",
       messages:[
         ["user","Hola, quiero saber el precio de una limpieza facial y si tienen disponibilidad mañana."],
         ["bot","Claro. Puedo compartirte la información aprobada del servicio y ayudarte a revisar opciones para registrar tu solicitud."],
