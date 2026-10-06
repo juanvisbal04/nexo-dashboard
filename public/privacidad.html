@@ -26,6 +26,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./styles.css?v=20261006-artdir3"/>
   <link rel="stylesheet" href="./header.css?v=20261006-a1"/>
+  <link rel="stylesheet" href="./privacy-controls.css?v=20261006-g1"/>
 </head>
 <body>
 <header class="nav" id="top">
@@ -207,4 +208,25 @@
 </footer>
 <a class="floating-whatsapp" href="https://wa.me/573006150188?text=Hola%20NEXO,%20quiero%20una%20demo%20para%20mi%20negocio." target="_blank" rel="noopener" aria-label="Hablar con NEXO por WhatsApp"><span>WA</span><b>Hablar con NEXO</b></a>
 <script src="./site.js?v=20261006-f1"></script>
+<script id="privacy-preference-handler">
+(function(){
+  const button=document.getElementById("disableAnalytics");
+  const status=document.getElementById("analyticsPreferenceStatus");
+  if(!button||!status)return;
+  let disabled=false;
+  try{disabled=localStorage.getItem("nexo.analytics")==="off";}catch{}
+  function render(){
+    button.textContent=disabled?"Medición no esencial desactivada":"Desactivar medición no esencial";
+    status.textContent=disabled
+      ?"Tu preferencia quedó guardada en este navegador. La medición no esencial está desactivada."
+      :"La medición no esencial está activa salvo que tu navegador envíe Global Privacy Control o Do Not Track.";
+  }
+  button.addEventListener("click",()=>{
+    disabled=true;
+    window.NEXOFunnel?.setEnabled?.(false);
+    render();
+  });
+  render();
+})();
+</script>
 </body></html>
