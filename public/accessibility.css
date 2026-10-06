@@ -1,0 +1,46 @@
+/* NEXO accessibility baseline — Fase 3 / Lote H */
+
+:where(a,button,input,select,textarea,summary,[tabindex]):focus-visible{
+  outline:3px solid var(--blue);
+  outline-offset:3px;
+}
+
+.form-note,
+.case-results-note,
+.secondary-industry-disclaimer,
+.case-results-grid p{
+  color:#526982;
+}
+.form-note,
+.case-results-note,
+.secondary-industry-disclaimer{
+  font-size:10px;
+  line-height:1.6;
+}
+.case-results-grid small{
+  color:#526982;
+  font-size:9px;
+}
+.case-results-grid p{
+  font-size:10px;
+  line-height:1.6;
+}
+
+@media(prefers-reduced-motion:reduce){
+  html{
+    scroll-behavior:auto!important;
+  }
+  *,
+  *::before,
+  *::after{
+    animation-duration:.01ms!important;
+    animation-iteration-count:1!important;
+    transition-duration:.01ms!important;
+    transition-delay:0ms!important;
+    scroll-behavior:auto!important;
+  }
+  .reveal{
+    opacity:1!important;
+    transform:none!important;
+  }
+}
