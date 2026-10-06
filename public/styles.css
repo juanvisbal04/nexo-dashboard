@@ -2257,3 +2257,98 @@ p{
     color:#07172b;
   }
 }
+
+
+/* === NEXO EDITORIAL PRINCIPLES · 2026-10-06 === */
+.intro{
+  background:#fff;
+}
+.intro-grid{
+  align-items:end;
+}
+.principles{
+  margin-top:72px;
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:0;
+  border-top:1px solid #dce5ed;
+  border-left:1px solid #dce5ed;
+}
+.principle{
+  min-height:250px;
+  padding:30px 34px 34px;
+  border:0;
+  border-right:1px solid #dce5ed;
+  border-bottom:1px solid #dce5ed;
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+  transform:none!important;
+  overflow:hidden;
+}
+.principle:hover{
+  border-color:#dce5ed;
+  box-shadow:none;
+  transform:none;
+  background:linear-gradient(145deg,#fbfdff,#fff);
+}
+.principle .icon-box{
+  display:none;
+}
+.principle .number{
+  position:static;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  color:#2D9CFF;
+  font-size:8px;
+  letter-spacing:1.2px;
+}
+.principle .number:after{
+  content:"";
+  width:28px;
+  height:1px;
+  background:#2D9CFF;
+  opacity:.65;
+}
+.principle h3{
+  max-width:330px;
+  margin:72px 0 11px;
+  color:#0B1F3B;
+  font-size:clamp(20px,2.1vw,29px);
+  line-height:1.04;
+  letter-spacing:-1px;
+}
+.principle p{
+  max-width:410px;
+  margin:0;
+  color:#74869a;
+  font-size:10px;
+  line-height:1.7;
+}
+.principle:after{
+  content:"";
+  position:absolute;
+  right:-22px;
+  bottom:-55px;
+  width:110px;
+  height:110px;
+  border:1px solid rgba(45,156,255,.1);
+  transform:rotate(45deg);
+  background:none;
+  opacity:1;
+}
+@media(max-width:700px){
+  .principles{
+    grid-template-columns:1fr;
+    margin-top:50px;
+  }
+  .principle{
+    min-height:190px;
+    padding:25px 24px 28px;
+  }
+  .principle h3{
+    margin-top:42px;
+    font-size:24px;
+  }
+}
