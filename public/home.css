@@ -1,0 +1,58 @@
+/* Home conversion layer — Fase 3 / Lote B
+   Uses approved NEXO tokens; no brand asset or palette changes. */
+
+.beauty-focus{
+  background:linear-gradient(180deg,#fff 0%,var(--sand) 100%);
+  border-top:1px solid var(--line);
+  border-bottom:1px solid var(--line);
+}
+.beauty-focus .intro-copy{
+  max-width:620px;
+}
+.beauty-focus .principles{
+  margin-top:54px;
+}
+
+.secondary-industries .hotel{
+  grid-column:1/7;
+}
+.secondary-industries .restaurant{
+  grid-column:7/13;
+}
+.secondary-industries .clinic{
+  grid-column:1/13;
+  min-height:300px;
+}
+.secondary-industries .clinic h3,
+.secondary-industries .clinic p{
+  max-width:720px;
+}
+
+@media(max-width:820px){
+  .secondary-industries .hotel,
+  .secondary-industries .restaurant,
+  .secondary-industries .clinic{
+    grid-column:1/13;
+  }
+}
+
+@media(max-width:600px){
+  .hero-proof{
+    grid-template-columns:1fr;
+    gap:0;
+  }
+  .hero-proof>div{
+    padding:13px 0;
+  }
+  .hero-proof>div+div{
+    padding-left:0;
+    border-left:0;
+    border-top:1px solid rgba(255,255,255,.11);
+  }
+  .hero-proof b{
+    font-size:14px;
+  }
+  .beauty-focus .principles{
+    margin-top:42px;
+  }
+}
