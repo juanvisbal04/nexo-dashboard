@@ -3,7 +3,9 @@ const nav=document.getElementById("navLinks");
 
 function closeMobileNav(){
   nav?.classList.remove("open");
+  document.body.classList.remove("nav-open");
   menu?.setAttribute("aria-expanded","false");
+  menu?.setAttribute("aria-label","Abrir menú");
   if(menu) menu.textContent="☰";
 }
 
@@ -11,6 +13,8 @@ menu?.addEventListener("click",(event)=>{
   event.stopPropagation();
   const open=nav.classList.toggle("open");
   menu.setAttribute("aria-expanded",String(open));
+  menu.setAttribute("aria-label",open?"Cerrar menú":"Abrir menú");
+  document.body.classList.toggle("nav-open",open);
   menu.textContent=open?"×":"☰";
 });
 
