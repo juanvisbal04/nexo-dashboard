@@ -3190,3 +3190,124 @@ p{
     grid-template-columns:74px 1fr;
   }
 }
+
+
+/* === NEXO INTERACTIVE DEMO ART DIRECTION · 2026-10-06 === */
+.interactive-demo-shell{
+  border-radius:0;
+  clip-path:polygon(0 0,calc(100% - 26px) 0,100% 26px,100% 100%,26px 100%,0 calc(100% - 26px));
+  border-color:#d9e3ed;
+  box-shadow:0 28px 72px rgba(8,31,57,.08);
+}
+.interactive-demo-controls{
+  background:#f7f9fc;
+  border-right:1px solid #dde6ee;
+}
+.demo-scenario-list{
+  gap:0;
+  border-top:1px solid #dbe4ec;
+}
+.demo-scenario{
+  border:0;
+  border-bottom:1px solid #dbe4ec;
+  border-radius:0;
+  background:transparent;
+  padding:14px 2px;
+  box-shadow:none!important;
+}
+.demo-scenario>span{
+  border-radius:0;
+  background:transparent;
+  color:#2D9CFF;
+  width:24px;
+  height:auto;
+}
+.demo-scenario:hover,
+.demo-scenario.active{
+  border-color:#dbe4ec;
+  background:linear-gradient(90deg,rgba(45,156,255,.07),transparent);
+  box-shadow:none;
+}
+.demo-scenario.active{
+  position:relative;
+}
+.demo-scenario.active:before{
+  content:"";
+  position:absolute;
+  left:-30px;
+  top:0;
+  bottom:0;
+  width:3px;
+  background:#2D9CFF;
+}
+.demo-sim-label{
+  border-radius:0;
+  background:transparent;
+  border-left:2px solid #2D9CFF;
+  padding:3px 0 3px 8px;
+}
+.demo-run-button{
+  border-radius:0;
+  clip-path:polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,10px 100%,0 calc(100% - 10px));
+}
+.demo-phone{
+  border-radius:0;
+  border:1px solid rgba(255,255,255,.12);
+  clip-path:polygon(0 0,calc(100% - 18px) 0,100% 18px,100% 100%,18px 100%,0 calc(100% - 18px));
+  box-shadow:0 24px 60px rgba(0,0,0,.24);
+}
+.demo-phone-top{
+  background:#f8fbfd;
+}
+.demo-phone-profile>span{
+  border-radius:0;
+  background:#0B1F3B;
+  color:#2D9CFF;
+}
+.interactive-bubble{
+  border-radius:0;
+  clip-path:polygon(0 0,calc(100% - 8px) 0,100% 8px,100% 100%,8px 100%,0 calc(100% - 8px));
+}
+.demo-phone-input{
+  border-radius:0;
+}
+.demo-phone-input b{
+  border-radius:0;
+}
+.demo-outcome-grid{
+  gap:0;
+  border-top:1px solid rgba(255,255,255,.12);
+}
+.demo-outcome-grid>div{
+  border:0;
+  border-bottom:1px solid rgba(255,255,255,.11);
+  border-radius:0;
+  background:transparent;
+  padding:14px 0;
+}
+.demo-outcome-status{
+  border-radius:0;
+  border-left:2px solid #7f94aa;
+  background:transparent;
+}
+.demo-outcome-status.complete{
+  border-left-color:#4bd395;
+  background:transparent;
+}
+@media(max-width:1050px){
+  .interactive-demo-controls{
+    border-right:0;
+    border-bottom:1px solid #dfe7ee;
+  }
+}
+@media(max-width:700px){
+  .interactive-demo-shell{
+    clip-path:polygon(0 0,calc(100% - 18px) 0,100% 18px,100% 100%,18px 100%,0 calc(100% - 18px));
+  }
+  .demo-scenario-list{
+    grid-template-columns:1fr;
+  }
+  .demo-scenario.active:before{
+    left:-20px;
+  }
+}
