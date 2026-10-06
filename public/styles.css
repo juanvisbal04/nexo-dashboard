@@ -436,3 +436,40 @@ footer .brand-word{color:#fff}.brand-word.small{font-size:27px}.footer-brand>sma
   .gallery-heading{grid-template-columns:1fr;gap:14px}
   .brand-gallery-grid{grid-template-columns:1fr}
 }
+
+
+/* === LIA CASE PROOF · 2026-10-06 === */
+.case-live-badge{display:inline-flex;align-items:center;gap:8px;margin:0 0 18px;padding:8px 11px;border:1px solid rgba(255,255,255,.16);border-radius:999px;background:rgba(255,255,255,.06);font-size:8px;letter-spacing:1px;font-weight:800;color:#d9caea}
+.case-live-badge span{width:7px;height:7px;border-radius:50%;background:#55d89b;box-shadow:0 0 0 5px rgba(85,216,155,.1)}
+.lia-proof-section{background:#f7f9fc;border-top:1px solid #e5ebf2;border-bottom:1px solid #e5ebf2}
+.lia-proof-section>.vertical-heading{max-width:860px}
+.lia-proof-grid{display:grid;grid-template-columns:.92fr 1.08fr;gap:16px;margin-top:40px}
+.lia-proof-card{background:#fff;border:1px solid #dfe7ef;border-radius:22px;overflow:hidden;box-shadow:0 24px 60px rgba(8,32,58,.08)}
+.lia-proof-card-head{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 20px;border-bottom:1px solid #e9eef4}
+.lia-proof-card-head small,.lia-proof-card-head b{display:block}
+.lia-proof-card-head small{font-size:7px;letter-spacing:1px;color:#8293a7;font-weight:800}
+.lia-proof-card-head b{font-size:12px;color:#173a5d;margin-top:4px}
+.proof-live,.proof-private{font-size:8px;font-weight:800;border-radius:999px;padding:7px 9px}
+.proof-live{display:flex;align-items:center;gap:6px;background:#eaf8f1;color:#24724f}
+.proof-live i{width:6px;height:6px;border-radius:50%;background:#42c885}
+.proof-private{background:#eef4fb;color:#44627f}
+.proof-chat-window{padding:22px;background:linear-gradient(180deg,#f6f9fc,#fff);display:flex;flex-direction:column;gap:10px;min-height:330px}
+.proof-chat{max-width:82%;border-radius:14px;padding:12px 14px;font-size:10px;line-height:1.55}
+.proof-chat.user{align-self:flex-start;background:#fff;border:1px solid #e1e8ef;color:#38506b}
+.proof-chat.bot{align-self:flex-end;background:#132f50;color:#eaf5ff;border:1px solid #244e77}
+.proof-action-strip{padding:16px 20px;border-top:1px solid #e9eef4;display:flex;gap:7px;flex-wrap:wrap}
+.proof-action-strip span{font-size:7px;font-weight:700;color:#58718a;border:1px solid #dfe7ef;border-radius:999px;padding:7px 9px;background:#fbfdff}
+.proof-platform-shell{display:grid;grid-template-columns:120px 1fr;min-height:410px;background:#f8fafc}
+.proof-platform-nav{padding:18px 13px;background:#0b1f3b;color:#7890aa;display:flex;flex-direction:column;gap:15px;font-size:7px}
+.proof-platform-nav strong{font-size:17px;letter-spacing:-1px;color:#fff;margin-bottom:17px}.proof-platform-nav strong span{color:#2d9cff}
+.proof-platform-nav b{color:#fff}
+.proof-platform-main{padding:20px}
+.proof-platform-title small,.proof-platform-title b{display:block}.proof-platform-title small{font-size:7px;letter-spacing:1px;color:#6f8fb1}.proof-platform-title b{font-size:18px;color:#173a5d;margin-top:5px}
+.proof-status-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:18px}
+.proof-status-grid>div{background:#fff;border:1px solid #e2e8ef;border-radius:12px;padding:13px}
+.proof-status-grid small,.proof-status-grid b,.proof-status-grid em{display:block}.proof-status-grid small{font-size:6px;color:#8897a9;text-transform:uppercase;letter-spacing:.5px}.proof-status-grid b{font-size:10px;color:#1e466c;margin-top:7px}.proof-status-grid em{font-style:normal;font-size:7px;color:#8b99aa;margin-top:4px}
+.proof-activity{margin-top:10px;background:#fff;border:1px solid #e2e8ef;border-radius:12px;padding:14px;display:grid;gap:10px}
+.proof-activity span{display:flex;align-items:center;gap:8px;font-size:7px;color:#667b90}.proof-activity i{width:7px;height:7px;border-radius:50%;background:#2d9cff;box-shadow:0 0 0 4px rgba(45,156,255,.08)}
+.lia-proof-note{margin:18px 0 0;font-size:8px;color:#8291a3;max-width:920px}
+@media(max-width:900px){.lia-proof-grid{grid-template-columns:1fr}.proof-chat-window{min-height:auto}}
+@media(max-width:560px){.lia-proof-card{border-radius:16px}.proof-platform-shell{grid-template-columns:78px 1fr}.proof-platform-nav{padding:14px 8px;gap:12px;font-size:6px}.proof-platform-nav strong{font-size:14px}.proof-platform-main{padding:12px}.proof-status-grid{grid-template-columns:1fr}.proof-chat-window{padding:16px}.proof-chat{max-width:92%}}
