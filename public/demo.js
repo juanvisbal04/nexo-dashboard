@@ -84,20 +84,14 @@ form?.addEventListener("submit",async(event)=>{
           multicanal:"Varios canales",
           otro:"Otro"
         };
-        const params=new URLSearchParams(window.location.search);
         const qualification=[
           goal&&"Objetivo principal: "+(goalLabels[goal]||goal),
           volume&&"Volumen aproximado: "+(volumeLabels[volume]||volume)+" conversaciones/mes",
-          channel&&"Canal principal: "+(channelLabels[channel]||channel),
-          params.get("utm_source")&&"UTM source: "+params.get("utm_source"),
-          params.get("utm_campaign")&&"UTM campaign: "+params.get("utm_campaign"),
-          document.referrer&&"Referido desde: "+document.referrer
+          channel&&"Canal principal: "+(channelLabels[channel]||channel)
         ].filter(Boolean);
-        const funnelSummary=window.NEXOFunnel?.summary?.()||"";
         const crmMessage=[
           message,
-          qualification.length?"--- Calificación web ---\n"+qualification.join("\n"):"",
-          funnelSummary?"--- Recorrido web ---\n"+funnelSummary:""
+          qualification.length?"--- Calificación web ---\n"+qualification.join("\n"):""
         ].filter(Boolean).join("\n\n");
         return {
           full_name:document.getElementById("demoName").value.trim(),
@@ -113,6 +107,11 @@ form?.addEventListener("submit",async(event)=>{
     });
     const data=await response.json();
     if(!response.ok) throw new Error(data.error||"No pudimos registrar la solicitud.");
+    window.NEXOFunnel?.track?.("demo_submit_success",{
+      industry:document.getElementById("demoIndustry")?.value||"",
+      plan:document.getElementById("demoPlan")?.value||"",
+      placement:"demo_form"
+    });
     form.reset();
     result.innerHTML="<strong>Solicitud recibida.</strong><br>Gracias. Ya tenemos el contexto inicial para revisar tu operación y preparar el siguiente paso.";
     result.className="demo-result success";
