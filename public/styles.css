@@ -1654,3 +1654,119 @@ p{
     font-size:11px;
   }
 }
+
+
+/* === NEXO PRODUCT STORYTELLING POLISH · 2026-10-06 === */
+.integration-hub{
+  background:linear-gradient(180deg,#fff 0%,#fbfdff 100%);
+  border-top:1px solid #eef2f6;
+  border-bottom:1px solid #e7edf3;
+}
+.integration-hub-grid article{
+  position:relative;
+  overflow:hidden;
+}
+.integration-hub-grid article:before{
+  content:"";
+  position:absolute;
+  left:0;
+  top:0;
+  bottom:0;
+  width:2px;
+  background:#2D9CFF;
+  opacity:.55;
+}
+.integration-hub-grid article.nexo-core{
+  background:linear-gradient(145deg,#07172b,#0d3158);
+  border-color:#123c68;
+  box-shadow:0 18px 42px rgba(7,23,43,.12);
+}
+.integration-hub-grid article.nexo-core:before{
+  width:3px;
+  opacity:1;
+}
+.principle{
+  overflow:hidden;
+}
+.principle:after{
+  content:"";
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:0;
+  height:2px;
+  background:linear-gradient(90deg,#2D9CFF,transparent);
+  opacity:.35;
+}
+.solution-card{
+  border-color:rgba(255,255,255,.11);
+}
+.solution-card:hover{
+  border-color:rgba(88,184,255,.24);
+}
+.real-proof{
+  background:
+    radial-gradient(circle at 90% 0%,rgba(45,156,255,.045),transparent 24%),
+    #f8fafc;
+}
+.founder-case-card{
+  border-color:#dbe4ed;
+}
+.platform-showcase{
+  background:
+    radial-gradient(circle at 72% 20%,rgba(45,156,255,.12),transparent 27%),
+    linear-gradient(145deg,#061427,#0b294d);
+}
+.platform-preview-label{
+  opacity:.9;
+}
+.platform-browser{
+  border-color:rgba(255,255,255,.12);
+  box-shadow:0 42px 110px rgba(0,0,0,.32);
+}
+.interactive-demo{
+  background:
+    radial-gradient(circle at 8% 8%,rgba(45,156,255,.035),transparent 24%),
+    #fff;
+}
+.interactive-demo-shell{
+  border-color:#d9e3ed;
+  box-shadow:0 30px 78px rgba(8,31,57,.09);
+}
+.interactive-demo-controls{
+  background:linear-gradient(180deg,#f8fafc,#f4f7fa);
+}
+.industry-link-card{
+  position:relative;
+  overflow:hidden;
+}
+.industry-link-card:after{
+  content:"";
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:0;
+  height:3px;
+  background:linear-gradient(90deg,#2D9CFF,transparent);
+  opacity:.28;
+  transition:opacity .2s ease;
+}
+.industry-link-card:hover:after{
+  opacity:.7;
+}
+.trust-console{
+  border-color:rgba(255,255,255,.11);
+  box-shadow:0 20px 48px rgba(7,23,43,.1);
+}
+.roi-calculator{
+  box-shadow:0 24px 62px rgba(10,35,61,.075);
+}
+@media(max-width:820px){
+  .integration-hub{
+    padding-top:54px;
+    padding-bottom:54px;
+  }
+  .platform-showcase{
+    row-gap:44px;
+  }
+}
