@@ -101,6 +101,8 @@ form?.addEventListener("submit",async(event)=>{
           plan_interest:document.getElementById("demoPlan").value,
           message:crmMessage,
           website:document.getElementById("demoWebsite").value,
+          privacy_consent:document.getElementById("privacyConsent")?.checked===true,
+          privacy_policy_version:"2026-10-06",
           source:"nexobyjv.online/demo"
         };
       })())
