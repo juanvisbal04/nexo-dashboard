@@ -253,49 +253,193 @@ if(floatingWhatsapp&&contactSection&&"IntersectionObserver" in window){
 })();
 
 
-// === NEXO COMMERCIAL FUNNEL ATTRIBUTION · 2026-10-06 ===
+// === NEXO PRIVACY-CONSCIOUS FUNNEL · 2026-10-06 ===
 (function(){
-  const STORAGE_KEY="nexo.web.funnel.v1";
+  const STORAGE_KEY="nexo.web.funnel.v2";
+  const PREF_KEY="nexo.analytics";
   const MAX_PAGES=20;
   const MAX_EVENTS=30;
+  const SUPABASE_URL="https://ixewnbjndguchunwcuhf.supabase.co";
+  const KEY="sb_publishable_vFnLRe9cmnOcyz2Fivprhw_8UjBaRGL";
+  const TRACK_URL=SUPABASE_URL+"/functions/v1/track-web-event";
 
+  const gpc=navigator.globalPrivacyControl===true;
+  const dnt=[navigator.doNotTrack,window.doNotTrack,navigator.msDoNotTrack].some(value=>String(value||"").toLowerCase()==="1"||String(value||"").toLowerCase()==="yes");
+  let preference="";
+  try{preference=localStorage.getItem(PREF_KEY)||"";}catch{}
+  const analyticsEnabled=preference!=="off"&&!gpc&&!dnt;
+
+  function safeUUID(){
+    return crypto?.randomUUID?.()||"00000000-0000-4000-8000-"+Math.random().toString(16).slice(2,14).padEnd(12,"0").slice(0,12);
+  }
   function read(){
+    if(!analyticsEnabled)return {};
     try{return JSON.parse(sessionStorage.getItem(STORAGE_KEY)||"null")||{};}catch{return {};}
   }
   function write(data){
+    if(!analyticsEnabled)return;
     try{sessionStorage.setItem(STORAGE_KEY,JSON.stringify(data));}catch{}
   }
   function cleanPath(url){
     try{
       const u=new URL(url,location.origin);
-      return u.pathname+(u.hash&&u.hash!=="#"?u.hash:"");
-    }catch{return String(url||"").slice(0,120);}
+      return (u.pathname||"/").slice(0,160);
+    }catch{
+      const value=String(url||"").split(/[?#]/,1)[0];
+      return value.startsWith("/")?value.slice(0,160):"/";
+    }
+  }
+  function internalTarget(url){
+    try{
+      const u=new URL(url,location.origin);
+      if(u.origin!==location.origin)return "";
+      return cleanPath(u.href);
+    }catch{return "";}
+  }
+  function referrerHost(){
+    try{
+      if(!document.referrer)return "";
+      const u=new URL(document.referrer);
+      return u.origin===location.origin?"":u.hostname.slice(0,120);
+    }catch{return "";}
+  }
+  function safeToken(value,max=80){
+    const token=String(value||"").trim().toLowerCase().replace(/[^a-z0-9._-]/g,"-").replace(/-+/g,"-").replace(/^-|-$/g,"");
+    return token.slice(0,max);
+  }
+  function normalizeIndustry(value){
+    const raw=String(value||"").trim().toLowerCase();
+    const map={
+      "estetica":"estetica","estética":"estetica","estética & wellness":"estetica","beauty":"estetica",
+      "hotel":"hotel","hoteles":"hotel",
+      "restaurante":"restaurante","restaurant":"restaurante","restaurantes":"restaurante",
+      "clinica":"clinica","clínica":"clinica","clínica / odontología":"clinica","clinic":"clinica",
+      "otro":"otro","other":"otro"
+    };
+    return map[raw]||"";
+  }
+  function currentIndustry(){
+    const params=new URLSearchParams(location.search);
+    const fromQuery=normalizeIndustry(params.get("industry"));
+    if(fromQuery)return fromQuery;
+    const select=document.getElementById("demoIndustry");
+    const fromSelect=normalizeIndustry(select?.value);
+    if(fromSelect)return fromSelect;
+    const path=location.pathname;
+    if(/industria-estetica/i.test(path))return "estetica";
+    if(/industria-hoteles/i.test(path))return "hotel";
+    if(/industria-restaurantes/i.test(path))return "restaurante";
+    if(/industria-clinicas/i.test(path))return "clinica";
+    return "";
+  }
+  function currentPlan(){
+    const params=new URLSearchParams(location.search);
+    const raw=String(params.get("plan")||document.getElementById("demoPlan")?.value||"").toLowerCase();
+    return ["start","growth","pro","custom"].includes(raw)?raw:"";
+  }
+  function placementFor(element){
+    if(!element)return "unknown";
+    if(element.classList?.contains("floating-whatsapp"))return "floating";
+    if(element.classList?.contains("mobile-demo-cta"))return "mobile_sticky";
+    if(element.closest?.("#navLinks"))return "navigation";
+    if(element.closest?.(".hero,.vertical-hero,.pricing-hero,.subpage-hero"))return "hero";
+    if(element.closest?.("#contacto,.contact,.quick-contact,.cta-panel,.pricing-cta"))return "cta_section";
+    if(element.closest?.(".site-footer"))return "footer";
+    return "body";
   }
   function eventLabel(anchor){
     const href=anchor?.href||"";
-    const path=cleanPath(href);
-    if(/wa\.me\//i.test(href)) return "whatsapp_click";
-    if(/demo(?:-|\.)/i.test(path)) return "demo_click";
-    if(/planes\.html/i.test(path)) return "plans_click";
-    if(/caso-lia\.html/i.test(path)) return "case_lia_click";
-    if(/industria-/i.test(path)) return "industry_click";
-    if(/dashboard\.nexobyjv\.online/i.test(href)) return "dashboard_click";
+    let path="";
+    try{path=new URL(href,location.origin).pathname||"";}catch{}
+    if(/wa\.me\//i.test(href))return "whatsapp_click";
+    if(/demo(?:-|\.)/i.test(path))return "demo_click";
+    if(/planes\.html/i.test(path))return "plans_click";
+    if(/caso-lia\.html/i.test(path))return "case_lia_click";
+    if(/industria-/i.test(path))return "industry_click";
+    if(/dashboard\.nexobyjv\.online/i.test(href))return "dashboard_click";
     return "";
+  }
+
+  function sanitizeDetail(type,detail){
+    const input=detail&&typeof detail==="object"?detail:{};
+    const output={};
+    const industry=normalizeIndustry(input.industry||currentIndustry());
+    const plan=String(input.plan||currentPlan()).toLowerCase();
+    const scenario=String(input.scenario||"").toLowerCase();
+    if(industry)output.industry=industry;
+    if(["start","growth","pro","custom"].includes(plan))output.plan=plan;
+    if(["beauty","hotel","restaurant","clinic"].includes(scenario))output.scenario=scenario;
+    if(input.target_path){
+      const target=String(input.target_path);
+      if(target.startsWith("/"))output.target_path=target.slice(0,160);
+    }
+    if(input.placement)output.placement=safeToken(input.placement,40);
+    return output;
+  }
+
+  function sendRemote(type,detail,data){
+    if(!analyticsEnabled)return;
+    const safe=sanitizeDetail(type,detail);
+    const payload={
+      event_id:safeUUID(),
+      session_id:data.session_id,
+      event_type:type,
+      page_path:cleanPath(location.href),
+      landing_path:data.landing||cleanPath(location.href),
+      target_path:safe.target_path||null,
+      placement:safe.placement||null,
+      industry:safe.industry||null,
+      plan:safe.plan||null,
+      scenario:safe.scenario||null,
+      utm_source:data.utm?.source||null,
+      utm_medium:data.utm?.medium||null,
+      utm_campaign:data.utm?.campaign||null,
+      referrer_host:data.referrer_host||null
+    };
+    fetch(TRACK_URL,{
+      method:"POST",
+      headers:{"content-type":"application/json","apikey":KEY},
+      body:JSON.stringify(payload),
+      credentials:"omit",
+      referrerPolicy:"no-referrer",
+      keepalive:true
+    }).catch(()=>{});
+  }
+
+  function setEnabled(enabled){
+    try{
+      localStorage.setItem(PREF_KEY,enabled?"on":"off");
+      if(!enabled)sessionStorage.removeItem(STORAGE_KEY);
+    }catch{}
+  }
+
+  if(!analyticsEnabled){
+    try{sessionStorage.removeItem(STORAGE_KEY);}catch{}
+    window.NEXOFunnel={
+      disabled:true,
+      track(){},
+      get(){return {};},
+      summary(){return "";},
+      setEnabled
+    };
+    return;
   }
 
   const params=new URLSearchParams(location.search);
   const existing=read();
+  let legacyReferrer="";
+  try{
+    if(existing.referrer)legacyReferrer=new URL(existing.referrer).hostname;
+  }catch{}
   const funnel={
-    session_id:existing.session_id||(crypto?.randomUUID?.()||("nx-"+Date.now()+"-"+Math.random().toString(36).slice(2,8))),
+    session_id:existing.session_id||safeUUID(),
     started_at:existing.started_at||new Date().toISOString(),
     landing:existing.landing||cleanPath(location.href),
-    referrer:existing.referrer||((document.referrer&&!document.referrer.startsWith(location.origin))?document.referrer.slice(0,240):""),
+    referrer_host:existing.referrer_host||legacyReferrer||referrerHost(),
     utm:existing.utm||{
-      source:params.get("utm_source")||"",
-      medium:params.get("utm_medium")||"",
-      campaign:params.get("utm_campaign")||"",
-      content:params.get("utm_content")||"",
-      term:params.get("utm_term")||""
+      source:safeToken(params.get("utm_source"),80),
+      medium:safeToken(params.get("utm_medium"),80),
+      campaign:safeToken(params.get("utm_campaign"),120)
     },
     pages:Array.isArray(existing.pages)?existing.pages:[],
     events:Array.isArray(existing.events)?existing.events:[]
@@ -308,33 +452,52 @@ if(floatingWhatsapp&&contactSection&&"IntersectionObserver" in window){
   }
   write(funnel);
 
-  function track(type,detail=""){
+  function track(type,detail={}){
     if(!type)return;
     const next=read();
+    if(!next.session_id)return;
+    const safe=sanitizeDetail(type,detail);
     next.events=Array.isArray(next.events)?next.events:[];
-    next.events.push({type,detail:String(detail||"").slice(0,120),at:new Date().toISOString()});
+    next.events.push({
+      type,
+      ...safe,
+      at:new Date().toISOString()
+    });
     next.events=next.events.slice(-MAX_EVENTS);
     write(next);
+    sendRemote(type,safe,next);
   }
 
   document.addEventListener("click",(event)=>{
     const run=event.target.closest?.("#runInteractiveDemo");
-    if(run){track("interactive_demo_run",document.querySelector("[data-demo-scenario].active")?.dataset?.demoScenario||"");return;}
+    if(run){
+      track("interactive_demo_run",{
+        scenario:document.querySelector("[data-demo-scenario].active")?.dataset?.demoScenario||"",
+        placement:"interactive_demo"
+      });
+      return;
+    }
     const anchor=event.target.closest?.("a");
     if(!anchor)return;
     const label=eventLabel(anchor);
-    if(label)track(label,cleanPath(anchor.href));
+    if(!label)return;
+    const detail={placement:placementFor(anchor)};
+    const target=internalTarget(anchor.href);
+    if(target)detail.target_path=target;
+    track(label,detail);
   },{passive:true});
 
+  sendRemote("page_view",{industry:currentIndustry(),plan:currentPlan()},funnel);
+
   window.NEXOFunnel={
+    disabled:false,
     track,
-    get(){
-      return read();
-    },
+    get(){return read();},
+    setEnabled,
     summary(){
       const data=read();
       const pages=(data.pages||[]).map(item=>item.path).filter(Boolean);
-      const events=(data.events||[]).map(item=>item.type+(item.detail?" ("+item.detail+")":"")).filter(Boolean);
+      const events=(data.events||[]).map(item=>item.type).filter(Boolean);
       const utm=data.utm||{};
       return [
         data.session_id&&"Session: "+data.session_id,
@@ -342,7 +505,7 @@ if(floatingWhatsapp&&contactSection&&"IntersectionObserver" in window){
         pages.length&&"Recorrido: "+pages.join(" → "),
         events.length&&"Eventos: "+events.join(" · "),
         utm.source&&"UTM: "+[utm.source,utm.medium,utm.campaign].filter(Boolean).join(" / "),
-        data.referrer&&"Referrer: "+data.referrer
+        data.referrer_host&&"Referrer host: "+data.referrer_host
       ].filter(Boolean).join("\n");
     }
   };
