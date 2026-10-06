@@ -1,3 +1,21 @@
+function applyIndustryFromUrl(){
+  const value=new URLSearchParams(window.location.search).get("industry");
+  const select=document.getElementById("demoIndustry");
+  if(!select||!value)return;
+  const map={
+    estetica:"Estética & wellness",
+    hotel:"Hotel",
+    restaurante:"Restaurante",
+    clinica:"Clínica / odontología"
+  };
+  const target=map[value]||value;
+  const option=[...select.options].find(item=>item.value===target||item.textContent.trim()===target);
+  if(option){
+    select.value=option.value;
+    option.selected=true;
+  }
+}
+
 function applyPlanFromUrl(){
   const searchPlan=new URLSearchParams(window.location.search).get("plan");
   const hashPlan=new URLSearchParams(window.location.hash.replace(/^#/,"")).get("plan");
@@ -10,11 +28,12 @@ function applyPlanFromUrl(){
   }
 }
 applyPlanFromUrl();
-document.addEventListener("DOMContentLoaded",applyPlanFromUrl);
-window.addEventListener("pageshow",applyPlanFromUrl);
-requestAnimationFrame(applyPlanFromUrl);
-setTimeout(applyPlanFromUrl,100);
-setTimeout(applyPlanFromUrl,700);
+applyIndustryFromUrl();
+document.addEventListener("DOMContentLoaded",()=>{applyPlanFromUrl();applyIndustryFromUrl();});
+window.addEventListener("pageshow",()=>{applyPlanFromUrl();applyIndustryFromUrl();});
+requestAnimationFrame(()=>{applyPlanFromUrl();applyIndustryFromUrl();});
+setTimeout(()=>{applyPlanFromUrl();applyIndustryFromUrl();},100);
+setTimeout(()=>{applyPlanFromUrl();applyIndustryFromUrl();},700);
 
 const form=document.getElementById("demoForm");
 const result=document.getElementById("demoResult");
