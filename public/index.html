@@ -32,7 +32,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="icon" type="image/png" sizes="512x512" href="./nexo-isotipo-512.png"/>
   <link rel="apple-touch-icon" href="./nexo-isotipo-512.png"/>
-  <link rel="stylesheet" href="./styles.css?v=20261001-growth1"/>
+  <link rel="stylesheet" href="./styles.css?v=20261006-demo1"/>
   <script type="application/ld+json">
   {
     "@context":"https://schema.org",
@@ -263,6 +263,61 @@
   </div>
 </section>
 
+<section class="section interactive-demo" id="demo-interactiva">
+  <div class="interactive-demo-head reveal">
+    <div class="section-label">PRUEBA NEXO</div>
+    <h2>No te lo imagines. <span>Prueba cómo se convierte una conversación en una acción.</span></h2>
+    <p>Elige un escenario y mira un flujo guiado. Es una simulación breve para mostrar la lógica de NEXO; una implementación real se configura con la información, reglas e integraciones de cada negocio.</p>
+  </div>
+
+  <div class="interactive-demo-shell reveal" id="interactiveDemo">
+    <div class="interactive-demo-controls">
+      <small>ELIGE UN NEGOCIO</small>
+      <div class="demo-scenario-list" role="group" aria-label="Escenarios de demostración">
+        <button class="demo-scenario active" type="button" data-demo-scenario="beauty"><span>01</span><b>Estética</b><small>Servicio + solicitud</small></button>
+        <button class="demo-scenario" type="button" data-demo-scenario="hotel"><span>02</span><b>Hotel</b><small>Fechas + huéspedes</small></button>
+        <button class="demo-scenario" type="button" data-demo-scenario="restaurant"><span>03</span><b>Restaurante</b><small>Reserva + sede</small></button>
+        <button class="demo-scenario" type="button" data-demo-scenario="clinic"><span>04</span><b>Clínica</b><small>Cita administrativa</small></button>
+      </div>
+
+      <div class="demo-control-copy">
+        <span class="demo-sim-label">SIMULACIÓN GUIADA</span>
+        <h3 id="demoScenarioTitle">Estética & wellness</h3>
+        <p id="demoScenarioDescription">Una consulta de servicio se organiza como una solicitud lista para seguimiento.</p>
+      </div>
+
+      <button id="runInteractiveDemo" class="btn primary demo-run-button" type="button">Probar conversación <span>→</span></button>
+      <button id="resetInteractiveDemo" class="demo-reset-button" type="button">Reiniciar</button>
+    </div>
+
+    <div class="interactive-demo-stage">
+      <div class="demo-phone">
+        <div class="demo-phone-top">
+          <div class="demo-phone-profile"><span>NX</span><div><b>Asistente NEXO</b><small>Demo · en línea</small></div></div>
+          <i></i>
+        </div>
+        <div id="interactiveDemoChat" class="interactive-demo-chat" aria-live="polite"></div>
+        <div class="demo-phone-input"><span>Escribe un mensaje...</span><b>→</b></div>
+      </div>
+
+      <div id="interactiveDemoOutcome" class="interactive-demo-outcome" aria-live="polite">
+        <div class="demo-outcome-head"><small>DETRÁS DE LA CONVERSACIÓN</small><b>NEXO organiza la acción</b></div>
+        <div class="demo-outcome-grid">
+          <div><span>01</span><small>Contexto</small><b id="demoOutcomeContext">Servicio identificado</b></div>
+          <div><span>02</span><small>Acción</small><b id="demoOutcomeAction">Solicitud registrada</b></div>
+          <div><span>03</span><small>Seguimiento</small><b id="demoOutcomeFollowup">Lista para revisar</b></div>
+        </div>
+        <div id="demoOutcomeStatus" class="demo-outcome-status"><i></i><span>Listo para iniciar</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="interactive-demo-footer reveal">
+    <p>La demo no consulta disponibilidad real ni ejecuta acciones externas. Sirve para mostrar cómo estructuramos una experiencia antes de conectar tus herramientas.</p>
+    <a class="text-link" href="./demo.html">Quiero una demo con mi negocio <span>↗</span></a>
+  </div>
+</section>
+
 <section class="section process" id="como-funciona">
   <div class="process-copy reveal">
     <div class="section-label">CÓMO FUNCIONA</div>
@@ -473,6 +528,6 @@
 </footer>
 <a class="mobile-demo-cta" href="./demo.html">Solicitar demo <span>→</span></a>
 <a class="floating-whatsapp" href="https://wa.me/573006150188?text=Hola%20NEXO,%20quiero%20saber%20c%C3%B3mo%20podr%C3%ADa%20funcionar%20en%20mi%20negocio." target="_blank" rel="noopener" aria-label="Hablar con NEXO por WhatsApp"><span>WA</span><b>Hablar con NEXO</b></a>
-<script src="./site.js?v=20261001-growth1"></script>
+<script src="./site.js?v=20261006-demo1"></script>
 </body>
 </html>
