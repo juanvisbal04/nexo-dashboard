@@ -1,0 +1,30 @@
+/* NEXO privacy controls — Lote G */
+.form-consent{
+  margin-top:18px;
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+  color:#526982;
+  font-size:9px;
+  line-height:1.55;
+  text-align:left;
+}
+.form-consent input[type="checkbox"]{
+  width:16px;
+  height:16px;
+  flex:0 0 16px;
+  margin:2px 0 0;
+  accent-color:var(--blue);
+}
+.form-consent a{
+  color:#2d86d5;
+  text-decoration:underline;
+  text-underline-offset:2px;
+}
+#disableAnalytics{
+  margin-top:14px;
+}
+#analyticsPreferenceStatus{
+  text-align:left;
+  margin-left:0;
+}
