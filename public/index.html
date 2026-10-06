@@ -37,6 +37,7 @@
   {
     "@context":"https://schema.org",
     "@type":"Organization",
+    "@id":"https://nexobyjv.online/#organization",
     "name":"NEXO by Juan Visbal",
     "alternateName":["NEXO","NEXO by JV"],
     "url":"https://nexobyjv.online/",
@@ -48,9 +49,11 @@
       "https://nexobyjv.online/nexo-resultados-reales.webp",
       "https://nexobyjv.online/nexo-soluciones-negocio.webp"
     ],
-    "founder":{"@type":"Person","name":"Juan Visbal"},
-    "sameAs":["https://www.instagram.com/nexo.byjuanvisbal/"],
-    "areaServed":["CO","US"]
+    "founder":{"@id":"https://nexobyjv.online/#juan-visbal"},
+    "foundingLocation":{"@type":"City","name":"Medellín"},
+    "sameAs":["https://www.instagram.com/nexo.byjuanvisbal/","https://www.linkedin.com/in/juan-visbal/"],
+    "areaServed":["CO","US"],
+    "contactPoint":{"@type":"ContactPoint","contactType":"sales","telephone":"+57-300-615-0188","email":"nexobyjuanvisbal@gmail.com","availableLanguage":["es","en"]}
   }
   </script>
   <script type="application/ld+json">
@@ -76,6 +79,17 @@
     ]
   }
   </script>
+  <script type="application/ld+json">
+  {
+    "@context":"https://schema.org",
+    "@type":"Person",
+    "@id":"https://nexobyjv.online/#juan-visbal",
+    "name":"Juan Visbal",
+    "url":"https://nexobyjv.online/quienes-somos.html",
+    "sameAs":["https://www.linkedin.com/in/juan-visbal/"],
+    "worksFor":{"@id":"https://nexobyjv.online/#organization"}
+  }
+  </script>
 </head>
 <body>
 <header class="nav" id="top">
@@ -84,7 +98,7 @@
   </a>
   <button class="menu" id="menu" aria-label="Abrir menú" aria-expanded="false">☰</button>
   <nav id="navLinks">
-    <a href="#nosotros">Nosotros</a>
+    <a href="./quienes-somos.html">Quiénes somos</a>
     <a href="#soluciones">Soluciones</a>
     <a href="#industrias">Industrias</a>
     <a href="./caso-lia.html">Caso Lía</a>
@@ -163,7 +177,7 @@
     </div>
     <div class="intro-copy reveal">
       <p>NEXO se configura según cómo funciona tu negocio: qué preguntan tus clientes, qué información puede responder el asistente, qué acciones debe registrar y cuándo debe intervenir una persona.</p>
-      <a class="text-link" href="./catalogo.html">Explorar el catálogo de soluciones <span>↗</span></a>
+      <a class="text-link" href="./quienes-somos.html">Conocer NEXO y su fundador <span>↗</span></a><br><a class="text-link" href="./catalogo.html">Explorar el catálogo de soluciones <span>↗</span></a>
     </div>
   </div>
 
@@ -453,7 +467,7 @@
     <small>by Juan Visbal</small>
     <p>Conectamos tu negocio con tus clientes.</p>
   </div>
-  <div class="footer-col"><b>Explorar</b><a href="#soluciones">Soluciones</a><a href="#industrias">Industrias</a><a href="./caso-lia.html">Caso Lía</a><a href="./automatizacion-whatsapp-medellin.html">WhatsApp Medellín</a><a href="./guia-automatizar-whatsapp-negocio.html">Guía WhatsApp</a><a href="#faq">FAQ</a><a href="./catalogo.html">Catálogo</a><a href="./planes.html">Planes</a></div>
+  <div class="footer-col"><b>Explorar</b><a href="./quienes-somos.html">Quiénes somos</a><a href="#soluciones">Soluciones</a><a href="#industrias">Industrias</a><a href="./caso-lia.html">Caso Lía</a><a href="./automatizacion-whatsapp-medellin.html">WhatsApp Medellín</a><a href="./guia-automatizar-whatsapp-negocio.html">Guía WhatsApp</a><a href="#faq">FAQ</a><a href="./catalogo.html">Catálogo</a><a href="./planes.html">Planes</a></div>
   <div class="footer-col"><b>Acceso</b><a href="https://dashboard.nexobyjv.online">Dashboard clientes</a><a href="./privacidad.html">Privacidad y datos</a><a href="https://www.instagram.com/nexo.byjuanvisbal/" target="_blank" rel="noopener">Instagram</a></div>
   <div class="footer-bottom"><span>© 2026 NEXO by Juan Visbal.</span><span>Medellín, Colombia.</span></div>
 </footer>
