@@ -37,21 +37,60 @@ form?.addEventListener("submit",async(event)=>{
     const response=await fetch(SUPABASE_URL+"/functions/v1/submit-demo-request",{
       method:"POST",
       headers:{"content-type":"application/json","apikey":KEY},
-      body:JSON.stringify({
-        full_name:document.getElementById("demoName").value.trim(),
-        business_name:document.getElementById("demoBusiness").value.trim(),
-        phone,email,
-        industry:document.getElementById("demoIndustry").value,
-        plan_interest:document.getElementById("demoPlan").value,
-        message:document.getElementById("demoMessage").value.trim(),
-        website:document.getElementById("demoWebsite").value,
-        source:"nexobyjv.online/demo"
-      })
+      body:JSON.stringify((()=>{
+        const goal=document.getElementById("demoGoal")?.value||"";
+        const volume=document.getElementById("demoVolume")?.value||"";
+        const channel=document.getElementById("demoChannel")?.value||"";
+        const message=document.getElementById("demoMessage").value.trim();
+        const goalLabels={
+          atencion:"Responder consultas repetitivas",
+          leads:"Capturar y dar seguimiento a leads",
+          agenda:"Organizar citas o reservas",
+          seguimiento:"Mejorar seguimiento a clientes",
+          integraciones:"Conectar herramientas y procesos",
+          otro:"Otro"
+        };
+        const volumeLabels={
+          "menos-100":"Menos de 100",
+          "100-500":"100–500",
+          "500-1500":"500–1.500",
+          "1500-5000":"1.500–5.000",
+          "5000+":"Más de 5.000"
+        };
+        const channelLabels={
+          whatsapp:"WhatsApp",
+          instagram:"Instagram / DM",
+          web:"Web / formularios",
+          telefono:"Teléfono",
+          multicanal:"Varios canales",
+          otro:"Otro"
+        };
+        const params=new URLSearchParams(window.location.search);
+        const qualification=[
+          goal&&"Objetivo principal: "+(goalLabels[goal]||goal),
+          volume&&"Volumen aproximado: "+(volumeLabels[volume]||volume)+" conversaciones/mes",
+          channel&&"Canal principal: "+(channelLabels[channel]||channel),
+          params.get("utm_source")&&"UTM source: "+params.get("utm_source"),
+          params.get("utm_campaign")&&"UTM campaign: "+params.get("utm_campaign"),
+          document.referrer&&"Referido desde: "+document.referrer
+        ].filter(Boolean);
+        const crmMessage=[message,qualification.length?"--- Calificación web ---\n"+qualification.join("\n"):""].filter(Boolean).join("\n\n");
+        return {
+          full_name:document.getElementById("demoName").value.trim(),
+          business_name:document.getElementById("demoBusiness").value.trim(),
+          phone,email,
+          industry:document.getElementById("demoIndustry").value,
+          plan_interest:document.getElementById("demoPlan").value,
+          message:crmMessage,
+          website:document.getElementById("demoWebsite").value,
+          source:"nexobyjv.online/demo"
+        };
+      })())
     });
     const data=await response.json();
     if(!response.ok) throw new Error(data.error||"No pudimos registrar la solicitud.");
     form.reset();
-    result.innerHTML="<strong>Solicitud recibida.</strong><br>Gracias. Revisaremos tu información para preparar el siguiente paso.";
+    result.innerHTML="<strong>Solicitud recibida.</strong><br>Gracias. Ya tenemos el contexto inicial para revisar tu operación y preparar el siguiente paso.";
     result.className="demo-result success";
     button.textContent="Solicitud enviada ✓";
   }catch(error){
