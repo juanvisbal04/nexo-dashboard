@@ -1548,3 +1548,109 @@ body{
     gap:5px;
   }
 }
+
+
+/* === NEXO TYPOGRAPHY SYSTEM V2 · 2026-10-06 === */
+body{
+  font-weight:400;
+  letter-spacing:-.004em;
+}
+h1,h2,h3{
+  text-wrap:balance;
+}
+p{
+  text-wrap:pretty;
+}
+.section-label,
+.hero-kicker{
+  font-weight:800;
+}
+.section-heading h2,
+.solution-head h2,
+.process h2,
+.industries h2,
+.case h2,
+.platform-copy h2,
+.trust-heading h2,
+.faq-heading h2,
+.contact h2,
+.vertical-split h2,
+.vertical-heading h2,
+.maintenance-copy h2,
+.pricing-cta h2{
+  line-height:1.04;
+}
+.intro-copy,
+.process-copy>p,
+.case-copy>p,
+.trust-heading>p,
+.platform-copy>p,
+.vertical-heading>p,
+.vertical-split>div>p,
+.maintenance-copy>p,
+.pricing-note-copy p{
+  line-height:1.72;
+}
+.principle h3,
+.solution-card h3,
+.industry-link-card h3,
+.catalog-product h3,
+.demo-next-grid b,
+.vertical-grid b,
+.trust-grid b,
+.maintenance-grid b{
+  letter-spacing:-.02em;
+}
+.principle p,
+.solution-card p,
+.industry-link-card p,
+.catalog-product>p,
+.vertical-grid p,
+.trust-grid p,
+.maintenance-grid p,
+.faq-item p,
+.demo-next-grid p{
+  line-height:1.65;
+}
+.section-intro{
+  max-width:720px;
+  margin-left:auto;
+  margin-right:auto;
+  line-height:1.7;
+}
+.section-heading.center .section-intro{
+  color:#74869a;
+}
+.hero-proof span,
+.product-name,
+.section-label,
+.plan-recommended,
+.demo-sim-label,
+.founder-case-badge,
+.case-live-badge{
+  letter-spacing:.075em;
+}
+@media(max-width:820px){
+  .section-heading h2,
+  .solution-head h2,
+  .process h2,
+  .industries h2,
+  .case h2,
+  .platform-copy h2,
+  .trust-heading h2,
+  .faq-heading h2,
+  .contact h2,
+  .vertical-split h2,
+  .vertical-heading h2{
+    letter-spacing:-1.7px;
+  }
+  .intro-copy,
+  .process-copy>p,
+  .case-copy>p,
+  .trust-heading>p,
+  .platform-copy>p,
+  .vertical-heading>p,
+  .vertical-split>div>p{
+    font-size:11px;
+  }
+}
