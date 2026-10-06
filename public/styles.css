@@ -516,3 +516,28 @@ footer .brand-word{color:#fff}.brand-word.small{font-size:27px}.footer-brand>sma
 @media(max-width:700px){.interactive-demo-head h2{letter-spacing:-2px}.interactive-demo-shell{border-radius:18px}.interactive-demo-controls{padding:20px}.demo-scenario-list{grid-template-columns:1fr 1fr}.interactive-demo-stage{padding:22px 14px;grid-template-columns:1fr}.interactive-demo-outcome{width:100%;max-width:420px;justify-self:center}.interactive-demo-footer{align-items:flex-start;flex-direction:column}.interactive-demo-footer .text-link{white-space:normal}.interactive-demo-chat{height:320px}}
 @media(max-width:440px){.demo-scenario-list{grid-template-columns:1fr}.demo-phone{max-width:315px}}
 @media(prefers-reduced-motion:reduce){.interactive-bubble,.interactive-typing i{animation:none}}
+
+
+/* === NEXO PLAN COMPARISON · 2026-10-06 === */
+.plan-comparison{background:#fff}
+.plan-comparison-head{max-width:900px;margin-bottom:36px}
+.plan-comparison-head h2{font-size:clamp(34px,4.6vw,60px);line-height:1.03;letter-spacing:-2.6px;color:var(--navy);margin:0}
+.plan-comparison-head h2 span{color:#6f8197}
+.plan-comparison-head p{max-width:720px;font-size:11px;color:#78899c;margin-top:16px}
+.plan-table-wrap{overflow-x:auto;border:1px solid #dde6ef;border-radius:20px;background:#fff;box-shadow:0 20px 55px rgba(10,35,61,.07)}
+.plan-table{width:100%;min-width:820px;border-collapse:collapse;font-size:9px;color:#4e647b}
+.plan-table th,.plan-table td{padding:16px 15px;border-bottom:1px solid #e7edf3;text-align:center}
+.plan-table tbody tr:last-child th,.plan-table tbody tr:last-child td{border-bottom:0}
+.plan-table th:first-child,.plan-table tbody th{text-align:left}
+.plan-table thead th{background:#f7f9fc;color:#173957;font-size:10px;position:relative}
+.plan-table thead th:first-child{min-width:210px}
+.plan-table thead small{display:block;color:#8595a7;font-size:7px;font-weight:600;margin-top:5px}
+.plan-table thead em{display:inline-flex;margin-top:7px;padding:4px 6px;border-radius:999px;background:#2d9cff;color:#07172b;font-style:normal;font-size:6px;letter-spacing:.5px;text-transform:uppercase}
+.plan-table tbody th{color:#284661;font-size:9px;font-weight:700;background:#fbfcfe}
+.plan-table .recommended-col{background:#f2f8ff}
+.plan-table thead .recommended-col{background:#eaf5ff;color:#0d4878}
+.plan-yes{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:#e9f8f1;color:#21825a;font-weight:800}
+.plan-no{color:#a9b4c0;font-weight:700}
+.plan-comparison-foot{display:flex;align-items:center;justify-content:space-between;gap:25px;margin-top:18px}
+.plan-comparison-foot p{font-size:8px;color:#8493a4;max-width:680px;margin:0}
+@media(max-width:700px){.plan-comparison-head h2{letter-spacing:-1.9px}.plan-comparison-foot{align-items:flex-start;flex-direction:column}.plan-comparison-foot .btn{width:100%}.plan-table-wrap{border-radius:14px}}
