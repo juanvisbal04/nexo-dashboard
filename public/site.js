@@ -247,3 +247,99 @@ if(floatingWhatsapp&&contactSection&&"IntersectionObserver" in window){
   resetButton?.addEventListener("click",reset);
   reset();
 })();
+
+
+// === NEXO COMMERCIAL FUNNEL ATTRIBUTION · 2026-10-06 ===
+(function(){
+  const STORAGE_KEY="nexo.web.funnel.v1";
+  const MAX_PAGES=20;
+  const MAX_EVENTS=30;
+
+  function read(){
+    try{return JSON.parse(sessionStorage.getItem(STORAGE_KEY)||"null")||{};}catch{return {};}
+  }
+  function write(data){
+    try{sessionStorage.setItem(STORAGE_KEY,JSON.stringify(data));}catch{}
+  }
+  function cleanPath(url){
+    try{
+      const u=new URL(url,location.origin);
+      return u.pathname+(u.hash&&u.hash!=="#"?u.hash:"");
+    }catch{return String(url||"").slice(0,120);}
+  }
+  function eventLabel(anchor){
+    const href=anchor?.href||"";
+    const path=cleanPath(href);
+    if(/wa\.me\//i.test(href)) return "whatsapp_click";
+    if(/demo(?:-|\.)/i.test(path)) return "demo_click";
+    if(/planes\.html/i.test(path)) return "plans_click";
+    if(/caso-lia\.html/i.test(path)) return "case_lia_click";
+    if(/industria-/i.test(path)) return "industry_click";
+    if(/dashboard\.nexobyjv\.online/i.test(href)) return "dashboard_click";
+    return "";
+  }
+
+  const params=new URLSearchParams(location.search);
+  const existing=read();
+  const funnel={
+    session_id:existing.session_id||(crypto?.randomUUID?.()||("nx-"+Date.now()+"-"+Math.random().toString(36).slice(2,8))),
+    started_at:existing.started_at||new Date().toISOString(),
+    landing:existing.landing||cleanPath(location.href),
+    referrer:existing.referrer||((document.referrer&&!document.referrer.startsWith(location.origin))?document.referrer.slice(0,240):""),
+    utm:existing.utm||{
+      source:params.get("utm_source")||"",
+      medium:params.get("utm_medium")||"",
+      campaign:params.get("utm_campaign")||"",
+      content:params.get("utm_content")||"",
+      term:params.get("utm_term")||""
+    },
+    pages:Array.isArray(existing.pages)?existing.pages:[],
+    events:Array.isArray(existing.events)?existing.events:[]
+  };
+
+  const currentPath=cleanPath(location.href);
+  if(!funnel.pages.length||funnel.pages[funnel.pages.length-1]?.path!==currentPath){
+    funnel.pages.push({path:currentPath,at:new Date().toISOString()});
+    funnel.pages=funnel.pages.slice(-MAX_PAGES);
+  }
+  write(funnel);
+
+  function track(type,detail=""){
+    if(!type)return;
+    const next=read();
+    next.events=Array.isArray(next.events)?next.events:[];
+    next.events.push({type,detail:String(detail||"").slice(0,120),at:new Date().toISOString()});
+    next.events=next.events.slice(-MAX_EVENTS);
+    write(next);
+  }
+
+  document.addEventListener("click",(event)=>{
+    const run=event.target.closest?.("#runInteractiveDemo");
+    if(run){track("interactive_demo_run",document.querySelector("[data-demo-scenario].active")?.dataset?.demoScenario||"");return;}
+    const anchor=event.target.closest?.("a");
+    if(!anchor)return;
+    const label=eventLabel(anchor);
+    if(label)track(label,cleanPath(anchor.href));
+  },{passive:true});
+
+  window.NEXOFunnel={
+    track,
+    get(){
+      return read();
+    },
+    summary(){
+      const data=read();
+      const pages=(data.pages||[]).map(item=>item.path).filter(Boolean);
+      const events=(data.events||[]).map(item=>item.type+(item.detail?" ("+item.detail+")":"")).filter(Boolean);
+      const utm=data.utm||{};
+      return [
+        data.session_id&&"Session: "+data.session_id,
+        data.landing&&"Landing: "+data.landing,
+        pages.length&&"Recorrido: "+pages.join(" → "),
+        events.length&&"Eventos: "+events.join(" · "),
+        utm.source&&"UTM: "+[utm.source,utm.medium,utm.campaign].filter(Boolean).join(" / "),
+        data.referrer&&"Referrer: "+data.referrer
+      ].filter(Boolean).join("\n");
+    }
+  };
+})();
