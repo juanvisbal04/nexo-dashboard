@@ -8,7 +8,16 @@
 .form-note,
 .case-results-note,
 .secondary-industry-disclaimer,
-.case-results-grid p{
+.case-results-grid p,
+.intro-copy,
+.principle p,
+.demo-next-grid p,
+.interactive-bubble.user small,
+.interactive-demo-footer p,
+.plan-comparison-head p,
+.plan-comparison-foot p,
+.proof-policy p,
+.section-heading.center .section-intro{
   color:#526982;
 }
 .form-note,
@@ -42,5 +51,25 @@
   .reveal{
     opacity:1!important;
     transform:none!important;
+  }
+}
+
+
+.form-grid input,
+.form-grid select,
+.demo-submit{
+  min-height:44px;
+}
+
+@media(max-width:820px){
+  h1,h2,h3,p,.btn,.text-link{
+    overflow-wrap:break-word;
+  }
+  .hero-copy,
+  .hero-media,
+  .intro-grid>*,
+  .vertical-split>*,
+  .interactive-demo-shell>*{
+    min-width:0;
   }
 }
