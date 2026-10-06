@@ -1,49 +1,6 @@
 /* Caso Lía — Fase 3 / Lote C
    Evidence-led case study. Approved tokens only. */
 
-.case-results-section{
-  background:var(--sand);
-  border-top:1px solid var(--line);
-  border-bottom:1px solid var(--line);
-}
-.case-results-grid{
-  margin-top:38px;
-  display:grid;
-  grid-template-columns:repeat(3,minmax(0,1fr));
-  border-top:1px solid #dbe4ec;
-  border-left:1px solid #dbe4ec;
-}
-.case-results-grid article{
-  min-height:210px;
-  padding:26px 28px;
-  border-right:1px solid #dbe4ec;
-  border-bottom:1px solid #dbe4ec;
-  background:#fff;
-}
-.case-results-grid small,
-.case-results-grid b,
-.case-results-grid p{
-  display:block;
-}
-.case-results-grid small{
-  color:#71869b;
-  font-size:7px;
-  font-weight:800;
-  letter-spacing:.09em;
-}
-.case-results-grid b{
-  margin-top:54px;
-  color:var(--navy);
-  font-size:18px;
-  line-height:1.15;
-  letter-spacing:-.5px;
-}
-.case-results-grid p{
-  margin:9px 0 0;
-  color:#7b8b9c;
-  font-size:8px;
-  line-height:1.6;
-}
 .case-study-hero .case-metrics{
   margin-top:34px;
 }
@@ -57,14 +14,3 @@
   align-content:start;
 }
 
-@media(max-width:820px){
-  .case-results-grid{
-    grid-template-columns:1fr;
-  }
-  .case-results-grid article{
-    min-height:auto;
-  }
-  .case-results-grid b{
-    margin-top:28px;
-  }
-}
