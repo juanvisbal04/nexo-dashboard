@@ -74,7 +74,12 @@ form?.addEventListener("submit",async(event)=>{
           params.get("utm_campaign")&&"UTM campaign: "+params.get("utm_campaign"),
           document.referrer&&"Referido desde: "+document.referrer
         ].filter(Boolean);
-        const crmMessage=[message,qualification.length?"--- Calificación web ---\n"+qualification.join("\n"):""].filter(Boolean).join("\n\n");
+        const funnelSummary=window.NEXOFunnel?.summary?.()||"";
+        const crmMessage=[
+          message,
+          qualification.length?"--- Calificación web ---\n"+qualification.join("\n"):"",
+          funnelSummary?"--- Recorrido web ---\n"+funnelSummary:""
+        ].filter(Boolean).join("\n\n");
         return {
           full_name:document.getElementById("demoName").value.trim(),
           business_name:document.getElementById("demoBusiness").value.trim(),
