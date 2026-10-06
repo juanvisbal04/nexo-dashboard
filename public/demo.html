@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=20261001-growth2"/>
+  <link rel="stylesheet" href="./styles.css?v=20261006-demoqual1"/>
 </head>
 <body>
 <header class="nav">
@@ -90,7 +90,7 @@
             </select>
           </label>
           <label>Sector
-            <select id="demoIndustry" name="industry">
+            <select id="demoIndustry" name="industry" required>
               <option value="">Selecciona una opción</option>
               <option>Estética & wellness</option>
               <option>Hotel</option>
@@ -102,8 +102,40 @@
               <option>Otro</option>
             </select>
           </label>
-          <label class="wide">¿Qué te gustaría mejorar?
-            <textarea id="demoMessage" name="message" rows="5" placeholder="Ej. recibimos muchas preguntas por WhatsApp, se pierden leads fuera de horario y queremos organizar reservas..."></textarea>
+          <label>Objetivo principal
+            <select id="demoGoal" name="primary_goal" required>
+              <option value="">Selecciona una opción</option>
+              <option value="atencion">Responder consultas repetitivas</option>
+              <option value="leads">Capturar y dar seguimiento a leads</option>
+              <option value="agenda">Organizar citas o reservas</option>
+              <option value="seguimiento">Mejorar seguimiento a clientes</option>
+              <option value="integraciones">Conectar herramientas y procesos</option>
+              <option value="otro">Otro</option>
+            </select>
+          </label>
+          <label>Conversaciones al mes
+            <select id="demoVolume" name="monthly_conversations">
+              <option value="">No estoy seguro</option>
+              <option value="menos-100">Menos de 100</option>
+              <option value="100-500">100–500</option>
+              <option value="500-1500">500–1.500</option>
+              <option value="1500-5000">1.500–5.000</option>
+              <option value="5000+">Más de 5.000</option>
+            </select>
+          </label>
+          <label>Canal principal hoy
+            <select id="demoChannel" name="current_channel">
+              <option value="">Selecciona una opción</option>
+              <option value="whatsapp">WhatsApp</option>
+              <option value="instagram">Instagram / DM</option>
+              <option value="web">Web / formularios</option>
+              <option value="telefono">Teléfono</option>
+              <option value="multicanal">Varios canales</option>
+              <option value="otro">Otro</option>
+            </select>
+          </label>
+          <label class="wide">Cuéntanos un poco más
+            <textarea id="demoMessage" name="message" rows="5" placeholder="Ej. se pierden leads fuera de horario, el equipo repite las mismas respuestas o necesitamos organizar reservas..."></textarea>
           </label>
           <label class="honeypot" aria-hidden="true">Sitio web
             <input id="demoWebsite" name="website" tabindex="-1" autocomplete="off"/>
@@ -146,7 +178,7 @@
   <div class="footer-bottom"><span>© 2026 NEXO by Juan Visbal.</span><span>Medellín, Colombia.</span></div>
 </footer>
 <a class="floating-whatsapp" href="https://wa.me/573006150188?text=Hola%20NEXO,%20quiero%20una%20demo%20para%20mi%20negocio." target="_blank" rel="noopener" aria-label="Hablar con NEXO por WhatsApp"><span>WA</span><b>Hablar con NEXO</b></a>
-<script src="./site.js?v=20261001-growth1"></script>
-<script src="./demo.js?v=20260930-5"></script>
+<script src="./site.js?v=20261006-demo1"></script>
+<script src="./demo.js?v=20261006-qual1"></script>
 </body>
 </html>
