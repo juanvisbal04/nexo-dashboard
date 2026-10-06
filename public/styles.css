@@ -1321,3 +1321,61 @@ body{
     border-radius:18px;
   }
 }
+
+
+/* === NEXO MOBILE NAV V2 · 2026-10-06 === */
+@media(max-width:820px){
+  body.nav-open{
+    overflow:hidden;
+    touch-action:none;
+  }
+  .nav{
+    z-index:120;
+  }
+  .nav nav{
+    display:flex!important;
+    opacity:0;
+    visibility:hidden;
+    pointer-events:none;
+    transform:translateY(-8px);
+    transition:opacity .18s ease,transform .18s ease,visibility .18s ease;
+    background:rgba(255,255,255,.985);
+    box-shadow:0 24px 60px rgba(10,32,57,.12);
+  }
+  .nav nav.open{
+    opacity:1;
+    visibility:visible;
+    pointer-events:auto;
+    transform:none;
+  }
+  .nav nav>a:not(.nav-cta):not(.login-link){
+    color:#39516b;
+    font-size:12px;
+    font-weight:650;
+    min-height:46px;
+    border-bottom:1px solid #eef2f6;
+    border-radius:0;
+  }
+  .nav nav>a:not(.nav-cta):not(.login-link):first-child{
+    border-top:1px solid #eef2f6;
+  }
+  .nav nav .nav-cta{
+    margin-top:12px;
+    background:#0B1F3B;
+    color:#fff!important;
+    box-shadow:none;
+  }
+  .nav nav .login-link{
+    margin-top:4px;
+    border-color:#dbe5ef;
+    color:#173a5d!important;
+    background:#f8fafc;
+  }
+  .menu[aria-expanded="true"]{
+    background:#0B1F3B;
+    border-color:#0B1F3B;
+    color:#fff;
+    font-size:27px;
+    line-height:1;
+  }
+}
