@@ -256,6 +256,14 @@ export async function renderInternalTeam(ctx) {
     });
   });
 
+  const refreshTeamStable = async () => {
+    const x = window.scrollX;
+    const y = window.scrollY;
+    await renderInternalTeam(ctx);
+    window.scrollTo({ left: x, top: y, behavior: "auto" });
+    requestAnimationFrame(() => window.scrollTo({ left: x, top: y, behavior: "auto" }));
+  };
+
   $("internalTeamForm")?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const userId = $("internalTeamUserId").value;
@@ -281,13 +289,13 @@ export async function renderInternalTeam(ctx) {
 
       if (result.invite_sent) {
         showToast(`Invitación enviada automáticamente a ${result.email || "su correo"}.`);
-        await renderInternalTeam(ctx);
+        await refreshTeamStable();
       } else if (!isEdit && result.existing_user) {
         showToast("La cuenta ya existía. El acceso interno fue agregado sin cambiar su contraseña.");
-        await renderInternalTeam(ctx);
+        await refreshTeamStable();
       } else {
         showToast(isEdit ? "Colaborador actualizado." : "Acceso interno agregado.");
-        await renderInternalTeam(ctx);
+        await refreshTeamStable();
       }
     } catch (error) {
       resultBox.innerHTML = `<strong>No pudimos guardar los cambios</strong><p>${esc(error.message || "Inténtalo de nuevo.")}</p>`;
@@ -306,7 +314,7 @@ export async function renderInternalTeam(ctx) {
       try {
         await invoke({ action: "resend_invite", user_id: button.dataset.userId });
         showToast("Invitación reenviada por correo.");
-        await renderInternalTeam(ctx);
+        await refreshTeamStable();
       } catch (error) {
         showError(error.message || "No pudimos reenviar la invitación.");
         button.disabled = false;
@@ -322,7 +330,7 @@ export async function renderInternalTeam(ctx) {
       try {
         await invoke({ action: "cancel_invite", user_id: button.dataset.userId });
         showToast("Invitación cancelada.");
-        await renderInternalTeam(ctx);
+        await refreshTeamStable();
       } catch (error) {
         showError(error.message || "No pudimos cancelar la invitación.");
         button.disabled = false;
@@ -339,7 +347,7 @@ export async function renderInternalTeam(ctx) {
       try {
         await invoke({ action: "set_active", user_id: button.dataset.userId, active: nextActive });
         showToast(nextActive ? "Acceso reactivado." : "Acceso interno desactivado.");
-        await renderInternalTeam(ctx);
+        await refreshTeamStable();
       } catch (error) {
         showError(error.message || "No pudimos cambiar el estado.");
         button.disabled = false;
@@ -354,7 +362,7 @@ export async function renderInternalTeam(ctx) {
       try {
         await invoke({ action: "remove", user_id: button.dataset.userId });
         showToast("Usuario retirado del equipo NEXO.");
-        await renderInternalTeam(ctx);
+        await refreshTeamStable();
       } catch (error) {
         showError(error.message || "No pudimos retirar al usuario.");
         button.disabled = false;
