@@ -149,20 +149,26 @@ Default roles created:
 Finance remains founder-only.
 
 ### Phase 2 — Team Management UI
-**Status: NEXT**
+**Status: COMPLETED — 2026-10-07**
 
-Build a Super Admin interface for:
-- Create/invite collaborator.
-- Assign internal role.
-- Assign clients/accounts.
-- Activate/deactivate access.
-- Review effective permissions.
-- Change role/assignments.
-- See last activity/status.
-- Preserve audit history.
+Implemented:
+- Super Admin `Equipo & accesos` module inside NEXO Internal.
+- Create/invite collaborator flow with 48-hour activation link.
+- Internal role assignment.
+- Client/account assignments.
+- Edit collaborator role, job title and client portfolio.
+- Activate/deactivate internal NEXO access without deleting the user.
+- Remove user from the NEXO team without deleting historical account data.
+- Effective role/permission map visible in the UI.
+- Last sign-in and invited/active/inactive status.
+- Audit entries for internal team mutations.
+- Mobile navigation entry for Team.
+- Separate backend from client organization user management.
+- Render production deployment verified live.
+- Default collaborator roles verified with no `finance.read` or `finance.write`.
 
 ### Phase 3 — Personal collaborator workspace
-**Status: PENDING**
+**Status: NEXT**
 
 Each collaborator gets:
 - My Pipeline.
