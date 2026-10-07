@@ -125,11 +125,22 @@ export async function renderInternalTeam(ctx) {
                   <td><span class="team-role-pill">${esc(user.role_name || user.role_key || "—")}</span></td>
                   <td>${clientChips(user)}</td>
                   <td>${statusBadge(user)}</td>
-                  <td>${user.last_sign_in_at ? esc(dateTime(user.last_sign_in_at)) : '<span class="muted">Aún no ingresa</span>'}</td>
+                  <td>
+                    ${user.last_sign_in_at
+                      ? esc(dateTime(user.last_sign_in_at))
+                      : user.invite?.last_sent_at
+                        ? `<span class="team-invite-meta">Invite enviado<br><small>${esc(dateTime(user.invite.last_sent_at))}${user.invite.resend_count ? ` · ${user.invite.resend_count} reenvío${user.invite.resend_count === 1 ? "" : "s"}` : ""}</small></span>`
+                        : '<span class="muted">Aún no ingresa</span>'}
+                  </td>
                   <td>
                     <div class="team-row-actions">
                       <button class="btn small team-edit" type="button" data-user-id="${esc(user.user_id)}">Editar</button>
-                      <button class="btn small team-toggle ${user.active ? "warn" : ""}" type="button" data-user-id="${esc(user.user_id)}" data-active="${user.active ? "true" : "false"}">${user.active ? "Desactivar" : "Activar"}</button>
+                      ${user.status === "invited" ? `
+                        <button class="btn small team-resend" type="button" data-user-id="${esc(user.user_id)}">Reenviar invite</button>
+                        <button class="btn small warn team-cancel-invite" type="button" data-user-id="${esc(user.user_id)}">Cancelar invite</button>
+                      ` : `
+                        <button class="btn small team-toggle ${user.active ? "warn" : ""}" type="button" data-user-id="${esc(user.user_id)}" data-active="${user.active ? "true" : "false"}">${user.active ? "Desactivar" : "Activar"}</button>
+                      `}
                       <button class="member-remove team-remove" type="button" data-user-id="${esc(user.user_id)}">Quitar</button>
                     </div>
                   </td>
@@ -268,25 +279,12 @@ export async function renderInternalTeam(ctx) {
         organization_ids: organizationIds,
       });
 
-      if (result.setup_url) {
-        resultBox.innerHTML = `
-          <strong>Colaborador creado</strong>
-          <p>Comparte este enlace privado para que configure su contraseña. Vence en 48 horas.</p>
-          <div class="setup-link-row">
-            <input id="internalGeneratedLink" value="${esc(result.setup_url)}" readonly />
-            <button id="copyInternalLink" class="btn small" type="button">Copiar</button>
-          </div>
-        `;
-        resultBox.className = "access-result ok";
-        $("copyInternalLink")?.addEventListener("click", async () => {
-          try {
-            await navigator.clipboard.writeText(result.setup_url);
-            showToast("Enlace de acceso copiado.");
-          } catch {
-            showError("No pudimos copiar el enlace automáticamente.");
-          }
-        });
-        showToast("Colaborador creado.");
+      if (result.invite_sent) {
+        showToast(`Invitación enviada automáticamente a ${result.email || "su correo"}.`);
+        await renderInternalTeam(ctx);
+      } else if (!isEdit && result.existing_user) {
+        showToast("La cuenta ya existía. El acceso interno fue agregado sin cambiar su contraseña.");
+        await renderInternalTeam(ctx);
       } else {
         showToast(isEdit ? "Colaborador actualizado." : "Acceso interno agregado.");
         await renderInternalTeam(ctx);
@@ -298,6 +296,38 @@ export async function renderInternalTeam(ctx) {
       button.disabled = false;
       button.textContent = isEdit ? "Guardar cambios" : "Crear colaborador";
     }
+  });
+
+  document.querySelectorAll(".team-resend").forEach((button) => {
+    button.addEventListener("click", async () => {
+      if (!confirm("¿Reenviar la invitación de registro a este colaborador?")) return;
+      button.disabled = true;
+      button.textContent = "Enviando…";
+      try {
+        await invoke({ action: "resend_invite", user_id: button.dataset.userId });
+        showToast("Invitación reenviada por correo.");
+        await renderInternalTeam(ctx);
+      } catch (error) {
+        showError(error.message || "No pudimos reenviar la invitación.");
+        button.disabled = false;
+        button.textContent = "Reenviar invite";
+      }
+    });
+  });
+
+  document.querySelectorAll(".team-cancel-invite").forEach((button) => {
+    button.addEventListener("click", async () => {
+      if (!confirm("¿Cancelar esta invitación? El enlace dejará de permitir la activación del acceso interno.")) return;
+      button.disabled = true;
+      try {
+        await invoke({ action: "cancel_invite", user_id: button.dataset.userId });
+        showToast("Invitación cancelada.");
+        await renderInternalTeam(ctx);
+      } catch (error) {
+        showError(error.message || "No pudimos cancelar la invitación.");
+        button.disabled = false;
+      }
+    });
   });
 
   document.querySelectorAll(".team-toggle").forEach((button) => {
