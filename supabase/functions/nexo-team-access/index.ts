@@ -3,6 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.58.0";
 const URL=Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const service=createClient(URL,SERVICE_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
+const TEAM_MAILER_URL="https://nexo-mailer.onrender.com/v1/team-invite";
 const allowedOrigins=new Set([
   "https://dashboard.nexobyjv.online",
   "https://nexo-dashboard-pcfq.onrender.com",
@@ -158,11 +159,27 @@ Deno.serve(async(req:Request)=>{
           const p=await service.from("profiles").select("platform_role").eq("id",target.id).maybeSingle();
           if(p.data?.platform_role==="platform_admin") return json(req,{error:"No puedes convertir una cuenta Platform Admin en colaborador"},400);
         }else{
-          const inviteRes=await service.auth.admin.inviteUserByEmail(email,{
-            data:fullName?{full_name:fullName,nexo_access:"team"}:{nexo_access:"team"},
+          const linkRes=await service.auth.admin.generateLink({
+            type:"invite",
+            email,
           });
-          if(inviteRes.error||!inviteRes.data.user) throw inviteRes.error||new Error("No pudimos enviar la invitación.");
-          target=inviteRes.data.user; invitedByEmail=true;
+          if(linkRes.error||!linkRes.data?.user) throw linkRes.error||new Error("No pudimos generar la invitación.");
+          target=linkRes.data.user;
+          const metaUpdate=await service.auth.admin.updateUserById(target.id,{
+            user_metadata:{
+              ...(target.user_metadata||{}),
+              ...(fullName?{full_name:fullName}:{}),
+              nexo_access:"team",
+              role_name:role.name,
+            },
+          });
+          if(metaUpdate.error) throw metaUpdate.error;
+          target=metaUpdate.data.user||target;
+          target.__nexo_invite_url=
+            linkRes.data?.properties?.action_link ||
+            linkRes.data?.properties?.actionLink ||
+            null;
+          invitedByEmail=true;
         }
       }else{
         const userId=String(body.user_id||"").trim();
@@ -225,8 +242,29 @@ Deno.serve(async(req:Request)=>{
           .eq("user_id",target.id).eq("status","pending");
         const inv=await service.from("nexo_team_invites").insert({
           user_id:target.id,email:target.email||email,role_id:role.id,status:"pending",invited_by:requester.id,
-        });
+        }).select("id").single();
         if(inv.error) throw inv.error;
+
+        const inviteUrl=target.__nexo_invite_url;
+        if(!inviteUrl) throw new Error("No se generó el enlace seguro de invitación.");
+        const mailRes=await fetch(TEAM_MAILER_URL,{
+          method:"POST",
+          headers:{
+            authorization:`Bearer ${jwt}`,
+            "content-type":"application/json",
+          },
+          body:JSON.stringify({
+            to:target.email||email,
+            collaborator_name:fullName||"Colaborador",
+            role_name:role.name,
+            invite_url:inviteUrl,
+            invite_id:inv.data.id,
+          }),
+        });
+        const mailData=await mailRes.json().catch(()=>({}));
+        if(!mailRes.ok||!mailData?.ok){
+          throw new Error(mailData?.error||"No pudimos enviar el correo visual de invitación.");
+        }
       }else if(pendingInviteRes.data){
         const inv=await service.from("nexo_team_invites").update({role_id:role.id}).eq("id",pendingInviteRes.data.id);
         if(inv.error) throw inv.error;
@@ -258,11 +296,43 @@ Deno.serve(async(req:Request)=>{
       if(!inviteRes.data||!roleRes.data) return json(req,{error:"No hay una invitación pendiente para este usuario"},400);
       if(authUserRes.data.user.last_sign_in_at) return json(req,{error:"Este colaborador ya activó su cuenta"},400);
 
-      const resendRes=await service.auth.resend({
-        type:"signup",
+      const roleRow=await service.from("nexo_user_roles")
+        .select("role_id,nexo_team_roles(name)")
+        .eq("user_id",userId)
+        .maybeSingle();
+      if(roleRow.error) throw roleRow.error;
+
+      const linkRes=await service.auth.admin.generateLink({
+        type:"invite",
         email:inviteRes.data.email,
       });
-      if(resendRes.error) throw resendRes.error;
+      if(linkRes.error) throw linkRes.error;
+      const inviteUrl=
+        linkRes.data?.properties?.action_link ||
+        linkRes.data?.properties?.actionLink ||
+        null;
+      if(!inviteUrl) throw new Error("No se generó un nuevo enlace de invitación.");
+
+      const profileRes=await service.from("profiles").select("full_name").eq("id",userId).maybeSingle();
+      if(profileRes.error) throw profileRes.error;
+      const roleName=roleRow.data?.nexo_team_roles?.name||"Colaborador NEXO";
+
+      const mailRes=await fetch(TEAM_MAILER_URL,{
+        method:"POST",
+        headers:{
+          authorization:`Bearer ${jwt}`,
+          "content-type":"application/json",
+        },
+        body:JSON.stringify({
+          to:inviteRes.data.email,
+          collaborator_name:profileRes.data?.full_name||"Colaborador",
+          role_name:roleName,
+          invite_url:inviteUrl,
+          invite_id:`${inviteRes.data.id}-${(inviteRes.data.resend_count||0)+1}`,
+        }),
+      });
+      const mailData=await mailRes.json().catch(()=>({}));
+      if(!mailRes.ok||!mailData?.ok) throw new Error(mailData?.error||"No pudimos reenviar el correo visual.");
 
       const now=new Date().toISOString();
       const up=await service.from("nexo_team_invites").update({
