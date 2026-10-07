@@ -3834,12 +3834,14 @@ async function render() {
   document.body.classList.remove("modal-open");
   document.body.classList.remove("sidebar-open");
   clearError();
+  const staffDepartment = state.internalDepartmentName || "NEXO";
+  const staffTeamTasks = hasPermission("tasks.team.read");
   const staffMeta = {
-    overview:["Inicio","NEXO INTERNAL",`Tu espacio de ${state.internalRoleName || "trabajo"}.`,"Tareas, clientes y prioridades asignadas a tu rol."],
-    projects:["Mis proyectos","NEXO MARKETING","Tus proyectos asignados.","Trabajo de marketing organizado por cliente."],
-    tasks:["Mis tareas","NEXO WORK","Tu trabajo, bajo control.","Crea, prioriza y completa tus propias tareas."],
-    accounts:["Clientes asignados","NEXO SCOPE","Tu cartera autorizada.","Solo los clientes en los que tienes permiso para trabajar."],
-    performance:["Mi rendimiento","NEXO WORK","Tu ejecución, en perspectiva.","Seguimiento personal sin rankings ni exposición de datos internos."],
+    overview:["Inicio","NEXO INTERNAL",`Tu espacio de ${state.internalRoleName || "trabajo"}.`,"Tareas, clientes y prioridades autorizadas para tu cargo."],
+    projects:["Proyectos",`NEXO · ${staffDepartment.toUpperCase()}`,`Proyectos de ${staffDepartment}.`,"Clientes, alcance, estado y fechas del trabajo de tu departamento."],
+    tasks:[staffTeamTasks?"Tareas del departamento":"Mis tareas","NEXO WORK",staffTeamTasks?"Trabajo del equipo, bajo control.":"Tu trabajo, bajo control.",staffTeamTasks?"Coordina responsables, prioridades y vencimientos dentro de tu departamento.":"Crea, prioriza y completa tus propias tareas."],
+    accounts:["Clientes",`NEXO · ${staffDepartment.toUpperCase()}`,"Clientes en tu scope.","Solo negocios autorizados para ti o para tu departamento."],
+    performance:[staffTeamTasks?"Rendimiento del departamento":"Mi rendimiento","NEXO WORK",staffTeamTasks?"Ejecución del equipo, en perspectiva.":"Tu ejecución, en perspectiva.","Seguimiento operativo sin exponer información fuera de tu scope."],
     profile:["Mi perfil","CUENTA NEXO","Tu perfil, bajo tu control.","Foto, datos de contacto e información personal de tu acceso."],
   };
   const meta = state.isInternalStaff ? (staffMeta[state.page] || pageMeta[state.page]) : pageMeta[state.page];
