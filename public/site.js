@@ -246,7 +246,7 @@ if(floatingWhatsapp&&contactSection&&"IntersectionObserver" in window){
     timers.push(setTimeout(()=>{
       hideTyping();
       outcomeStatus.classList.add("complete");
-      outcomeStatus.querySelector("span").textContent="Acción organizada en NEXO";
+      outcomeStatus.querySelector("span").textContent="Registro creado en NEXO";
       runButton.disabled=false;
       runButton.innerHTML='Volver a probar <span>↻</span>';
     },delay+350));
