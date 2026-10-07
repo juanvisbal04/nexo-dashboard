@@ -76,8 +76,10 @@ function canAccessPage(page) {
   if (!pageMeta[page]) return false;
 
   if (state.isInternalStaff) {
-    const allowed = new Set(["overview","tasks","accounts","performance","profile"]);
-    if (hasPermission("marketing.assigned.read")) allowed.add("projects");
+    const allowed = new Set(["overview","performance","profile"]);
+    if (hasPermission("tasks.self.read") || hasPermission("tasks.team.read")) allowed.add("tasks");
+    if (hasPermission("projects.department.read")) allowed.add("projects");
+    if (hasPermission("clients.assigned.read") || hasPermission("clients.department.assign")) allowed.add("accounts");
     return allowed.has(page);
   }
 
@@ -899,6 +901,15 @@ function updateNavigationAccess() {
   document.querySelectorAll(".client-mobile-nav-item").forEach((item) => item.classList.toggle("hidden", internalAdmin || internalStaff));
   document.querySelectorAll(".admin-mobile-nav-item").forEach((item) => item.classList.toggle("hidden", !internalAdmin));
   document.querySelectorAll(".staff-mobile-nav-item").forEach((item) => item.classList.toggle("hidden", !internalStaff));
+
+  if (internalStaff) {
+    const canTasks=hasPermission("tasks.self.read")||hasPermission("tasks.team.read");
+    const canProjects=hasPermission("projects.department.read");
+    const canAccounts=hasPermission("clients.assigned.read")||hasPermission("clients.department.assign");
+    document.querySelectorAll(".staff-tasks-nav").forEach((item)=>item.classList.toggle("hidden",!canTasks));
+    document.querySelectorAll(".staff-projects-nav").forEach((item)=>item.classList.toggle("hidden",!canProjects));
+    document.querySelectorAll(".staff-accounts-nav").forEach((item)=>item.classList.toggle("hidden",!canAccounts));
+  }
 
   if ($("profileRole")) {
     if (state.isAdmin && internalAdmin) {
