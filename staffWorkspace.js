@@ -214,7 +214,7 @@ export async function renderStaffPerformance(context){
   const since=Date.now()-30*24*60*60*1000;
   const completed30=stats.completed.filter((t)=>t.completed_at&&new Date(t.completed_at).getTime()>=since);
   const created30=tasks.filter((t)=>new Date(t.created_at).getTime()>=since);
-  const completionRate=created30.length?Math.round((completed30.length/created30.length)*100):0;
+  const completionRate=created30.length?Math.min(100,Math.round((completed30.length/created30.length)*100)):0;
   const clients=assignedClients();
   const clientBreakdown=clients.map((org)=>{
     const own=tasks.filter((t)=>t.organization_id===org.id);
