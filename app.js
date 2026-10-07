@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
 import { renderCrm, openProspectEditorFromGrowth, openNewProspectFromGrowth } from "./crm.js?v=20261006-webfunnel1";
 import { renderTasks, openCustomer360, openContact360, closeDrawer } from "./workspace360.js?v=20261001-360h";
 import { renderDataQuality, openOnboarding, closeQualityDrawer } from "./qualityOnboarding.js?v=20261001-quality2";
+import { renderInternalTeam } from "./team.js?v=20261007-team1";
 
 const SUPABASE_URL = "https://ixewnbjndguchunwcuhf.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_vFnLRe9cmnOcyz2Fivprhw_8UjBaRGL";
@@ -84,7 +85,7 @@ function restoreUiState() {
   let page = pageMeta[hashPage] ? hashPage : (pageMeta[saved.page] ? saved.page : "overview");
   const adminOnly = new Set(["crm","growth","clients","operations","quality","audit","admin"]);
   if (adminOnly.has(page) && !state.isAdmin) page = "overview";
-  if (state.isAdmin && isInternalOrg() && !["overview","crm","growth","clients","operations","conversations","tasks","quality","settings","audit","profile"].includes(page)) page = "overview";
+  if (state.isAdmin && isInternalOrg() && !["overview","crm","growth","clients","operations","conversations","tasks","quality","settings","audit","profile","team"].includes(page)) page = "overview";
   if ((!state.isAdmin || !isInternalOrg()) && ["clients","operations","quality","audit","admin","crm","growth"].includes(page)) page = "overview";
   if (page === "team" && !canManageCurrentOrgUsers()) page = "overview";
   state.page = page;
@@ -213,7 +214,7 @@ function currentOrgRole() {
 }
 
 function canManageCurrentOrgUsers() {
-  if (state.isAdmin) return !isInternalOrg();
+  if (state.isAdmin) return true;
   return ["owner", "admin"].includes(currentOrgRole());
 }
 
@@ -864,7 +865,7 @@ function updateNavigationAccess() {
   $("clientNavWrap")?.classList.toggle("hidden", internalAdmin);
 
   const teamNav = $("teamNav");
-  if (teamNav) teamNav.classList.add("hidden");
+  if (teamNav) teamNav.classList.toggle("hidden", !canManageCurrentOrgUsers());
 
   document.querySelectorAll(".client-mobile-nav-item").forEach((item) => item.classList.toggle("hidden", internalAdmin));
   document.querySelectorAll(".admin-mobile-nav-item").forEach((item) => item.classList.toggle("hidden", !internalAdmin));
@@ -3148,6 +3149,10 @@ async function renderBillingPortal() {
 }
 
 async function renderTeam() {
+  if (state.isAdmin && isInternalOrg()) {
+    await renderInternalTeam({ supabase, $, esc, shortDate, dateTime, showToast, showError });
+    return;
+  }
   if (!canManageCurrentOrgUsers() || isInternalOrg()) {
     $("content").innerHTML = emptyState("No puedes administrar usuarios aquí.", "Selecciona una organización de cliente donde tengas rol Owner o Admin.");
     return;
@@ -3338,6 +3343,8 @@ function pageUsesRealtimeTable(table) {
     organization_commercials: ["overview","crm","clients","operations"],
     crm_integrations: ["clients","operations","settings"],
     audit_log: ["audit"],
+    nexo_user_roles: ["team"],
+    nexo_client_assignments: ["team"],
   };
   return (map[table] || []).includes(state.page);
 }
@@ -3360,7 +3367,7 @@ function startRealtime() {
   [
     "conversations","messages","leads","appointments","followups",
     "client_invoices","invoice_payments","demo_requests","crm_activities","work_tasks","contact_notes",
-    "conversation_reads","assistants","organization_commercials","crm_integrations","audit_log"
+    "conversation_reads","assistants","organization_commercials","crm_integrations","audit_log","nexo_user_roles","nexo_client_assignments"
   ].forEach((table) => {
     realtimeChannel.on("postgres_changes", { event: "*", schema: "public", table }, () => {
       scheduleRealtimeRefresh(table);
@@ -3739,9 +3746,9 @@ async function render() {
   }
 
   persistUiState();
-  const noPeriod = ["crm","billing","clients","tasks","quality","settings","audit","profile"].includes(state.page);
+  const noPeriod = ["crm","billing","clients","tasks","quality","settings","audit","profile","team"].includes(state.page);
   $("periodSelect").classList.toggle("hidden", noPeriod);
-  $("exportButton").classList.toggle("hidden", ["settings","profile"].includes(state.page));
+  $("exportButton").classList.toggle("hidden", ["settings","profile","team"].includes(state.page));
   $("exportButton").textContent = state.page === "crm" ? "Exportar CRM" : state.page === "growth" ? "Exportar growth" : state.page === "billing" ? "Exportar cobros" : state.page === "audit" ? "Exportar audit" : state.page === "clients" ? "Exportar clientes" : state.page === "tasks" ? "Exportar tareas" : state.page === "quality" ? "Exportar calidad" : "Exportar CSV";
 
   $("breadcrumb").textContent = meta[0];
@@ -4091,7 +4098,7 @@ $("refreshButton").addEventListener("click", async () => {
 $("orgSelect").addEventListener("change", async () => {
   updateNavigationAccess();
   const internal=adminInternalView();
-  if (internal && !["overview","crm","clients","operations","conversations","tasks","quality","settings","audit","profile","growth"].includes(state.page)) state.page="overview";
+  if (internal && !["overview","crm","clients","operations","conversations","tasks","quality","settings","audit","profile","growth","team"].includes(state.page)) state.page="overview";
   if (!internal && ["crm","growth","clients","operations","quality","audit","admin"].includes(state.page)) state.page="overview";
   if (state.page === "team" && !canManageCurrentOrgUsers()) state.page = "overview";
   document.querySelectorAll(".nav-item").forEach((item) => item.classList.toggle("active", item.dataset.page === state.page));
