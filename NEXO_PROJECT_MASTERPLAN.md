@@ -171,6 +171,11 @@ Implemented:
 - Resend invitation control from Team Management.
 - Cancel invitation control that prevents internal activation.
 - Dedicated collaborator registration flow that creates a password before enabling RBAC access.
+- Branded NEXO collaborator invitation email published in Resend as `nexo-team-invite`.
+- Dedicated `nexo-mailer` Render service with domain-restricted Resend sending credentials.
+- Supabase now generates secure invite links without sending its generic invite email; NEXO sends the branded template instead.
+- Branded email variables: collaborator name, assigned NEXO role and secure invite URL.
+- Mailer validates the requesting Super Admin session before sending.
 
 ### Phase 3 — Personal collaborator workspace
 **Status: NEXT**
