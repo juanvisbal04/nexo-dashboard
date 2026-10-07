@@ -71,8 +71,15 @@ document.addEventListener("keydown",(event)=>{
 
 function orgById(id){return C.state.organizations.find((o)=>o.id===id)||null;}
 function orgName(id){return orgById(id)?.name||"NEXO";}
-function currentRole(){return C.state.isAdmin?"platform_admin":C.currentOrgRole();}
-function canWrite(){return C.state.isAdmin || ["owner","admin","operator","support"].includes(currentRole());}
+function currentRole(){
+  if(C.state.isAdmin)return "platform_admin";
+  if(C.state.isInternalStaff)return C.state.internalRoleKey||"internal_staff";
+  return C.currentOrgRole();
+}
+function canWrite(){
+  if(C.state.isInternalStaff)return Boolean(C.hasPermission?.("tasks.self.write"));
+  return C.state.isAdmin || ["owner","admin","operator","support"].includes(currentRole());
+}
 
 async function assigneesForOrg(orgId){
   try{
@@ -127,9 +134,11 @@ async function openTaskEditor(task,assignees=[]){
       <label>Prioridad<select id="taskEditPriority">
         ${Object.entries(priorityLabels).map(([value,label])=>`<option value="${value}" ${task.priority===value?"selected":""}>${label}</option>`).join("")}
       </select></label>
-      <label>Responsable<select id="taskEditAssignee"><option value="">Sin asignar</option>
-        ${assignees.map((person)=>`<option value="${person.id}" ${task.assigned_to===person.id?"selected":""}>${esc(person.full_name||person.contact_email||"Usuario")} · ${esc(person.role||"")}</option>`).join("")}
-      </select></label>
+      ${C.state.isInternalStaff
+        ? `<label>Responsable<div class="task-self-assignee">Tú · ${esc(C.state.internalRoleName||"Equipo NEXO")}</div></label>`
+        : `<label>Responsable<select id="taskEditAssignee"><option value="">Sin asignar</option>
+          ${assignees.map((person)=>`<option value="${person.id}" ${task.assigned_to===person.id?"selected":""}>${esc(person.full_name||person.contact_email||"Usuario")} · ${esc(person.role||"")}</option>`).join("")}
+        </select></label>`}
       <label>Fecha límite<input id="taskEditDue" type="datetime-local" value="${localDateTimeInput(task.due_at)}"></label>
       <label class="wide">Notas / contexto<textarea id="taskEditDescription" rows="5">${esc(task.description||"")}</textarea></label>
       <div class="task-editor-actions wide">
@@ -158,7 +167,7 @@ async function openTaskEditor(task,assignees=[]){
       description:root.querySelector("#taskEditDescription").value.trim()||null,
       status,
       priority:root.querySelector("#taskEditPriority").value,
-      assigned_to:root.querySelector("#taskEditAssignee").value||null,
+      assigned_to:C.state.isInternalStaff?C.state.session.user.id:(root.querySelector("#taskEditAssignee")?.value||null),
       due_at:due?new Date(due).toISOString():null,
       completed_at:status==="completed"?(task.completed_at||new Date().toISOString()):null
     };
@@ -170,19 +179,29 @@ async function openTaskEditor(task,assignees=[]){
 
 export async function renderTasks(context=C){
   if(context)C=context;
-  const internal=C.state.isAdmin && C.isInternalOrg();
-  const orgIds=internal?C.state.organizations.map((o)=>o.id):(C.currentOrgId()?[C.currentOrgId()]:[]);
+  const selfWorkspace=(C.state.isAdmin && C.isInternalOrg()) || C.state.isInternalStaff;
+  const orgIds=selfWorkspace?C.state.organizations.map((o)=>o.id):(C.currentOrgId()?[C.currentOrgId()]:[]);
   if(!orgIds.length){C.$("content").innerHTML=C.emptyState("No hay una empresa seleccionada.","Selecciona una empresa.");return;}
 
   let request=C.supabase.from("work_tasks").select("*").order("created_at",{ascending:false}).limit(1000);
-  if(internal)request=request.eq("assigned_to",C.state.session.user.id);
+  if(selfWorkspace)request=request.eq("assigned_to",C.state.session.user.id);
   request=orgIds.length===1?request.eq("organization_id",orgIds[0]):request.in("organization_id",orgIds);
   const {data:tasks,error}=await request;
   if(error)throw error;
 
-  const assigneeLists=await Promise.all(orgIds.map(async(id)=>[id,await assigneesForOrg(id)]));
+  const selfAssignee={
+    id:C.state.session.user.id,
+    full_name:C.state.profile?.full_name||C.state.session.user.email||"Usuario NEXO",
+    contact_email:C.state.profile?.contact_email||C.state.session.user.email||"",
+    job_title:C.state.profile?.job_title||"",
+    avatar_url:C.state.profile?.avatar_url||null,
+    role:C.state.isInternalStaff?(C.state.internalRoleName||"Equipo NEXO"):"platform_admin"
+  };
+  const assigneeLists=selfWorkspace
+    ? orgIds.map((id)=>[id,[selfAssignee]])
+    : await Promise.all(orgIds.map(async(id)=>[id,await assigneesForOrg(id)]));
   const assigneesByOrg=new Map(assigneeLists);
-  const allAssignees=new Map();
+  const allAssignees=new Map([[selfAssignee.id,selfAssignee]]);
   assigneeLists.forEach(([,rows])=>rows.forEach((row)=>allAssignees.set(row.id,row)));
 
   const rows=tasks||[];
@@ -203,11 +222,11 @@ export async function renderTasks(context=C){
     ${canEdit?`<section class="card task-create-card">
       <div class="card-head"><div><h2>Nueva tarea</h2><p>Asigna responsable, prioridad y fecha límite</p></div></div>
       <form id="taskCreateForm" class="task-create-form">
-        ${internal?`<select id="taskOrg" required>${C.state.organizations.map((org)=>`<option value="${org.id}" ${org.id===C.state.taskOrgFilter?"selected":""}>${esc(org.name)}</option>`).join("")}</select>`:""}
+        ${selfWorkspace?`<select id="taskOrg" required>${C.state.organizations.map((org)=>`<option value="${org.id}" ${org.id===C.state.taskOrgFilter?"selected":""}>${esc(org.name)}</option>`).join("")}</select>`:""}
         <input id="taskTitle" required placeholder="Qué hay que hacer">
         <select id="taskPriority"><option value="medium">Prioridad media</option><option value="high">Alta</option><option value="urgent">Urgente</option><option value="low">Baja</option></select>
         <input id="taskDue" type="datetime-local">
-        ${internal?`<div class="task-self-assignee">Responsable: Tú</div>`:`<select id="taskAssignee"><option value="">Sin asignar</option></select>`}
+        ${selfWorkspace?`<div class="task-self-assignee">Responsable: Tú · ${esc(C.state.internalRoleName||"NEXO")}</div>`:`<select id="taskAssignee"><option value="">Sin asignar</option></select>`}
         <input id="taskDescription" placeholder="Nota / contexto">
         <button class="btn primary" type="submit">Crear tarea</button>
       </form>
@@ -215,7 +234,7 @@ export async function renderTasks(context=C){
 
     <section class="card task-center-card">
       <div class="card-head">
-        <div><h2>${internal?"Mis tareas":"Centro de tareas"}</h2><p>${internal?"Solo tareas asignadas directamente a tu usuario de Super Admin.":"Trabajo asignable y trazable para tu negocio."}</p></div>
+        <div><h2>${selfWorkspace?"Mis tareas":"Centro de tareas"}</h2><p>${selfWorkspace?"Solo tareas asignadas directamente a ti.":"Trabajo asignable y trazable para tu negocio."}</p></div>
         <div class="task-toolbar">
           <select id="taskStatusFilter" class="control"><option value="open">Abiertas</option><option value="">Todas</option><option value="pending">Pendientes</option><option value="in_progress">En progreso</option><option value="completed">Completadas</option></select>
           <select id="taskTimeFilter" class="control">
@@ -225,14 +244,14 @@ export async function renderTasks(context=C){
             <option value="week">Esta semana</option>
             <option value="nodate">Sin fecha</option>
           </select>
-          ${internal?`<select id="taskOrgFilter" class="control"><option value="">Todos los clientes</option>${C.state.organizations.filter((org)=>org.name!=="NEXO Internal").map((org)=>`<option value="${org.id}" ${org.id===C.state.taskOrgFilter?"selected":""}>${esc(org.name)}</option>`).join("")}</select>`:""}
+          ${selfWorkspace?`<select id="taskOrgFilter" class="control"><option value="">Todos los clientes</option>${C.state.organizations.filter((org)=>org.name!=="NEXO Internal").map((org)=>`<option value="${org.id}" ${org.id===C.state.taskOrgFilter?"selected":""}>${esc(org.name)}</option>`).join("")}</select>`:""}
         </div>
       </div>
       <div id="taskRows" class="task-list"></div>
     </section>`;
 
   const populateAssignees=()=>{
-    const orgId=internal?C.$("taskOrg")?.value:C.currentOrgId();
+    const orgId=selfWorkspace?C.$("taskOrg")?.value:C.currentOrgId();
     const select=C.$("taskAssignee");
     if(!select)return;
     const list=assigneesByOrg.get(orgId)||[];
@@ -265,7 +284,7 @@ export async function renderTasks(context=C){
       const isOverdue=due&&due<Date.now()&&["pending","in_progress"].includes(row.status);
       return `<article class="task-row ${isOverdue?"overdue":""}">
         <div class="task-row-main">
-          <div class="task-row-top">${priorityPill(row.priority)}<span>${esc(internal?orgName(row.organization_id):"")}</span></div>
+          <div class="task-row-top">${priorityPill(row.priority)}<span>${esc(selfWorkspace?orgName(row.organization_id):"")}</span></div>
           <b>${esc(row.title)}</b>
           <p>${esc(row.description||"Sin nota adicional")}</p>
           <div class="task-row-meta"><span>Responsable: ${esc(assigneeName(allAssignees,row.assigned_to))}</span><span>${row.due_at?(isOverdue?"Venció ":"Vence ")+dateTime(row.due_at):"Sin fecha límite"}</span></div>
@@ -307,7 +326,7 @@ export async function renderTasks(context=C){
 
   C.$("taskCreateForm")?.addEventListener("submit",async(event)=>{
     event.preventDefault();
-    const orgId=internal?C.$("taskOrg").value:C.currentOrgId();
+    const orgId=selfWorkspace?C.$("taskOrg").value:C.currentOrgId();
     const button=event.currentTarget.querySelector('button[type="submit"]');
     button.disabled=true;button.textContent="Creando…";
     const due=C.$("taskDue").value;
@@ -317,7 +336,7 @@ export async function renderTasks(context=C){
       description:C.$("taskDescription").value.trim()||null,
       priority:C.$("taskPriority").value,
       due_at:due?new Date(due).toISOString():null,
-      assigned_to:internal?C.state.session.user.id:(C.$("taskAssignee")?.value||null),
+      assigned_to:selfWorkspace?C.state.session.user.id:(C.$("taskAssignee")?.value||null),
       created_by:C.state.session.user.id,
       status:"pending",
       source_type:"manual"
