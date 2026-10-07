@@ -1329,3 +1329,78 @@ aside::-webkit-scrollbar-thumb{background:#344968;border-radius:999px}
 .growth-row-actions{display:flex;gap:6px;justify-content:flex-end;align-items:center;flex-wrap:wrap}
 .btn.danger{border-color:#efc7c7;color:#a33;background:#fff8f8}
 .btn.danger:hover{background:#fff0f0}
+
+
+/* NEXO internal team management */
+.nexo-team-hero{align-items:center}
+.team-hero-stats{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.team-hero-stats span{display:flex;align-items:center;gap:5px;border:1px solid #ffffff1c;background:#ffffff0b;border-radius:999px;padding:7px 10px;font-size:9px;color:#b7c4d7;white-space:nowrap}
+.team-hero-stats b{font:800 13px "Manrope",sans-serif;color:#fff}
+.team-security-note{display:flex;align-items:center;justify-content:space-between;gap:18px;background:#eef5ff;border:1px solid #dae7fb;border-radius:12px;padding:14px 16px;margin-bottom:18px;color:#52657f}
+.team-security-note>div{display:flex;align-items:flex-start;gap:11px}
+.team-security-note strong{display:block;color:#2f4666;font-size:12px}
+.team-security-note p{margin:4px 0 0;font-size:10px;line-height:1.5}
+.team-security-note code{font-size:9px;background:#fff;border:1px solid #dce6f3;border-radius:5px;padding:2px 5px;color:#31527b}
+.team-security-icon{width:31px;height:31px;border-radius:9px;display:grid;place-items:center;background:#dce9ff;color:#316bff;font-weight:900;flex-shrink:0}
+.nexo-team-grid{grid-template-columns:minmax(0,1.7fr) minmax(330px,.7fr);align-items:start}
+.nexo-team-list-card{min-width:0}
+.team-table{min-width:980px}
+.team-person{display:flex;align-items:center;gap:10px;min-width:190px}
+.team-person-avatar{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:#edf3ff;color:#316bff;font-size:10px;font-weight:800;flex-shrink:0}
+.team-person b{display:block;font-size:11px;color:#314862}
+.team-person span,.team-person small{display:block;font-size:9px;color:#7f8da1;margin-top:2px}
+.team-role-pill,.team-status{display:inline-flex;align-items:center;border-radius:999px;padding:5px 8px;font-size:8.5px;font-weight:800;white-space:nowrap}
+.team-role-pill{background:#eef3ff;color:#416cbd;border:1px solid #dde7fb}
+.team-status.active{background:#e7f7ef;color:#257957}
+.team-status.invited{background:#fff4df;color:#946c28}
+.team-status.inactive{background:#eef1f5;color:#778397}
+.team-client-chips{display:flex;gap:4px;flex-wrap:wrap;max-width:230px}
+.team-client-chips span{background:#f4f7fb;border:1px solid #e6ebf2;border-radius:999px;padding:4px 7px;font-size:8px;color:#607089;white-space:nowrap}
+.team-row-actions{display:flex;gap:5px;align-items:center;justify-content:flex-end}
+.team-row-actions .btn,.team-row-actions .member-remove{white-space:nowrap}
+.team-toggle.warn{border-color:#f0d9bf;background:#fff7ed;color:#a66b2d}
+.team-empty{display:flex;flex-direction:column;gap:5px;text-align:center;padding:24px;color:#8693a5}
+.team-empty b{color:#52647c;font-size:12px}
+.team-empty span{font-size:10px}
+.team-empty.compact{padding:14px}
+.nexo-team-editor-card{position:sticky;top:92px}
+.nexo-team-form{grid-template-columns:1fr 1fr}
+.internal-role-preview,.team-client-selector{grid-column:1/-1}
+.internal-role-preview{border:1px solid #e0e8f4;background:#f8faff;border-radius:10px;padding:12px}
+.internal-role-preview>div:first-child{display:flex;flex-direction:column;gap:3px;margin-bottom:9px}
+.internal-role-preview strong{font-size:11px;color:#344b69}
+.internal-role-preview span{font-size:9px;color:#7b899d;line-height:1.45}
+.team-permission-chips{display:flex;gap:5px;flex-wrap:wrap}
+.team-permission-chips>span{font-size:8px;font-weight:700;color:#596e8d;background:#fff;border:1px solid #dfe7f2;border-radius:999px;padding:4px 7px}
+.team-client-selector{border-top:1px solid var(--border);padding-top:13px}
+.team-client-selector-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:9px}
+.team-client-selector-head>div{display:flex;flex-direction:column;gap:3px}
+.team-client-selector-head strong{font-size:11px;color:#425975}
+.team-client-selector-head span,.team-client-selector-head small{font-size:8.5px;color:#8c98aa}
+.team-client-options{display:grid;gap:7px;max-height:250px;overflow:auto;padding-right:3px}
+.team-client-option{display:grid!important;grid-template-columns:auto 33px 1fr!important;align-items:center;gap:8px;border:1px solid #e2e8f1;border-radius:9px;padding:8px 9px;margin:0!important;background:#fff;cursor:pointer}
+.team-client-option:hover{background:#f8faff;border-color:#cfdcf1}
+.team-client-option input{width:14px!important;height:14px;margin:0!important;grid-column:auto!important}
+.team-client-dot{width:31px;height:31px;border-radius:8px;display:grid;place-items:center;background:color-mix(in srgb,var(--client-color) 12%,white);color:var(--client-color);font-size:8px;font-weight:800}
+.team-client-option>span:last-child{display:flex;flex-direction:column;gap:2px}
+.team-client-option b{font-size:10px;color:#40536e}
+.team-client-option small{font-size:8px;color:#8d99aa}
+.team-roles-section{margin-top:18px;margin-bottom:20px}
+.team-role-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;padding:0 20px 20px}
+.team-role-card{border:1px solid #e4e9f1;border-radius:11px;padding:14px;background:#fbfcfe}
+.team-role-card-head{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.team-role-card h3{margin:4px 0 0;font:800 13px/1.25 "Manrope",sans-serif;color:#314862}
+.team-role-card p{font-size:9px;line-height:1.5;color:#7f8da0;min-height:41px}
+.team-role-count{font-size:8px;color:#687b96;background:#eef3fa;border-radius:999px;padding:4px 6px;white-space:nowrap}
+@media(max-width:1200px){
+  .nexo-team-grid{grid-template-columns:1fr}
+  .nexo-team-editor-card{position:static}
+  .team-role-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:720px){
+  .team-security-note{align-items:flex-start;flex-direction:column}
+  .team-hero-stats{justify-content:flex-start}
+  .team-role-grid{grid-template-columns:1fr;padding:0 14px 14px}
+  .nexo-team-form{grid-template-columns:1fr}
+  .team-row-actions{justify-content:flex-start;flex-wrap:wrap}
+}
