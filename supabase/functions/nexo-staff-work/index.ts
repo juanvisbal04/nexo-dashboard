@@ -187,7 +187,24 @@ Deno.serve(async(req:Request)=>{
         .eq("user_id",requester.id)
         .maybeSingle();
       if(assignment.error) throw assignment.error;
-      if(!assignment.data) return json(req,{error:"No tienes este cliente asignado"},403);
+
+      let departmentHasClient=false;
+      if(!assignment.data&&can("projects.department.assign")){
+        const {data:assignments,error:assignError}=await service.from("nexo_client_assignments")
+          .select("user_id")
+          .eq("organization_id",organizationId);
+        if(assignError) throw assignError;
+        const userIds=[...new Set((assignments||[]).map((row:any)=>row.user_id).filter(Boolean))];
+        if(userIds.length){
+          const {data:deptRoles,error:deptError}=await service.from("nexo_user_roles")
+            .select("user_id,active,nexo_team_roles(department_id,active)")
+            .in("user_id",userIds)
+            .eq("active",true);
+          if(deptError) throw deptError;
+          departmentHasClient=(deptRoles||[]).some((row:any)=>row.nexo_team_roles?.active===true&&row.nexo_team_roles?.department_id===department.id);
+        }
+      }
+      if(!assignment.data&&!departmentHasClient) return json(req,{error:"Este cliente no pertenece a tu scope de departamento"},403);
 
       const projectRes=await service.from("nexo_projects").insert({
         organization_id:organizationId,
