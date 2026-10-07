@@ -34,6 +34,10 @@ const state = {
   isInternalStaff: false,
   internalRoleKey: null,
   internalRoleName: null,
+  internalDepartmentKey: null,
+  internalDepartmentName: null,
+  internalHierarchyLevel: 0,
+  internalRoleScope: null,
 };
 let realtimeChannel = null;
 let realtimeTimer = null;
@@ -938,18 +942,23 @@ async function loadIdentity() {
   if (adminError) throw adminError;
   state.isAdmin = adminResult === true;
 
-  const [permissionResult, roleResult] = await Promise.all([
+  const [permissionResult, roleContextResult] = await Promise.all([
     supabase.rpc("get_my_nexo_permissions"),
-    supabase.rpc("get_my_nexo_roles"),
+    supabase.rpc("get_my_nexo_role_context"),
   ]);
   if (permissionResult.error) throw permissionResult.error;
-  if (roleResult.error) throw roleResult.error;
+  if (roleContextResult.error) throw roleContextResult.error;
 
   state.teamPermissions = (permissionResult.data || []).map((row) => row.permission_key).filter(Boolean);
-  state.teamRoles = roleResult.data || [];
-  state.isInternalStaff = !state.isAdmin && state.teamPermissions.includes("internal.dashboard") && state.teamRoles.length > 0;
-  state.internalRoleKey = state.teamRoles[0]?.role_key || null;
-  state.internalRoleName = state.teamRoles[0]?.role_name || null;
+  state.teamRoles = roleContextResult.data || [];
+  const roleContext = state.teamRoles[0] || null;
+  state.isInternalStaff = !state.isAdmin && state.teamPermissions.includes("internal.dashboard") && Boolean(roleContext);
+  state.internalRoleKey = roleContext?.role_key || null;
+  state.internalRoleName = roleContext?.role_name || null;
+  state.internalDepartmentKey = roleContext?.department_key || null;
+  state.internalDepartmentName = roleContext?.department_name || null;
+  state.internalHierarchyLevel = Number(roleContext?.hierarchy_level || 0);
+  state.internalRoleScope = roleContext?.role_scope || null;
 
   const displayName = state.profile?.full_name || "Usuario NEXO";
   $("profileName").textContent = displayName;
@@ -3788,7 +3797,8 @@ function qualityContext() {
 
 function staffWorkspaceContext() {
   return {
-    supabase,state,$,esc,dateTime,shortDate,emptyState,showError,showToast,navigateToPage
+    supabase,state,$,esc,dateTime,shortDate,emptyState,showError,showToast,navigateToPage,
+    hasPermission,loadOrganizations,renderApp:render,persistUiState
   };
 }
 
