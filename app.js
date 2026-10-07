@@ -31,6 +31,7 @@ const state = {
 };
 let realtimeChannel = null;
 let realtimeTimer = null;
+let passiveRenderDepth = 0;
 
 const UI_STATE_KEY = "nexo.dashboard.ui.v2";
 
@@ -3349,6 +3350,36 @@ function pageUsesRealtimeTable(table) {
   return (map[table] || []).includes(state.page);
 }
 
+async function renderPassiveRefresh() {
+  const viewport = { x: window.scrollX, y: window.scrollY };
+  const active = document.activeElement;
+  const activeId = active?.id || null;
+  const content = $("content");
+
+  passiveRenderDepth += 1;
+  content?.classList.add("passive-refresh");
+  content?.setAttribute("aria-busy", "true");
+
+  try {
+    await render();
+  } finally {
+    passiveRenderDepth = Math.max(0, passiveRenderDepth - 1);
+
+    window.scrollTo({ left: viewport.x, top: viewport.y, behavior: "auto" });
+    requestAnimationFrame(() => {
+      window.scrollTo({ left: viewport.x, top: viewport.y, behavior: "auto" });
+      if (activeId) {
+        const target = document.getElementById(activeId);
+        if (target && typeof target.focus === "function") {
+          try { target.focus({ preventScroll: true }); } catch {}
+        }
+      }
+      content?.classList.remove("passive-refresh");
+      content?.removeAttribute("aria-busy");
+    });
+  }
+}
+
 function scheduleRealtimeRefresh(table) {
   if (!state.session || !pageUsesRealtimeTable(table)) return;
   state.pendingRealtimeRefresh = true;
@@ -3356,7 +3387,7 @@ function scheduleRealtimeRefresh(table) {
   realtimeTimer = setTimeout(async () => {
     if (isUserEditing()) return;
     state.pendingRealtimeRefresh = false;
-    await render();
+    await renderPassiveRefresh();
   }, 650);
 }
 
@@ -3757,7 +3788,9 @@ async function render() {
   $("pageSubtitle").textContent = meta[3];
   updateOrgBadge();
 
-  $("content").innerHTML = '<div class="empty"><strong>Cargando…</strong>Consultando NEXO Platform.</div>';
+  if (!passiveRenderDepth) {
+    $("content").innerHTML = '<div class="empty"><strong>Cargando…</strong>Consultando NEXO Platform.</div>';
+  }
 
   try {
     if (state.page === "overview") await renderOverview();
@@ -4154,7 +4187,7 @@ document.addEventListener("focusout", () => {
   setTimeout(async () => {
     if (!state.pendingRealtimeRefresh || isUserEditing()) return;
     state.pendingRealtimeRefresh = false;
-    await render();
+    await renderPassiveRefresh();
   }, 200);
 });
 
