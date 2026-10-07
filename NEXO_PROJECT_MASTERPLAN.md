@@ -177,24 +177,33 @@ Implemented:
 - Branded email variables: collaborator name, assigned NEXO role and secure invite URL.
 - Mailer validates the requesting Super Admin session before sending.
 
-### Phase 3 — Personal collaborator workspace
-**Status: IN PROGRESS — MARKETING WORKSPACE LIVE**
+### Phase 3 — Company structure & collaborator workspaces
+**Status: IN PROGRESS — DEPARTMENT/RBAC FOUNDATION LIVE**
 
-Implemented foundation:
-- Role and permission detection at login via `get_my_nexo_roles()` and `get_my_nexo_permissions()`.
-- Role-specific internal navigation separated from client and Super Admin navigation.
-- Marketing: My Home, My Projects, My Tasks, Assigned Clients, My Performance and My Profile.
-- Marketing can create, edit, prioritize and complete only self-assigned tasks within NEXO Internal or explicitly assigned clients.
-- Marketing projects are currently derived from explicitly assigned client accounts and their self-assigned work tasks.
-- Personal performance is task-based and intentionally has no employee ranking.
-- Restricted modules remain hidden and protected by RLS; no internal finance, team administration, audit log or global CRM access.
-- Permission RPC hardened to ignore inactive roles.
+Implemented:
+- Department-based company model: Executive, Sales, Marketing, Implementation & Customer Success, Operations.
+- Planned departments: Product & Technology, Finance & Administration, People & Culture.
+- Hierarchy metadata on every role: level, scope, reporting line, assignable/planned state.
+- Role context at login via `get_my_nexo_role_context()` plus effective permissions.
+- Permission-aware internal navigation separated from client and Super Admin navigation.
+- Generic department project model via `nexo_projects`.
+- Marketing Lead promoted to a true department-lead role.
+- Marketing Lead can create Marketing clients + first project and additional projects in department scope.
+- Leads with team-task permissions can coordinate tasks only inside their own department.
+- Specialists remain self-task / assigned-client scoped.
+- Department Leads can see clients assigned to teammates in the same department when explicitly permitted.
+- Real project status lifecycle: brief, planning, in progress, review, changes, delivered, on hold, cancelled.
+- Planned roles are inactive and non-assignable.
+- Permission RPC ignores inactive roles.
+- Organizational model documented in `NEXO_ORG_STRUCTURE.md`.
 
-Remaining Phase 3:
-- Sales-specific My Pipeline workspace.
-- Implementation & Customer Success workspace.
-- Operations workspace.
-- Additional role-specific project/deliverable models as Phase 5 productization expands.
+Remaining:
+- Sales-specific My Pipeline UI.
+- Deeper Implementation & CS workflow modules.
+- Deeper Operations workflow modules.
+- Deliverable/file model for projects.
+- Optional department-level staffing/invite delegation rules.
+- Product & Technology / Finance / People workspaces only when those departments are activated.
 
 ### Phase 4 — Founder Command Center
 **Status: PENDING**
@@ -210,14 +219,14 @@ Founder view:
 - Audit / governance.
 
 ### Phase 5 — NEXO Marketing productization
-**Status: PENDING**
+**Status: IN PROGRESS — PROJECT FOUNDATION LIVE**
 
 Add:
 - Service catalog and service lines.
-- Marketing projects.
-- Project owner/team.
-- Deliverables.
-- Status/deadlines.
+- Marketing projects. **FOUNDATION LIVE**
+- Project owner/team. **OWNER + DEPARTMENT SCOPE LIVE; TEAM MEMBERSHIP NEXT**
+- Deliverables. **NEXT**
+- Status/deadlines. **LIVE**
 - Pricing/setup/recurring model where applicable.
 - Cross-sell from Assistants to Marketing and vice versa.
 - Marketing dashboard/workspace.
@@ -249,4 +258,4 @@ Continue strengthening:
 
 ## Current implementation note
 
-The backend RBAC foundation is live in Supabase. The existing dashboard frontend still needs Phase 2/3 work to expose team management and role-specific workspaces cleanly. Until those screens are implemented, the new authorization layer should be treated as backend infrastructure rather than a finished collaborator UX.
+The company-level RBAC foundation, department hierarchy, Marketing Lead workspace, scoped client/project creation and department task coordination are live. Remaining collaborator work should extend the same department/role model rather than creating parallel permission systems.
