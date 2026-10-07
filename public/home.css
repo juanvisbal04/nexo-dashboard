@@ -372,10 +372,23 @@
   padding-bottom:14px;
   border-bottom:1px solid rgba(255,255,255,.12);
 }
+.nx-demo-phone-head>div{
+  min-width:0;
+}
+.nx-demo-phone-head b,
+.nx-demo-phone-head small{
+  display:block;
+}
 .nx-demo-phone-head b{
+  color:#fff;
   font-size:12px;
 }
-.nx-demo-phone-head span{
+.nx-demo-phone-head small{
+  margin-top:3px;
+  color:#8fa8bf;
+  font-size:9px;
+}
+.nx-demo-phone-head>span{
   color:#70bfff;
   font-size:9px;
 }
