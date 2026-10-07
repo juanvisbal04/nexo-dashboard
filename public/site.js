@@ -124,11 +124,11 @@ if(floatingWhatsapp&&contactSection&&"IntersectionObserver" in window){
         ["user","Hola, quiero hacerme una limpieza facial. ¿Cuánto cuesta y puedo pedir cita para mañana en la tarde?"],
         ["bot","Claro. La limpieza facial tiene la información y precio definidos por el negocio. Para la solicitud de mañana, ¿prefieres alrededor de las 3:00 p. m. o más tarde?"],
         ["user","A las 4:00 p. m. me sirve perfecto."],
-        ["bot","Listo, Mariana. Registré tu solicitud para limpieza facial mañana a las 4:00 p. m. con estado pendiente de confirmación."]
+        ["bot","Listo, Mariana. Tu cita para limpieza facial quedó confirmada para mañana a las 4:00 p. m."]
       ],
       context:"Mariana López · Limpieza facial",
-      action:"Solicitud de cita · 4:00 p. m.",
-      followup:"Pendiente de confirmación"
+      action:"Cita · mañana · 4:00 p. m.",
+      followup:"Confirmado"
     },
     hotel:{
       contact:"Daniel Ruiz",
@@ -138,11 +138,11 @@ if(floatingWhatsapp&&contactSection&&"IntersectionObserver" in window){
         ["user","Hola, necesito una habitación para dos personas del 23 al 25 de octubre."],
         ["bot","Perfecto. ¿La solicitud es para dos adultos y buscas una sola habitación?"],
         ["user","Sí, dos adultos y una habitación."],
-        ["bot","Listo, Daniel. Registré una solicitud de alojamiento del 23 al 25 de octubre para dos adultos, una habitación, pendiente de confirmación."]
+        ["bot","Listo, Daniel. Tu reserva quedó confirmada del 23 al 25 de octubre para dos adultos, una habitación."]
       ],
       context:"Daniel Ruiz · 2 adultos",
-      action:"Solicitud · 23–25 de octubre",
-      followup:"Pendiente de confirmación"
+      action:"Reserva · 23–25 de octubre",
+      followup:"Confirmado"
     },
     restaurant:{
       contact:"Laura Méndez",
@@ -152,11 +152,11 @@ if(floatingWhatsapp&&contactSection&&"IntersectionObserver" in window){
         ["user","Hola, quiero una mesa para 4 este sábado a las 8 de la noche."],
         ["bot","Claro. ¿En cuál sede quieres hacer la solicitud?"],
         ["user","En Laureles."],
-        ["bot","Perfecto, Laura. Registré una solicitud para 4 personas, sede Laureles, sábado a las 8:00 p. m., pendiente de confirmación."]
+        ["bot","Perfecto, Laura. Tu reserva quedó confirmada para 4 personas en Laureles este sábado a las 8:00 p. m."]
       ],
       context:"Laura Méndez · 4 personas",
       action:"Reserva · Laureles · 8:00 p. m.",
-      followup:"Pendiente de confirmación"
+      followup:"Confirmado"
     },
     clinic:{
       contact:"Andrés Molina",
@@ -166,11 +166,11 @@ if(floatingWhatsapp&&contactSection&&"IntersectionObserver" in window){
         ["user","Hola, quisiera pedir una cita para una valoración la próxima semana."],
         ["bot","Claro. ¿Tienes preferencia por mañana o tarde?"],
         ["user","En la tarde, ojalá el jueves."],
-        ["bot","Listo, Andrés. Registré una solicitud de valoración para el jueves en la tarde, pendiente de confirmación."]
+        ["bot","Listo, Andrés. Tu cita de valoración quedó confirmada para el jueves en la tarde."]
       ],
       context:"Andrés Molina · Valoración",
-      action:"Solicitud · Jueves en la tarde",
-      followup:"Pendiente de confirmación"
+      action:"Cita de valoración · Jueves tarde",
+      followup:"Confirmado"
     }
   };
   let current="beauty";
@@ -246,7 +246,7 @@ if(floatingWhatsapp&&contactSection&&"IntersectionObserver" in window){
     timers.push(setTimeout(()=>{
       hideTyping();
       outcomeStatus.classList.add("complete");
-      outcomeStatus.querySelector("span").textContent="Registro creado en NEXO";
+      outcomeStatus.querySelector("span").textContent="Confirmación registrada en NEXO";
       runButton.disabled=false;
       runButton.innerHTML='Volver a probar <span>↻</span>';
     },delay+350));
