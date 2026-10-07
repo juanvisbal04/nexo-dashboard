@@ -24,6 +24,18 @@ export async function renderInternalTeam(ctx) {
     "settings.manage": "Administrar configuración",
     "finance.read": "Ver finanzas internas",
     "finance.write": "Editar finanzas internas",
+    "clients.create": "Crear clientes",
+    "clients.department.assign": "Coordinar clientes del departamento",
+    "tasks.team.read": "Ver tareas del equipo",
+    "tasks.team.write": "Gestionar tareas del equipo",
+    "department.analytics.read": "Ver métricas del departamento",
+    "department.manage": "Gestionar el departamento",
+    "projects.department.read": "Ver proyectos del departamento",
+    "projects.department.write": "Editar proyectos del departamento",
+    "projects.department.create": "Crear proyectos",
+    "projects.department.assign": "Asignar proyectos",
+    "crm.team.read": "Ver pipeline del equipo",
+    "crm.team.write": "Gestionar pipeline del equipo",
   };
 
   const invoke = async (body) => {
@@ -34,10 +46,14 @@ export async function renderInternalTeam(ctx) {
   };
 
   const data = await invoke({ action: "list" });
+  const departments = data.departments || [];
   const roles = data.roles || [];
   const organizations = data.organizations || [];
   const users = data.users || [];
+  const assignableRoles = roles.filter((role) => role.active === true && role.assignable === true && role.planned !== true);
   const roleMap = new Map(roles.map((role) => [role.role_key, role]));
+  const roleIdMap = new Map(roles.map((role) => [role.id, role]));
+  const departmentMap = new Map(departments.map((department) => [department.id, department]));
   const orgMap = new Map(organizations.map((org) => [org.id, org]));
 
   const activeCount = users.filter((user) => user.status === "active").length;
@@ -59,28 +75,68 @@ export async function renderInternalTeam(ctx) {
     }).filter(Boolean).join("")}</div>`;
   };
 
-  const roleCards = roles.map((role) => `
-    <article class="team-role-card">
-      <div class="team-role-card-head">
-        <div>
-          <span class="eyebrow">${esc(role.role_key.replaceAll("_", " "))}</span>
-          <h3>${esc(role.name)}</h3>
+  const levelLabel = (level, scope) => {
+    if (Number(level) >= 100) return "Founder";
+    if (scope === "department" || Number(level) >= 40) return "Lead / Head";
+    if (Number(level) >= 30) return "Senior";
+    if (Number(level) >= 20) return "Specialist / Manager";
+    return "Specialist / Coordinator";
+  };
+
+  const roleOptionsHtml = departments.map((department) => {
+    const options = assignableRoles
+      .filter((role) => role.department_id === department.id)
+      .sort((a,b) => Number(b.hierarchy_level||0)-Number(a.hierarchy_level||0))
+      .map((role) => `<option value="${esc(role.role_key)}">${esc(role.name)}</option>`)
+      .join("");
+    return options ? `<optgroup label="${esc(department.name)}">${options}</optgroup>` : "";
+  }).join("");
+
+  const departmentCards = departments.map((department) => {
+    const departmentRoles = roles
+      .filter((role) => role.department_id === department.id)
+      .sort((a,b) => Number(b.hierarchy_level||0)-Number(a.hierarchy_level||0));
+    if (!departmentRoles.length) return "";
+    return `
+      <article class="team-department-card ${department.planned ? "planned" : ""}">
+        <div class="team-department-head">
+          <div>
+            <span class="eyebrow">${esc(department.department_key.replaceAll("_"," "))}</span>
+            <h3>${esc(department.name)}</h3>
+            <p>${esc(department.description || "")}</p>
+          </div>
+          <span class="team-department-state ${department.planned ? "planned" : "active"}">${department.planned ? "Planificado" : "Activo"}</span>
         </div>
-        <span class="team-role-count">${(role.permissions || []).length} permisos</span>
-      </div>
-      <p>${esc(role.description || "")}</p>
-      <div class="team-permission-chips">
-        ${(role.permissions || []).map((permission) => `<span>${esc(permissionLabels[permission] || permission)}</span>`).join("")}
-      </div>
-    </article>
-  `).join("");
+        <div class="team-role-ladder">
+          ${departmentRoles.map((role) => {
+            const parent = role.reports_to_role_id ? roleIdMap.get(role.reports_to_role_id) : null;
+            return `
+              <div class="team-role-ladder-row ${role.planned ? "planned" : ""}">
+                <div class="team-role-level"><b>${esc(levelLabel(role.hierarchy_level,role.role_scope))}</b><small>Nivel ${esc(role.hierarchy_level || 0)}</small></div>
+                <div class="team-role-copy">
+                  <strong>${esc(role.name)}</strong>
+                  <span>${esc(role.description || "")}</span>
+                  <small>${parent ? `Reporta a ${esc(parent.name)}` : "Máxima autoridad"}</small>
+                </div>
+                <div class="team-role-flags">
+                  ${role.planned ? '<span class="team-role-flag planned">Futuro</span>' : ""}
+                  ${!role.assignable ? '<span class="team-role-flag locked">No asignable</span>' : ""}
+                  <span class="team-role-count">${(role.permissions || []).length} permisos</span>
+                </div>
+              </div>
+            `;
+          }).join("")}
+        </div>
+      </article>
+    `;
+  }).join("");
 
   $("content").innerHTML = `
     <div class="team-summary nexo-team-hero">
       <div>
         <span class="eyebrow">NEXO INTERNAL · EQUIPO</span>
         <h2>${users.length} colaborador${users.length === 1 ? "" : "es"} configurado${users.length === 1 ? "" : "s"}</h2>
-        <p>Administra roles, clientes asignados y acceso al dashboard interno. Las finanzas internas siguen reservadas al Founder / Super Admin.</p>
+        <p>Administra departamentos, cargos, jerarquía, clientes asignados y acceso al workspace interno. Los permisos sensibles siguen gobernados por RBAC.</p>
       </div>
       <div class="team-hero-stats">
         <span><b>${activeCount}</b> activos</span>
@@ -93,8 +149,8 @@ export async function renderInternalTeam(ctx) {
       <div>
         <span class="team-security-icon">◎</span>
         <div>
-          <strong>Finanzas protegidas</strong>
-          <p>Los roles de Sales, Marketing, Implementation & Customer Success y Operations no reciben <code>finance.read</code> ni <code>finance.write</code>.</p>
+          <strong>Gobierno por departamentos</strong>
+          <p>Los cargos activos reciben solo los permisos de su función. Finance & Administration permanece planificado y sin roles asignables hasta autorización del Founder.</p>
         </div>
       </div>
       <span class="pill green">Founder only</span>
@@ -122,7 +178,7 @@ export async function renderInternalTeam(ctx) {
                       </div>
                     </div>
                   </td>
-                  <td><span class="team-role-pill">${esc(user.role_name || user.role_key || "—")}</span></td>
+                  <td><span class="team-role-pill">${esc(user.role_name || user.role_key || "—")}</span>${user.department_name ? `<small class="team-role-department">${esc(user.department_name)}</small>` : ""}</td>
                   <td>${clientChips(user)}</td>
                   <td>${statusBadge(user)}</td>
                   <td>
@@ -166,9 +222,9 @@ export async function renderInternalTeam(ctx) {
           <input id="internalTeamEmail" type="email" placeholder="persona@correo.com" required />
           <label>Cargo / título</label>
           <input id="internalTeamJobTitle" type="text" placeholder="Ej. Sales Executive" />
-          <label>Rol interno</label>
+          <label>Cargo NEXO</label>
           <select id="internalTeamRole" required>
-            ${roles.map((role) => `<option value="${esc(role.role_key)}">${esc(role.name)}</option>`).join("")}
+            ${roleOptionsHtml}
           </select>
           <div id="internalRolePreview" class="internal-role-preview"></div>
 
@@ -195,8 +251,8 @@ export async function renderInternalTeam(ctx) {
     </div>
 
     <section class="card team-roles-section">
-      <div class="card-head"><div><h2>Mapa de roles y permisos</h2><p>Permisos efectivos definidos en Supabase RLS.</p></div></div>
-      <div class="team-role-grid">${roleCards}</div>
+      <div class="card-head"><div><h2>Estructura de NEXO</h2><p>Departamentos, jerarquía, líneas de reporte y cargos futuros. Los roles planificados no se pueden asignar todavía.</p></div></div>
+      <div class="team-department-grid">${departmentCards}</div>
     </section>
   `;
 
@@ -205,8 +261,9 @@ export async function renderInternalTeam(ctx) {
     const preview = $("internalRolePreview");
     if (!preview || !role) return;
     const permissions = role.permissions || [];
+    const department = departmentMap.get(role.department_id);
     preview.innerHTML = `
-      <div><strong>${esc(role.name)}</strong><span>${esc(role.description || "")}</span></div>
+      <div><strong>${esc(role.name)}</strong><span>${esc(department?.name || "NEXO")} · ${esc(levelLabel(role.hierarchy_level,role.role_scope))}</span><span>${esc(role.description || "")}</span></div>
       <div class="team-permission-chips">
         ${permissions.map((permission) => `<span>${esc(permissionLabels[permission] || permission)}</span>`).join("")}
       </div>
@@ -219,7 +276,7 @@ export async function renderInternalTeam(ctx) {
     $("internalTeamEmail").value = "";
     $("internalTeamEmail").disabled = false;
     $("internalTeamJobTitle").value = "";
-    if (roles[0]) $("internalTeamRole").value = roles[0].role_key;
+    if (assignableRoles[0]) $("internalTeamRole").value = assignableRoles[0].role_key;
     document.querySelectorAll('input[name="internalTeamClient"]').forEach((input) => { input.checked = false; });
     $("internalTeamFormTitle").textContent = "Nuevo colaborador";
     $("internalTeamFormSubtitle").textContent = "Crea su acceso y define lo que necesita para trabajar.";
