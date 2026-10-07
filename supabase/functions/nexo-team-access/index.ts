@@ -21,7 +21,14 @@ function json(req:Request,body:unknown,status=200){
   return new Response(JSON.stringify(body),{status,headers:{...cors(req),"content-type":"application/json; charset=utf-8"}});
 }
 function assignmentType(roleKey:string){
-  return roleKey==="sales"?"sales":roleKey==="marketing"?"marketing":roleKey==="implementation_cs"?"implementation":roleKey==="operations"?"operations":"collaborator";
+  if(["account_executive","sdr","sales_lead"].includes(roleKey)) return "sales";
+  if(["marketing_lead","marketing_specialist","web_catalog_designer"].includes(roleKey)) return "marketing";
+  if(["implementation_cs_lead","implementation_specialist","customer_success_manager","support_specialist"].includes(roleKey)) return "implementation";
+  if(["operations_lead","operations_specialist","qa_monitoring_specialist"].includes(roleKey)) return "operations";
+  if(["product_technology_lead","software_engineer","product_designer"].includes(roleKey)) return "product_technology";
+  if(["finance_admin_lead","finance_specialist"].includes(roleKey)) return "finance_admin";
+  if(roleKey==="people_culture_lead") return "people_culture";
+  return "collaborator";
 }
 
 Deno.serve(async(req:Request)=>{
@@ -49,12 +56,14 @@ Deno.serve(async(req:Request)=>{
     const action=String(body.action||"list");
 
     const getCatalog=async()=>{
-      const [rolesRes,permissionsRes,rolePermRes,orgsRes]=await Promise.all([
-        service.from("nexo_team_roles").select("id,role_key,name,description,active").eq("active",true).order("name"),
+      const [departmentsRes,rolesRes,permissionsRes,rolePermRes,orgsRes]=await Promise.all([
+        service.from("nexo_departments").select("id,department_key,name,description,active,planned,sort_order").order("sort_order"),
+        service.from("nexo_team_roles").select("id,role_key,name,description,active,department_id,hierarchy_level,role_scope,assignable,planned,reports_to_role_id").order("hierarchy_level",{ascending:false}).order("name"),
         service.from("nexo_permissions").select("permission_key,category,description").order("category").order("permission_key"),
         service.from("nexo_role_permissions").select("role_id,permission_key"),
         service.from("organizations").select("id,name,sector,status,initials,color").neq("name","NEXO Internal").order("name"),
       ]);
+      if(departmentsRes.error) throw departmentsRes.error;
       if(rolesRes.error) throw rolesRes.error;
       if(permissionsRes.error) throw permissionsRes.error;
       if(rolePermRes.error) throw rolePermRes.error;
@@ -64,8 +73,19 @@ Deno.serve(async(req:Request)=>{
         const arr=permissionsByRole.get(rp.role_id)||[];
         arr.push(rp.permission_key); permissionsByRole.set(rp.role_id,arr);
       }
+      const departmentMap=new Map((departmentsRes.data||[]).map((d:any)=>[d.id,d]));
       return {
-        roles:(rolesRes.data||[]).map(r=>({...r,permissions:(permissionsByRole.get(r.id)||[]).sort()})),
+        departments:departmentsRes.data||[],
+        roles:(rolesRes.data||[]).map((r:any)=>{
+          const department:any=departmentMap.get(r.department_id)||null;
+          return {
+            ...r,
+            department_key:department?.department_key||null,
+            department_name:department?.name||null,
+            department_planned:department?.planned===true,
+            permissions:(permissionsByRole.get(r.id)||[]).sort(),
+          };
+        }),
         permissions:permissionsRes.data||[],
         organizations:orgsRes.data||[],
       };
@@ -115,6 +135,8 @@ Deno.serve(async(req:Request)=>{
           return {
             user_id:row.user_id,full_name:p.full_name||"",job_title:p.job_title||"",avatar_url:p.avatar_url||null,
             email:a?.email||p.contact_email||"",role_id:row.role_id,role_key:role?.role_key||"",role_name:role?.name||"",
+            department_key:role?.department_key||null,department_name:role?.department_name||null,
+            hierarchy_level:role?.hierarchy_level||0,role_scope:role?.role_scope||"individual",
             permissions:role?.permissions||[],active:row.active===true,status,last_sign_in_at:a?.last_sign_in_at||null,
             access_created_at:row.created_at,deactivated_at:row.deactivated_at||null,
             organization_ids:userAssignments.map(x=>x.organization_id),assignments:userAssignments,
@@ -144,8 +166,8 @@ Deno.serve(async(req:Request)=>{
       if(action==="create"&&(!email||!email.includes("@"))) return json(req,{error:"Correo inválido"},400);
 
       const catalog=await getCatalog();
-      const role=catalog.roles.find(r=>r.role_key===roleKey);
-      if(!role) return json(req,{error:"Rol interno inválido"},400);
+      const role=catalog.roles.find((r:any)=>r.role_key===roleKey&&r.active===true&&r.assignable===true&&r.planned!==true);
+      if(!role) return json(req,{error:"Este cargo no está disponible para asignación"},400);
       const allowedOrgIds=new Set(catalog.organizations.map(o=>o.id));
       if(requestedClientIds.some(id=>!allowedOrgIds.has(id))) return json(req,{error:"Una de las empresas asignadas no es válida"},400);
 
