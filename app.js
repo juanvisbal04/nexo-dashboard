@@ -3,6 +3,7 @@ import { renderCrm, openProspectEditorFromGrowth, openNewProspectFromGrowth } fr
 import { renderTasks, openCustomer360, openContact360, closeDrawer } from "./workspace360.js?v=20261001-360h";
 import { renderDataQuality, openOnboarding, closeQualityDrawer } from "./qualityOnboarding.js?v=20261001-quality2";
 import { renderInternalTeam } from "./team.js?v=20261007-team3";
+import { renderStaffHome, renderStaffProjects, renderStaffAccounts, renderStaffPerformance } from "./staffWorkspace.js?v=20261007-staff1";
 
 const SUPABASE_URL = "https://ixewnbjndguchunwcuhf.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_vFnLRe9cmnOcyz2Fivprhw_8UjBaRGL";
@@ -28,6 +29,11 @@ const state = {
   assistantProfiles: {},
   alertAckKeys: new Set(),
   taskOrgFilter: null,
+  teamPermissions: [],
+  teamRoles: [],
+  isInternalStaff: false,
+  internalRoleKey: null,
+  internalRoleName: null,
 };
 let realtimeChannel = null;
 let realtimeTimer = null;
@@ -58,11 +64,27 @@ function persistUiState({ historyMode = "replace" } = {}) {
   }
 }
 
+function hasPermission(permission) {
+  return state.isAdmin || (state.teamPermissions || []).includes(permission);
+}
+
+function canAccessPage(page) {
+  if (!pageMeta[page]) return false;
+
+  if (state.isInternalStaff) {
+    const allowed = new Set(["overview","tasks","accounts","performance","profile"]);
+    if (hasPermission("marketing.assigned.read")) allowed.add("projects");
+    return allowed.has(page);
+  }
+
+  if (["admin","crm","growth","clients","operations","quality","audit"].includes(page) && !state.isAdmin) return false;
+  if (["crm","growth","clients","operations","quality","audit"].includes(page) && !adminInternalView()) return false;
+  if (page === "team" && !canManageCurrentOrgUsers()) return false;
+  return true;
+}
+
 async function navigateToPage(page, { historyMode = "push", scrollTop = true } = {}) {
-  if (!pageMeta[page]) return;
-  if (["admin","crm","growth","clients","operations","quality","audit"].includes(page) && !state.isAdmin) return;
-  if (["crm","growth","clients","operations","quality","audit"].includes(page) && !adminInternalView()) return;
-  if (page === "team" && !canManageCurrentOrgUsers()) return;
+  if (!canAccessPage(page)) return;
 
   state.page = page;
   document.querySelectorAll(".nav-item").forEach((item) => item.classList.toggle("active", item.dataset.page === state.page));
@@ -84,11 +106,7 @@ function restoreUiState() {
   if (allowedPeriods.has(String(saved.period || ""))) $("periodSelect").value = String(saved.period);
 
   let page = pageMeta[hashPage] ? hashPage : (pageMeta[saved.page] ? saved.page : "overview");
-  const adminOnly = new Set(["crm","growth","clients","operations","quality","audit","admin"]);
-  if (adminOnly.has(page) && !state.isAdmin) page = "overview";
-  if (state.isAdmin && isInternalOrg() && !["overview","crm","growth","clients","operations","conversations","tasks","quality","settings","audit","profile","team"].includes(page)) page = "overview";
-  if ((!state.isAdmin || !isInternalOrg()) && ["clients","operations","quality","audit","admin","crm","growth"].includes(page)) page = "overview";
-  if (page === "team" && !canManageCurrentOrgUsers()) page = "overview";
+  if (!canAccessPage(page)) page = "overview";
   state.page = page;
   updateNavigationAccess();
   document.querySelectorAll(".nav-item").forEach((item) => item.classList.toggle("active", item.dataset.page === state.page));
@@ -110,6 +128,9 @@ const pageMeta = {
   operations: ["Operaciones", "NEXO OPERATIONS", "La plataforma, bajo control.", "Integraciones, asistentes, handoffs y salud operativa de NEXO."],
   quality: ["Calidad de datos", "NEXO DATA QUALITY", "Datos confiables para decidir.", "Duplicados, precios, pruebas, integridad y onboarding en una sola vista."],
   tasks: ["Tareas", "NEXO WORK", "Trabajo claro, responsables claros.", "Prioridades, responsables, fechas límite y progreso en un solo lugar."],
+  projects: ["Mis proyectos", "NEXO MARKETING", "Tus proyectos asignados.", "Clientes, trabajo pendiente y próximos entregables en un solo lugar."],
+  accounts: ["Clientes asignados", "NEXO SCOPE", "Tu cartera autorizada.", "Solo los clientes en los que tienes permiso para trabajar."],
+  performance: ["Mi rendimiento", "NEXO WORK", "Tu ejecución, en perspectiva.", "Seguimiento personal de tareas, cumplimiento y carga de trabajo."],
   settings: ["Configuración", "NEXO SETTINGS", "Cada negocio, bien configurado.", "Identidad, contacto, asistente, notificaciones y preferencias."],
   audit: ["Audit Log", "NEXO GOVERNANCE", "Cada cambio deja rastro.", "Historial administrativo de configuración, accesos, cobros e integraciones."],
   profile: ["Mi perfil", "CUENTA NEXO", "Tu perfil, bajo tu control.", "Foto, datos de contacto e información personal de tu acceso."],
@@ -851,7 +872,7 @@ async function loadOrganizations() {
   const validPrevious = previous && state.organizations.some((org) => org.id === previous);
   if (validPrevious) {
     $("orgSelect").value = previous;
-  } else if (state.isAdmin) {
+  } else if (state.isAdmin || state.isInternalStaff) {
     const internal = state.organizations.find((org) => org.name === "NEXO Internal");
     if (internal) $("orgSelect").value = internal.id;
   }
@@ -862,20 +883,26 @@ async function loadOrganizations() {
 
 function updateNavigationAccess() {
   const internalAdmin = state.isAdmin && isInternalOrg();
+  const internalStaff = state.isInternalStaff === true;
+
   $("adminNav")?.classList.toggle("hidden", !internalAdmin);
-  $("clientNavWrap")?.classList.toggle("hidden", internalAdmin);
+  $("clientNavWrap")?.classList.toggle("hidden", internalAdmin || internalStaff);
+  $("staffNav")?.classList.toggle("hidden", !internalStaff);
 
   const teamNav = $("teamNav");
-  if (teamNav) teamNav.classList.toggle("hidden", !canManageCurrentOrgUsers());
+  if (teamNav) teamNav.classList.toggle("hidden", internalStaff || !canManageCurrentOrgUsers());
 
-  document.querySelectorAll(".client-mobile-nav-item").forEach((item) => item.classList.toggle("hidden", internalAdmin));
+  document.querySelectorAll(".client-mobile-nav-item").forEach((item) => item.classList.toggle("hidden", internalAdmin || internalStaff));
   document.querySelectorAll(".admin-mobile-nav-item").forEach((item) => item.classList.toggle("hidden", !internalAdmin));
+  document.querySelectorAll(".staff-mobile-nav-item").forEach((item) => item.classList.toggle("hidden", !internalStaff));
 
   if ($("profileRole")) {
     if (state.isAdmin && internalAdmin) {
       $("profileRole").textContent = "NEXO Platform Admin";
     } else if (state.isAdmin) {
       $("profileRole").textContent = "Platform Admin · Vista cliente";
+    } else if (internalStaff) {
+      $("profileRole").textContent = `${state.internalRoleName || "Equipo"} · Equipo NEXO`;
     } else {
       const role = currentOrgRole();
       const labels = { owner: "Propietario", admin: "Administrador", operator: "Operaciones", finance: "Finanzas", support: "Soporte", viewer: "Solo lectura" };
@@ -911,9 +938,22 @@ async function loadIdentity() {
   if (adminError) throw adminError;
   state.isAdmin = adminResult === true;
 
+  const [permissionResult, roleResult] = await Promise.all([
+    supabase.rpc("get_my_nexo_permissions"),
+    supabase.rpc("get_my_nexo_roles"),
+  ]);
+  if (permissionResult.error) throw permissionResult.error;
+  if (roleResult.error) throw roleResult.error;
+
+  state.teamPermissions = (permissionResult.data || []).map((row) => row.permission_key).filter(Boolean);
+  state.teamRoles = roleResult.data || [];
+  state.isInternalStaff = !state.isAdmin && state.teamPermissions.includes("internal.dashboard") && state.teamRoles.length > 0;
+  state.internalRoleKey = state.teamRoles[0]?.role_key || null;
+  state.internalRoleName = state.teamRoles[0]?.role_name || null;
+
   const displayName = state.profile?.full_name || "Usuario NEXO";
   $("profileName").textContent = displayName;
-  $("profileRole").textContent = state.isAdmin ? "Super Admin" : "Cliente NEXO";
+  $("profileRole").textContent = state.isAdmin ? "Super Admin" : state.isInternalStaff ? `${state.internalRoleName || "Equipo"} · Equipo NEXO` : "Cliente NEXO";
   const initials = displayName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase() || "").join("") || "NX";
   if ($("profileAvatar")) {
     $("profileAvatar").innerHTML = state.profile?.avatar_url
@@ -3337,7 +3377,7 @@ function pageUsesRealtimeTable(table) {
     invoice_payments: ["crm","billing"],
     demo_requests: ["crm","growth","admin"],
     crm_activities: ["crm"],
-    work_tasks: ["overview","tasks","clients","operations"],
+    work_tasks: ["overview","tasks","clients","operations","projects","accounts","performance"],
     contact_notes: ["tasks"],
     conversation_reads: ["conversations"],
     assistants: ["overview","clients","operations","settings"],
@@ -3732,6 +3772,7 @@ function workspace360Context() {
   return {
     supabase,state,$,esc,money,dateTime,shortDate,emptyState,showError,showToast,
     currentOrgId,currentOrgRole,isInternalOrg,assistantAvatarHtml,openContactChat,
+    hasPermission,navigateToPage,
     renderApp:render,persistUiState
   };
 }
@@ -3742,6 +3783,12 @@ function qualityContext() {
     isInternalOrg,clientOrganizations,assistantForOrg,loadOrganizations,
     openCustomer360,workspaceContext:workspace360Context,
     renderApp:render,persistUiState
+  };
+}
+
+function staffWorkspaceContext() {
+  return {
+    supabase,state,$,esc,dateTime,shortDate,emptyState,showError,showToast,navigateToPage
   };
 }
 
@@ -3766,7 +3813,15 @@ async function render() {
   document.body.classList.remove("modal-open");
   document.body.classList.remove("sidebar-open");
   clearError();
-  const meta = pageMeta[state.page];
+  const staffMeta = {
+    overview:["Inicio","NEXO INTERNAL",`Tu espacio de ${state.internalRoleName || "trabajo"}.`,"Tareas, clientes y prioridades asignadas a tu rol."],
+    projects:["Mis proyectos","NEXO MARKETING","Tus proyectos asignados.","Trabajo de marketing organizado por cliente."],
+    tasks:["Mis tareas","NEXO WORK","Tu trabajo, bajo control.","Crea, prioriza y completa tus propias tareas."],
+    accounts:["Clientes asignados","NEXO SCOPE","Tu cartera autorizada.","Solo los clientes en los que tienes permiso para trabajar."],
+    performance:["Mi rendimiento","NEXO WORK","Tu ejecución, en perspectiva.","Seguimiento personal sin rankings ni exposición de datos internos."],
+    profile:["Mi perfil","CUENTA NEXO","Tu perfil, bajo tu control.","Foto, datos de contacto e información personal de tu acceso."],
+  };
+  const meta = state.isInternalStaff ? (staffMeta[state.page] || pageMeta[state.page]) : pageMeta[state.page];
 
   if (["crm","growth","clients","operations","quality","audit"].includes(state.page) && state.isAdmin) {
     const internal = state.organizations.find((org) => org.name === "NEXO Internal");
@@ -3777,9 +3832,9 @@ async function render() {
   }
 
   persistUiState();
-  const noPeriod = ["crm","billing","clients","tasks","quality","settings","audit","profile","team"].includes(state.page);
+  const noPeriod = ["crm","billing","clients","tasks","quality","settings","audit","profile","team","projects","accounts","performance"].includes(state.page);
   $("periodSelect").classList.toggle("hidden", noPeriod);
-  $("exportButton").classList.toggle("hidden", ["settings","profile","team"].includes(state.page));
+  $("exportButton").classList.toggle("hidden", ["settings","profile","team","projects","accounts","performance"].includes(state.page) || state.isInternalStaff);
   $("exportButton").textContent = state.page === "crm" ? "Exportar CRM" : state.page === "growth" ? "Exportar growth" : state.page === "billing" ? "Exportar cobros" : state.page === "audit" ? "Exportar audit" : state.page === "clients" ? "Exportar clientes" : state.page === "tasks" ? "Exportar tareas" : state.page === "quality" ? "Exportar calidad" : "Exportar CSV";
 
   $("breadcrumb").textContent = meta[0];
@@ -3793,7 +3848,11 @@ async function render() {
   }
 
   try {
-    if (state.page === "overview") await renderOverview();
+    if (state.isInternalStaff && state.page === "overview") await renderStaffHome(staffWorkspaceContext());
+    else if (state.isInternalStaff && state.page === "projects") await renderStaffProjects(staffWorkspaceContext());
+    else if (state.isInternalStaff && state.page === "accounts") await renderStaffAccounts(staffWorkspaceContext());
+    else if (state.isInternalStaff && state.page === "performance") await renderStaffPerformance(staffWorkspaceContext());
+    else if (state.page === "overview") await renderOverview();
     else if (["conversations", "leads", "appointments", "followups"].includes(state.page)) await renderTablePage(state.page);
     else if (state.page === "metrics") await renderMetrics();
     else if (state.page === "billing") await renderBillingPortal();
@@ -4131,9 +4190,12 @@ $("refreshButton").addEventListener("click", async () => {
 $("orgSelect").addEventListener("change", async () => {
   updateNavigationAccess();
   const internal=adminInternalView();
-  if (internal && !["overview","crm","clients","operations","conversations","tasks","quality","settings","audit","profile","growth","team"].includes(state.page)) state.page="overview";
-  if (!internal && ["crm","growth","clients","operations","quality","audit","admin"].includes(state.page)) state.page="overview";
-  if (state.page === "team" && !canManageCurrentOrgUsers()) state.page = "overview";
+  if (state.isInternalStaff && !canAccessPage(state.page)) state.page="overview";
+  if (!state.isInternalStaff) {
+    if (internal && !["overview","crm","clients","operations","conversations","tasks","quality","settings","audit","profile","growth","team"].includes(state.page)) state.page="overview";
+    if (!internal && ["crm","growth","clients","operations","quality","audit","admin"].includes(state.page)) state.page="overview";
+    if (state.page === "team" && !canManageCurrentOrgUsers()) state.page = "overview";
+  }
   document.querySelectorAll(".nav-item").forEach((item) => item.classList.toggle("active", item.dataset.page === state.page));
   persistUiState();
   await render();
@@ -4204,9 +4266,7 @@ async function renderPageFromBrowserHistory() {
   if (!state.session) return;
   const page = window.location.hash.replace(/^#/, "") || "overview";
   if (!pageMeta[page] || page === state.page) return;
-  if (["admin","crm","growth","clients","operations","quality","audit"].includes(page) && !state.isAdmin) return;
-  if (["crm","growth","clients","operations","quality","audit"].includes(page) && !adminInternalView()) return;
-  if (page === "team" && !canManageCurrentOrgUsers()) return;
+  if (!canAccessPage(page)) return;
   state.page = page;
   document.querySelectorAll(".nav-item").forEach((item) => item.classList.toggle("active", item.dataset.page === state.page));
   try { localStorage.setItem(UI_STATE_KEY, JSON.stringify({ ...readStoredUiState(), page: state.page })); } catch {}
