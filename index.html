@@ -9,7 +9,15 @@
   <script>
     (function(){
       var token = new URLSearchParams(window.location.search).get("setup");
-      if (token) window.location.replace("/activate.html?token=" + encodeURIComponent(token));
+      if (token) {
+        window.location.replace("/activate.html?token=" + encodeURIComponent(token));
+        return;
+      }
+      var authHash = new URLSearchParams(window.location.hash.slice(1));
+      var authType = authHash.get("type");
+      if (authType === "invite" || authType === "signup") {
+        window.location.replace("/activate.html?team=1" + window.location.hash);
+      }
     })();
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
