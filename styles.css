@@ -1515,3 +1515,76 @@ aside::-webkit-scrollbar-thumb{background:#344968;border-radius:999px}
   .staff-kpi-grid{grid-template-columns:1fr 1fr;gap:8px}
   .staff-project-grid,.staff-account-grid{grid-template-columns:1fr}
 }
+
+
+/* NEXO company structure & department workspaces */
+.team-role-department{display:block;margin-top:5px;font-size:8px;color:#8b98aa}
+.team-department-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:0 20px 20px}
+.team-department-card{border:1px solid #e2e8f1;border-radius:13px;background:#fbfcfe;overflow:hidden}
+.team-department-card.planned{background:#f8f9fb;border-style:dashed}
+.team-department-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:16px 17px;border-bottom:1px solid #e8edf3}
+.team-department-head h3{margin:4px 0 5px;font:800 14px/1.2 "Manrope",sans-serif;color:#314862}
+.team-department-head p{margin:0;font-size:9px;line-height:1.45;color:#7e8b9f;max-width:440px}
+.team-department-state{display:inline-flex;align-items:center;border-radius:999px;padding:5px 8px;font-size:8px;font-weight:900;white-space:nowrap}
+.team-department-state.active{background:#e8f7ef;color:#2d7759}
+.team-department-state.planned{background:#eef1f5;color:#7b8798}
+.team-role-ladder{padding:4px 16px 12px}
+.team-role-ladder-row{display:grid;grid-template-columns:105px minmax(0,1fr) auto;gap:12px;align-items:start;padding:12px 0;border-bottom:1px solid #edf1f5}
+.team-role-ladder-row:last-child{border-bottom:0}
+.team-role-ladder-row.planned{opacity:.72}
+.team-role-level{display:flex;flex-direction:column;gap:3px}
+.team-role-level b{font-size:9px;color:#53719c}
+.team-role-level small{font-size:8px;color:#9aa5b5}
+.team-role-copy strong{display:block;font-size:10px;color:#3b526f}
+.team-role-copy span{display:block;margin-top:3px;font-size:8.5px;line-height:1.45;color:#7e8b9d}
+.team-role-copy small{display:block;margin-top:5px;font-size:8px;color:#9aa5b4;font-weight:700}
+.team-role-flags{display:flex;align-items:flex-end;flex-direction:column;gap:5px}
+.team-role-flag{border-radius:999px;padding:4px 6px;font-size:7.5px;font-weight:900;white-space:nowrap}
+.team-role-flag.planned{background:#eef1f5;color:#7b8799}
+.team-role-flag.locked{background:#fff1e8;color:#a5683d}
+
+.staff-lead-callout{display:flex;align-items:center;justify-content:space-between;gap:18px;background:linear-gradient(135deg,#f2f6ff,#f9fbff);border:1px solid #dfe8f8;border-radius:14px;padding:17px 18px;margin-bottom:18px}
+.staff-lead-callout h3{font:800 15px/1.25 "Manrope",sans-serif;color:#304a6b;margin:4px 0}
+.staff-lead-callout p{font-size:9px;color:#7b8aa0;margin:0}
+.staff-page-intro-actions{display:flex;align-items:flex-end;justify-content:space-between;gap:16px}
+.staff-intro-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+
+.staff-project-head small{display:block;margin-top:3px;font-size:8px;color:#8b98aa}
+.staff-project-meta-grid{display:grid;grid-template-columns:1fr 1fr 1.25fr;gap:8px;margin:15px 0}
+.staff-project-meta-grid>div{border:1px solid #e7ecf3;border-radius:9px;padding:9px 10px;background:#fafbfd}
+.staff-project-meta-grid span{display:block;font-size:7.5px;text-transform:uppercase;letter-spacing:.06em;color:#939ead;font-weight:800;margin-bottom:4px}
+.staff-project-meta-grid b{display:block;font-size:9px;color:#465e7c}
+.staff-project-meta-grid select{width:100%;border:0;background:transparent;padding:0;font-size:9px;color:#3f5d84;font-weight:800;outline:none}
+.staff-project-description{font-size:9px;line-height:1.5;color:#77869a;margin:0 0 12px}
+
+.staff-work-modal{position:fixed;inset:0;z-index:12000;display:grid;place-items:center;padding:20px}
+.staff-work-backdrop{position:absolute;inset:0;background:rgba(12,23,41,.52);backdrop-filter:blur(3px)}
+.staff-work-dialog{position:relative;width:min(680px,96vw);max-height:min(820px,92vh);overflow:auto;background:#fff;border-radius:17px;box-shadow:0 30px 90px rgba(15,28,48,.24)}
+.staff-work-dialog>header{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;padding:22px 24px 18px;border-bottom:1px solid #e8edf3;background:#fbfcff;border-radius:17px 17px 0 0}
+.staff-work-dialog>header h2{font:800 19px/1.2 "Manrope",sans-serif;color:#2e4665;margin:5px 0}
+.staff-work-dialog>header p{font-size:10px;line-height:1.5;color:#7e8c9f;margin:0;max-width:520px}
+.staff-work-dialog>header>button{border:0;background:#eef2f7;color:#64748a;width:31px;height:31px;border-radius:9px;font-size:20px;line-height:1;cursor:pointer}
+.staff-work-body{padding:20px 24px 24px}
+.staff-work-form{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.staff-work-form label{display:flex;flex-direction:column;gap:6px;font-size:9px;text-transform:uppercase;letter-spacing:.05em;font-weight:800;color:#718197}
+.staff-work-form .wide{grid-column:1/-1}
+.staff-work-form input,.staff-work-form select,.staff-work-form textarea{width:100%;border:1px solid #dfe6ef;border-radius:9px;padding:10px 11px;background:#fff;font:500 11px/1.4 Arial,sans-serif;color:#344c69;outline:none;text-transform:none;letter-spacing:normal}
+.staff-work-form input:focus,.staff-work-form select:focus,.staff-work-form textarea:focus{border-color:#9ab8ef;box-shadow:0 0 0 3px #eef4ff}
+.staff-work-actions{display:flex;justify-content:flex-end;margin-top:3px}
+
+@media(max-width:1050px){
+  .team-department-grid{grid-template-columns:1fr}
+}
+@media(max-width:720px){
+  .team-department-grid{padding:0 14px 14px}
+  .team-role-ladder-row{grid-template-columns:1fr;gap:7px}
+  .team-role-flags{align-items:flex-start;flex-direction:row;flex-wrap:wrap}
+  .staff-lead-callout,.staff-page-intro-actions{align-items:stretch;flex-direction:column}
+  .staff-intro-actions{justify-content:flex-start}
+  .staff-intro-actions .btn,.staff-lead-callout .btn{width:100%}
+  .staff-project-meta-grid{grid-template-columns:1fr}
+  .staff-work-modal{padding:10px}
+  .staff-work-form{grid-template-columns:1fr}
+  .staff-work-form .wide{grid-column:auto}
+  .staff-work-dialog>header,.staff-work-body{padding-left:16px;padding-right:16px}
+}
