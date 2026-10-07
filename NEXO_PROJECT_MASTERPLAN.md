@@ -166,6 +166,11 @@ Implemented:
 - Separate backend from client organization user management.
 - Render production deployment verified live.
 - Default collaborator roles verified with no `finance.read` or `finance.write`.
+- Automatic collaborator invitation email through Supabase Auth.
+- Invitation lifecycle tracking: pending, accepted and cancelled.
+- Resend invitation control from Team Management.
+- Cancel invitation control that prevents internal activation.
+- Dedicated collaborator registration flow that creates a password before enabling RBAC access.
 
 ### Phase 3 — Personal collaborator workspace
 **Status: NEXT**
