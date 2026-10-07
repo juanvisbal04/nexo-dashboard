@@ -178,15 +178,23 @@ Implemented:
 - Mailer validates the requesting Super Admin session before sending.
 
 ### Phase 3 — Personal collaborator workspace
-**Status: NEXT**
+**Status: IN PROGRESS — MARKETING WORKSPACE LIVE**
 
-Each collaborator gets:
-- My Pipeline.
-- My Tasks.
-- My Accounts / Projects.
-- My Performance.
-- Role-specific navigation.
-- No access to restricted modules.
+Implemented foundation:
+- Role and permission detection at login via `get_my_nexo_roles()` and `get_my_nexo_permissions()`.
+- Role-specific internal navigation separated from client and Super Admin navigation.
+- Marketing: My Home, My Projects, My Tasks, Assigned Clients, My Performance and My Profile.
+- Marketing can create, edit, prioritize and complete only self-assigned tasks within NEXO Internal or explicitly assigned clients.
+- Marketing projects are currently derived from explicitly assigned client accounts and their self-assigned work tasks.
+- Personal performance is task-based and intentionally has no employee ranking.
+- Restricted modules remain hidden and protected by RLS; no internal finance, team administration, audit log or global CRM access.
+- Permission RPC hardened to ignore inactive roles.
+
+Remaining Phase 3:
+- Sales-specific My Pipeline workspace.
+- Implementation & Customer Success workspace.
+- Operations workspace.
+- Additional role-specific project/deliverable models as Phase 5 productization expands.
 
 ### Phase 4 — Founder Command Center
 **Status: PENDING**
