@@ -1404,3 +1404,8 @@ aside::-webkit-scrollbar-thumb{background:#344968;border-radius:999px}
   .nexo-team-form{grid-template-columns:1fr}
   .team-row-actions{justify-content:flex-start;flex-wrap:wrap}
 }
+
+.team-invite-meta{display:inline-block;font-size:9px;color:#7a8799;line-height:1.35}
+.team-invite-meta small{font-size:8px;color:#9aa5b5}
+.team-cancel-invite{border-color:#f0d9bf!important;background:#fff7ed!important;color:#a66b2d!important}
+.team-resend{border-color:#d8e4f8!important;background:#f5f8ff!important;color:#456eae!important}
