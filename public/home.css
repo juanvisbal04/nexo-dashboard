@@ -455,6 +455,16 @@
   font-size:14px;
   line-height:1.8;
 }
+.nx-case-results{
+  min-width:0;
+}
+.nx-case-results-label{
+  margin-bottom:12px;
+  color:#6b8196;
+  font-size:9px;
+  font-weight:800;
+  letter-spacing:.1em;
+}
 .nx-case-metrics{
   border-top:1px solid var(--line);
 }
@@ -477,6 +487,13 @@
   font-size:11px;
   line-height:1.5;
   text-align:right;
+}
+.nx-case-results>p{
+  max-width:520px;
+  margin:18px 0 0;
+  color:#73869a;
+  font-size:10px;
+  line-height:1.7;
 }
 
 /* PLATFORM */
