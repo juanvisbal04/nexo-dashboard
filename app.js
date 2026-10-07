@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
 import { renderCrm, openProspectEditorFromGrowth, openNewProspectFromGrowth } from "./crm.js?v=20261006-webfunnel1";
-import { renderTasks, openCustomer360, openContact360, closeDrawer } from "./workspace360.js?v=20261001-360h";
+import { renderTasks, openCustomer360, openContact360, closeDrawer } from "./workspace360.js?v=20261007-staff1";
 import { renderDataQuality, openOnboarding, closeQualityDrawer } from "./qualityOnboarding.js?v=20261001-quality2";
 import { renderInternalTeam } from "./team.js?v=20261007-team3";
 import { renderStaffHome, renderStaffProjects, renderStaffAccounts, renderStaffPerformance } from "./staffWorkspace.js?v=20261007-staff1";
