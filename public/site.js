@@ -107,6 +107,7 @@ if(floatingWhatsapp&&contactSection&&"IntersectionObserver" in window){
   const runButton=document.getElementById("runInteractiveDemo");
   const resetButton=document.getElementById("resetInteractiveDemo");
   const title=document.getElementById("demoScenarioTitle");
+  const contactName=document.getElementById("demoContactName");
   const description=document.getElementById("demoScenarioDescription");
   const outcomeContext=document.getElementById("demoOutcomeContext");
   const outcomeAction=document.getElementById("demoOutcomeAction");
@@ -116,51 +117,62 @@ if(floatingWhatsapp&&contactSection&&"IntersectionObserver" in window){
 
   const scenarios={
     beauty:{
-      title:"Consulta de servicio → solicitud organizada",
-      description:"Una conversación frecuente de estética conserva contexto, identifica el servicio de interés y deja una solicitud lista para seguimiento.",
+      contact:"Mariana López",
+      title:"Mariana quiere agendar una limpieza facial",
+      description:"Ejemplo ficticio de una clienta que pregunta por un servicio, define una preferencia de horario y deja una solicitud de cita organizada.",
       messages:[
-        ["user","Hola, quiero saber el precio de una limpieza facial y si tienen disponibilidad mañana."],
-        ["bot","Claro. Puedo compartirte la información aprobada del servicio y ayudarte a revisar opciones para registrar tu solicitud."],
-        ["user","Sí, quiero dejar la solicitud."],
-        ["bot","Perfecto. Dejo tu interés organizado para que el negocio pueda continuar el seguimiento."]
+        ["user","Hola, quiero hacerme una limpieza facial. ¿Cuánto cuesta y puedo pedir cita para mañana en la tarde?"],
+        ["bot","Claro. La limpieza facial tiene la información y precio definidos por el negocio. Para la solicitud de mañana, ¿prefieres alrededor de las 3:00 p. m. o más tarde?"],
+        ["user","A las 4:00 p. m. me sirve perfecto."],
+        ["bot","Listo, Mariana. Registré tu solicitud para limpieza facial mañana a las 4:00 p. m. con estado pendiente de confirmación."]
       ],
-      context:"Servicio identificado",action:"Solicitud registrada",followup:"Seguimiento visible"
+      context:"Mariana López · Limpieza facial",
+      action:"Solicitud de cita · 4:00 p. m.",
+      followup:"Pendiente de confirmación"
     },
     hotel:{
-      title:"Hotel",
-      description:"La conversación recoge fechas y huéspedes antes de pasar la solicitud a recepción.",
+      contact:"Daniel Ruiz",
+      title:"Daniel solicita alojamiento para dos personas",
+      description:"Ejemplo ficticio de un huésped que comparte fechas y número de personas para crear una solicitud de alojamiento estructurada.",
       messages:[
-        ["user","Hola, busco habitación para dos personas este fin de semana."],
-        ["bot","Claro. Puedo ayudarte a organizar la solicitud. ¿Qué fechas de entrada y salida necesitas?"],
-        ["user","Del viernes al domingo, para dos adultos."],
-        ["bot","Listo. La solicitud queda estructurada con fechas y huéspedes para revisar disponibilidad y continuar con recepción."]
+        ["user","Hola, necesito una habitación para dos personas del 23 al 25 de octubre."],
+        ["bot","Perfecto. ¿La solicitud es para dos adultos y buscas una sola habitación?"],
+        ["user","Sí, dos adultos y una habitación."],
+        ["bot","Listo, Daniel. Registré una solicitud de alojamiento del 23 al 25 de octubre para dos adultos, una habitación, pendiente de confirmación."]
       ],
-      context:"Fechas + huéspedes",action:"Solicitud organizada",followup:"Recepción puede continuar"
+      context:"Daniel Ruiz · 2 adultos",
+      action:"Solicitud · 23–25 de octubre",
+      followup:"Pendiente de confirmación"
     },
     restaurant:{
-      title:"Restaurante",
-      description:"Una intención de reserva se transforma en datos claros para la operación.",
+      contact:"Laura Méndez",
+      title:"Laura solicita una mesa en Laureles",
+      description:"Ejemplo ficticio de una reserva donde NEXO recoge sede, hora y número de personas y deja el registro completo.",
       messages:[
-        ["user","Quiero reservar una mesa para 4 mañana en la noche."],
-        ["bot","Con gusto. Puedo registrar la solicitud. ¿Qué sede prefieres?"],
-        ["user","Laureles, alrededor de las 8:00 p. m."],
-        ["bot","Perfecto. Dejo organizada la sede, hora y número de personas para continuar con la confirmación."]
+        ["user","Hola, quiero una mesa para 4 este sábado a las 8 de la noche."],
+        ["bot","Claro. ¿En cuál sede quieres hacer la solicitud?"],
+        ["user","En Laureles."],
+        ["bot","Perfecto, Laura. Registré una solicitud para 4 personas, sede Laureles, sábado a las 8:00 p. m., pendiente de confirmación."]
       ],
-      context:"Sede + horario",action:"Reserva solicitada",followup:"Pendiente de confirmación"
+      context:"Laura Méndez · 4 personas",
+      action:"Reserva · Laureles · 8:00 p. m.",
+      followup:"Pendiente de confirmación"
     },
     clinic:{
-      title:"Clínica",
-      description:"NEXO organiza una solicitud administrativa sin reemplazar el criterio profesional.",
+      contact:"Andrés Molina",
+      title:"Andrés solicita una cita de valoración",
+      description:"Ejemplo ficticio centrado únicamente en agenda administrativa: tipo de cita, preferencia de horario y registro de la solicitud.",
       messages:[
-        ["user","Hola, quisiera pedir una cita para una valoración."],
-        ["bot","Claro. Puedo ayudarte con la solicitud administrativa y recopilar los datos necesarios para agenda."],
-        ["user","Me gustaría esta semana en la tarde."],
-        ["bot","Perfecto. Dejo registrada tu preferencia para que el equipo revise opciones y continúe contigo."]
+        ["user","Hola, quisiera pedir una cita para una valoración la próxima semana."],
+        ["bot","Claro. ¿Tienes preferencia por mañana o tarde?"],
+        ["user","En la tarde, ojalá el jueves."],
+        ["bot","Listo, Andrés. Registré una solicitud de valoración para el jueves en la tarde, pendiente de confirmación."]
       ],
-      context:"Tipo de cita",action:"Solicitud de agenda",followup:"Equipo revisa opciones"
+      context:"Andrés Molina · Valoración",
+      action:"Solicitud · Jueves en la tarde",
+      followup:"Pendiente de confirmación"
     }
   };
-
   let current="beauty";
   let timers=[];
 
@@ -173,7 +185,7 @@ if(floatingWhatsapp&&contactSection&&"IntersectionObserver" in window){
     const bubble=document.createElement("div");
     bubble.className="interactive-bubble "+kind;
     const label=document.createElement("small");
-    label.textContent=kind==="bot"?"Asistente NEXO":"Cliente";
+    label.textContent=kind==="bot"?"Asistente NEXO":(scenarios[current]?.contact||"Contacto ficticio");
     const body=document.createElement("p");
     body.textContent=text;
     bubble.append(label,body);
@@ -201,6 +213,7 @@ if(floatingWhatsapp&&contactSection&&"IntersectionObserver" in window){
     chat.innerHTML="";
     addBubble("user",scenario.messages[0][1]);
     title.textContent=scenario.title;
+    if(contactName) contactName.textContent=scenario.contact;
     description.textContent=scenario.description;
     outcomeContext.textContent=scenario.context;
     outcomeAction.textContent=scenario.action;
