@@ -4,6 +4,7 @@ import { renderTasks, openCustomer360, openContact360, closeDrawer } from "./wor
 import { renderDataQuality, openOnboarding, closeQualityDrawer } from "./qualityOnboarding.js?v=20261001-quality2";
 import { renderInternalTeam } from "./team.js?v=20261007-company1";
 import { renderStaffHome, renderStaffProjects, renderStaffAccounts, renderStaffPerformance } from "./staffWorkspace.js?v=20261007-company1";
+import { renderSalesWorkspace, renderImplementationWorkspace, renderOperationsWorkspace } from "./departmentWorkspaces.js?v=20261007-dept1";
 
 const SUPABASE_URL = "https://ixewnbjndguchunwcuhf.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_vFnLRe9cmnOcyz2Fivprhw_8UjBaRGL";
@@ -80,6 +81,9 @@ function canAccessPage(page) {
     if (hasPermission("tasks.self.read") || hasPermission("tasks.team.read")) allowed.add("tasks");
     if (hasPermission("projects.department.read")) allowed.add("projects");
     if (hasPermission("clients.assigned.read") || hasPermission("clients.department.assign")) allowed.add("accounts");
+    if (hasPermission("crm.assigned.read") || hasPermission("crm.all.read")) allowed.add("pipeline");
+    if (state.internalDepartmentKey === "implementation_cs") allowed.add("delivery");
+    if (state.internalDepartmentKey === "operations") allowed.add("departmentOps");
     return allowed.has(page);
   }
 
@@ -137,6 +141,9 @@ const pageMeta = {
   projects: ["Mis proyectos", "NEXO MARKETING", "Tus proyectos asignados.", "Clientes, trabajo pendiente y próximos entregables en un solo lugar."],
   accounts: ["Clientes asignados", "NEXO SCOPE", "Tu cartera autorizada.", "Solo los clientes en los que tienes permiso para trabajar."],
   performance: ["Mi rendimiento", "NEXO WORK", "Tu ejecución, en perspectiva.", "Seguimiento personal de tareas, cumplimiento y carga de trabajo."],
+  pipeline: ["Mi pipeline", "NEXO SALES", "Tu pipeline comercial.", "Oportunidades, próximas acciones y actividad comercial sin finanzas internas."],
+  delivery: ["Implementación", "NEXO DELIVERY", "Onboarding y éxito del cliente.", "Configuración, readiness y seguimiento dentro de tu scope."],
+  departmentOps: ["Centro operativo", "NEXO OPERATIONS", "Operación bajo control.", "Asistentes, conversaciones, alertas y agenda de clientes asignados."],
   settings: ["Configuración", "NEXO SETTINGS", "Cada negocio, bien configurado.", "Identidad, contacto, asistente, notificaciones y preferencias."],
   audit: ["Audit Log", "NEXO GOVERNANCE", "Cada cambio deja rastro.", "Historial administrativo de configuración, accesos, cobros e integraciones."],
   profile: ["Mi perfil", "CUENTA NEXO", "Tu perfil, bajo tu control.", "Foto, datos de contacto e información personal de tu acceso."],
@@ -909,6 +916,12 @@ function updateNavigationAccess() {
     document.querySelectorAll(".staff-tasks-nav").forEach((item)=>item.classList.toggle("hidden",!canTasks));
     document.querySelectorAll(".staff-projects-nav").forEach((item)=>item.classList.toggle("hidden",!canProjects));
     document.querySelectorAll(".staff-accounts-nav").forEach((item)=>item.classList.toggle("hidden",!canAccounts));
+    const canPipeline=hasPermission("crm.assigned.read")||hasPermission("crm.all.read");
+    const canDelivery=state.internalDepartmentKey==="implementation_cs";
+    const canOps=state.internalDepartmentKey==="operations";
+    document.querySelectorAll(".staff-pipeline-nav").forEach((item)=>item.classList.toggle("hidden",!canPipeline));
+    document.querySelectorAll(".staff-delivery-nav").forEach((item)=>item.classList.toggle("hidden",!canDelivery));
+    document.querySelectorAll(".staff-ops-nav").forEach((item)=>item.classList.toggle("hidden",!canOps));
   }
 
   if ($("profileRole")) {
@@ -3388,19 +3401,20 @@ function isUserEditing() {
 
 function pageUsesRealtimeTable(table) {
   const map = {
-    conversations: ["overview","conversations","metrics"],
     messages: ["overview","conversations","metrics"],
     leads: ["overview","leads","metrics"],
-    appointments: ["overview","appointments","metrics"],
     followups: ["overview","followups","metrics"],
     client_invoices: ["crm","billing"],
     invoice_payments: ["crm","billing"],
-    demo_requests: ["crm","growth","admin"],
-    crm_activities: ["crm"],
+    demo_requests: ["crm","growth","admin","pipeline"],
+    crm_activities: ["crm","pipeline"],
     work_tasks: ["overview","tasks","clients","operations","projects","accounts","performance"],
+    organization_onboarding: ["overview","delivery"],
+    assistants: ["overview","clients","operations","settings","delivery","departmentOps"],
+    conversations: ["overview","conversations","metrics","departmentOps"],
+    appointments: ["overview","appointments","metrics","departmentOps"],
     contact_notes: ["tasks"],
     conversation_reads: ["conversations"],
-    assistants: ["overview","clients","operations","settings"],
     organization_commercials: ["overview","crm","clients","operations"],
     crm_integrations: ["clients","operations","settings"],
     audit_log: ["audit"],
@@ -3842,6 +3856,9 @@ async function render() {
     tasks:[staffTeamTasks?"Tareas del departamento":"Mis tareas","NEXO WORK",staffTeamTasks?"Trabajo del equipo, bajo control.":"Tu trabajo, bajo control.",staffTeamTasks?"Coordina responsables, prioridades y vencimientos dentro de tu departamento.":"Crea, prioriza y completa tus propias tareas."],
     accounts:["Clientes",`NEXO · ${staffDepartment.toUpperCase()}`,"Clientes en tu scope.","Solo negocios autorizados para ti o para tu departamento."],
     performance:[staffTeamTasks?"Rendimiento del departamento":"Mi rendimiento","NEXO WORK",staffTeamTasks?"Ejecución del equipo, en perspectiva.":"Tu ejecución, en perspectiva.","Seguimiento operativo sin exponer información fuera de tu scope."],
+    pipeline:[hasPermission("crm.all.read")?"Pipeline del equipo":"Mi pipeline","NEXO SALES","Ventas en movimiento.","Oportunidades y próximas acciones sin exponer finanzas internas."],
+    delivery:["Implementación","NEXO DELIVERY","Onboarding y éxito del cliente.","Configuración, readiness y seguimiento dentro de tu scope."],
+    departmentOps:["Centro operativo","NEXO OPERATIONS","Operación bajo control.","Asistentes, conversaciones, alertas y agenda."],
     profile:["Mi perfil","CUENTA NEXO","Tu perfil, bajo tu control.","Foto, datos de contacto e información personal de tu acceso."],
   };
   const meta = state.isInternalStaff ? (staffMeta[state.page] || pageMeta[state.page]) : pageMeta[state.page];
@@ -3855,9 +3872,9 @@ async function render() {
   }
 
   persistUiState();
-  const noPeriod = ["crm","billing","clients","tasks","quality","settings","audit","profile","team","projects","accounts","performance"].includes(state.page);
+  const noPeriod = ["crm","billing","clients","tasks","quality","settings","audit","profile","team","projects","accounts","performance","pipeline","delivery","departmentOps"].includes(state.page);
   $("periodSelect").classList.toggle("hidden", noPeriod);
-  $("exportButton").classList.toggle("hidden", ["settings","profile","team","projects","accounts","performance"].includes(state.page) || state.isInternalStaff);
+  $("exportButton").classList.toggle("hidden", ["settings","profile","team","projects","accounts","performance","pipeline","delivery","departmentOps"].includes(state.page) || state.isInternalStaff);
   $("exportButton").textContent = state.page === "crm" ? "Exportar CRM" : state.page === "growth" ? "Exportar growth" : state.page === "billing" ? "Exportar cobros" : state.page === "audit" ? "Exportar audit" : state.page === "clients" ? "Exportar clientes" : state.page === "tasks" ? "Exportar tareas" : state.page === "quality" ? "Exportar calidad" : "Exportar CSV";
 
   $("breadcrumb").textContent = meta[0];
@@ -3875,6 +3892,9 @@ async function render() {
     else if (state.isInternalStaff && state.page === "projects") await renderStaffProjects(staffWorkspaceContext());
     else if (state.isInternalStaff && state.page === "accounts") await renderStaffAccounts(staffWorkspaceContext());
     else if (state.isInternalStaff && state.page === "performance") await renderStaffPerformance(staffWorkspaceContext());
+    else if (state.isInternalStaff && state.page === "pipeline") await renderSalesWorkspace(staffWorkspaceContext());
+    else if (state.isInternalStaff && state.page === "delivery") await renderImplementationWorkspace(staffWorkspaceContext());
+    else if (state.isInternalStaff && state.page === "departmentOps") await renderOperationsWorkspace(staffWorkspaceContext());
     else if (state.page === "overview") await renderOverview();
     else if (["conversations", "leads", "appointments", "followups"].includes(state.page)) await renderTablePage(state.page);
     else if (state.page === "metrics") await renderMetrics();
