@@ -7,7 +7,7 @@ import { renderStaffHome, renderStaffProjects, renderStaffAccounts, renderStaffP
 import { renderSalesWorkspace, renderImplementationWorkspace, renderOperationsWorkspace } from "./departmentWorkspaces.js?v=20261007-dept2";
 import { renderExecutiveTasks } from "./executiveTasks.js?v=20261007-exec2";
 import { renderPeopleWorkspace } from "./peopleWorkspace.js?v=20261007-people2";
-import { renderFounderCommandCenter } from "./founderCommandCenter.js?v=20261007-founder1";
+import { renderFounderCommandCenter } from "./founderCommandCenter.js?v=20261007-founder2";
 
 const SUPABASE_URL = "https://ixewnbjndguchunwcuhf.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_vFnLRe9cmnOcyz2Fivprhw_8UjBaRGL";
@@ -3888,9 +3888,10 @@ async function render() {
   }
 
   persistUiState();
-  const noPeriod = ["crm","billing","clients","tasks","quality","settings","audit","profile","team","projects","accounts","performance","pipeline","delivery","departmentOps","people"].includes(state.page);
+  const founderOverview=state.isAdmin&&isInternalOrg()&&state.page==="overview";
+  const noPeriod = founderOverview || ["crm","billing","clients","tasks","quality","settings","audit","profile","team","projects","accounts","performance","pipeline","delivery","departmentOps","people"].includes(state.page);
   $("periodSelect").classList.toggle("hidden", noPeriod);
-  $("exportButton").classList.toggle("hidden", ["settings","profile","team","projects","accounts","performance","pipeline","delivery","departmentOps","people"].includes(state.page) || state.isInternalStaff);
+  $("exportButton").classList.toggle("hidden", founderOverview || ["settings","profile","team","projects","accounts","performance","pipeline","delivery","departmentOps","people"].includes(state.page) || state.isInternalStaff);
   $("exportButton").textContent = state.page === "crm" ? "Exportar CRM" : state.page === "growth" ? "Exportar growth" : state.page === "billing" ? "Exportar cobros" : state.page === "audit" ? "Exportar audit" : state.page === "clients" ? "Exportar clientes" : state.page === "tasks" ? "Exportar tareas" : state.page === "quality" ? "Exportar calidad" : "Exportar CSV";
 
   $("breadcrumb").textContent = meta[0];
