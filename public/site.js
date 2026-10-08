@@ -350,15 +350,15 @@ if(floatingWhatsapp&&contactSection&&"IntersectionObserver" in window){
   function currentPlan(){
     const params=new URLSearchParams(location.search);
     const raw=String(params.get("plan")||document.getElementById("demoPlan")?.value||"").toLowerCase();
-    return ["start","growth","pro","custom"].includes(raw)?raw:"";
+    return ["start","growth","pro","custom","marketing"].includes(raw)?raw:"";
   }
   function placementFor(element){
     if(!element)return "unknown";
     if(element.classList?.contains("floating-whatsapp"))return "floating";
     if(element.classList?.contains("mobile-demo-cta"))return "mobile_sticky";
     if(element.closest?.("#navLinks"))return "navigation";
-    if(element.closest?.(".hero,.vertical-hero,.pricing-hero,.subpage-hero"))return "hero";
-    if(element.closest?.("#contacto,.contact,.quick-contact,.cta-panel,.pricing-cta"))return "cta_section";
+    if(element.closest?.(".hero,.vertical-hero,.pricing-hero,.subpage-hero,.marketing-hero"))return "hero";
+    if(element.closest?.("#contacto,.contact,.quick-contact,.cta-panel,.pricing-cta,.marketing-cta"))return "cta_section";
     if(element.closest?.(".site-footer"))return "footer";
     return "body";
   }
@@ -368,6 +368,7 @@ if(floatingWhatsapp&&contactSection&&"IntersectionObserver" in window){
     try{path=new URL(href,location.origin).pathname||"";}catch{}
     if(/wa\.me\//i.test(href))return "whatsapp_click";
     if(/demo(?:-|\.)/i.test(path))return "demo_click";
+    if(/nexo-marketing\.html/i.test(path))return "marketing_click";
     if(/planes\.html/i.test(path))return "plans_click";
     if(/caso-lia\.html/i.test(path))return "case_lia_click";
     if(/industria-/i.test(path))return "industry_click";
@@ -382,7 +383,7 @@ if(floatingWhatsapp&&contactSection&&"IntersectionObserver" in window){
     const plan=String(input.plan||currentPlan()).toLowerCase();
     const scenario=String(input.scenario||"").toLowerCase();
     if(industry)output.industry=industry;
-    if(["start","growth","pro","custom"].includes(plan))output.plan=plan;
+    if(["start","growth","pro","custom","marketing"].includes(plan))output.plan=plan;
     if(["beauty","hotel","restaurant","clinic"].includes(scenario))output.scenario=scenario;
     if(input.target_path){
       const target=String(input.target_path);
