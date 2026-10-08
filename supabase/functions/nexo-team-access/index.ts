@@ -27,7 +27,7 @@ function assignmentType(roleKey:string){
   if(["operations_lead","operations_specialist","qa_monitoring_specialist"].includes(roleKey)) return "operations";
   if(["product_technology_lead","software_engineer","product_designer"].includes(roleKey)) return "product_technology";
   if(["finance_admin_lead","finance_specialist"].includes(roleKey)) return "finance_admin";
-  if(roleKey==="people_culture_lead") return "people_culture";
+  if(["people_culture_lead","talent_acquisition_specialist","people_operations_specialist","people_coordinator"].includes(roleKey)) return "people_culture";
   return "collaborator";
 }
 
