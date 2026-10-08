@@ -4,7 +4,7 @@ import { renderTasks, openCustomer360, openContact360, closeDrawer } from "./wor
 import { renderDataQuality, openOnboarding, closeQualityDrawer } from "./qualityOnboarding.js?v=20261001-quality2";
 import { renderInternalTeam } from "./team.js?v=20261007-company1";
 import { renderStaffHome, renderStaffProjects, renderStaffAccounts, renderStaffPerformance } from "./staffWorkspace.js?v=20261007-company1";
-import { renderSalesWorkspace, renderImplementationWorkspace, renderOperationsWorkspace } from "./departmentWorkspaces.js?v=20261007-dept1";
+import { renderSalesWorkspace, renderImplementationWorkspace, renderOperationsWorkspace } from "./departmentWorkspaces.js?v=20261007-dept2";
 
 const SUPABASE_URL = "https://ixewnbjndguchunwcuhf.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_vFnLRe9cmnOcyz2Fivprhw_8UjBaRGL";
