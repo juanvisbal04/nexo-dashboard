@@ -259,3 +259,12 @@ Continue strengthening:
 ## Current implementation note
 
 The company-level RBAC foundation, department hierarchy, Marketing Lead workspace, scoped client/project creation and department task coordination are live. Remaining collaborator work should extend the same department/role model rather than creating parallel permission systems.
+
+
+### People & Executive Governance — LIVE
+- Dedicated Operations / QA monitoring surfaces.
+- Executive Work Control for Founder / CEO: assign, reassign, filter and supervise tasks across every active department and collaborator.
+- Department Leads can assign and supervise tasks only within their own department.
+- Talento Humano / People & Culture activated with People & Culture Lead, Talent Acquisition Specialist, People Operations Specialist and People Coordinator.
+- Talent workspace includes recruitment pipeline, secure internal directory and employee onboarding.
+- People & Culture permissions are isolated from Sales, Marketing, client operations and internal finance by default.
