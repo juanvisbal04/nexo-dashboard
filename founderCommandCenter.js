@@ -58,6 +58,7 @@ export async function renderFounderCommandCenter(context){
     peopleOnboardingRes,
     invoicesRes,
     expensesRes,
+    departmentsRes,
     people,
   ]=await Promise.all([
     C.supabase.from("organization_commercials").select("*"),
@@ -72,6 +73,7 @@ export async function renderFounderCommandCenter(context){
     C.supabase.from("nexo_people_onboarding").select("*").order("created_at",{ascending:false}).limit(1000),
     C.supabase.from("client_invoices").select("*").order("created_at",{ascending:false}).limit(2000),
     C.supabase.from("nexo_expenses").select("*").eq("active",true).limit(1000),
+    C.supabase.from("nexo_departments").select("id,department_key,name,active,planned").eq("active",true),
     loadPeople(),
   ]);
 
@@ -87,13 +89,16 @@ export async function renderFounderCommandCenter(context){
   const peopleOnboarding=safe(peopleOnboardingRes);
   const invoices=safe(invoicesRes);
   const expenses=safe(expensesRes);
+  const departments=safe(departmentsRes);
+  const departmentKeyById=new Map(departments.map((d)=>[d.id,d.department_key]));
   const peopleMap=new Map((people||[]).map((p)=>[p.user_id,p]));
 
   const now=Date.now();
   const thirtyDaysAgo=now-30*86400000;
   const activeClients=orgs.filter((o)=>o.status==="active").length;
-  const mrr=sum(commercials,"mrr");
-  const directMonthlyCost=sum(commercials,"monthly_cost");
+  const clientCommercials=commercials.filter((row)=>orgMap.has(row.organization_id));
+  const mrr=sum(clientCommercials,"mrr");
+  const directMonthlyCost=sum(clientCommercials,"monthly_cost");
   const recurringExpenses=expenses
     .filter((e)=>["monthly","mensual","month"].includes(String(e.frequency||"").toLowerCase()))
     .reduce((n,e)=>n+Number(e.amount_cop||0),0);
@@ -128,7 +133,8 @@ export async function renderFounderCommandCenter(context){
   const activeCandidates=candidates.filter((r)=>!["hired","rejected"].includes(r.stage));
   const interviews=candidates.filter((r)=>r.stage==="interview"||(r.interview_at&&new Date(r.interview_at).getTime()>=now));
 
-  const unpaidInvoices=invoices.filter((r)=>!["paid","pagada","paid_full"].includes(String(r.status||"").toLowerCase())&&!r.paid_at);
+  const clientInvoices=invoices.filter((r)=>orgMap.has(r.organization_id));
+  const unpaidInvoices=clientInvoices.filter((r)=>!["paid","pagada","paid_full"].includes(String(r.status||"").toLowerCase())&&!r.paid_at);
   const overdueInvoices=unpaidInvoices.filter((r)=>r.due_date&&new Date(`${r.due_date}T23:59:59`).getTime()<now);
   const outstandingAmount=sum(unpaidInvoices,"amount_cop");
 
@@ -159,6 +165,11 @@ export async function renderFounderCommandCenter(context){
     row.due_date?C.shortDate(row.due_date):"","clients","danger"
   )));
 
+  const marketingProjects=projects.filter((p)=>departmentKeyById.get(p.department_id)==="marketing");
+  const marketingActiveProjects=marketingProjects.filter(openProject);
+  const marketingReview=marketingProjects.filter((p)=>["review","changes"].includes(p.status));
+  const marketingOverdue=marketingActiveProjects.filter((p)=>p.due_at&&new Date(p.due_at).getTime()<now);
+
   const deptStats=[
     {
       key:"sales",name:"Sales",page:"crm",
@@ -172,11 +183,11 @@ export async function renderFounderCommandCenter(context){
     {
       key:"marketing",name:"Marketing",page:"clients",
       lead:"Proyectos & entregables",
-      primary:activeProjects.length,
+      primary:marketingActiveProjects.length,
       primaryLabel:"proyectos activos",
-      secondary:`${projectReview.length} en revisión/cambios`,
-      detail:`${overdueProjects.length} vencidos · ${projects.filter((p)=>p.status==="delivered"&&new Date(p.updated_at).getTime()>=thirtyDaysAgo).length} entregados 30d`,
-      risk:overdueProjects.length,
+      secondary:`${marketingReview.length} en revisión/cambios`,
+      detail:`${marketingOverdue.length} vencidos · ${marketingProjects.filter((p)=>p.status==="delivered"&&new Date(p.updated_at).getTime()>=thirtyDaysAgo).length} entregados 30d`,
+      risk:marketingOverdue.length,
     },
     {
       key:"implementation_cs",name:"Implementation & CS",page:"clients",
