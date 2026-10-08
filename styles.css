@@ -1588,3 +1588,60 @@ aside::-webkit-scrollbar-thumb{background:#344968;border-radius:999px}
   .staff-work-form .wide{grid-column:auto}
   .staff-work-dialog>header,.staff-work-body{padding-left:16px;padding-right:16px}
 }
+
+
+/* Department-specific collaborator workspaces */
+.staff-sales-pipeline{display:grid;grid-template-columns:repeat(6,minmax(190px,1fr));gap:10px;overflow-x:auto;padding:0 18px 18px}
+.staff-sales-column{min-width:190px;border:1px solid #e4eaf2;border-radius:11px;background:#fafbfd;overflow:hidden}
+.staff-sales-column>header{display:flex;align-items:center;justify-content:space-between;padding:10px 11px;border-bottom:1px solid #e6ebf2}
+.staff-sales-column>header b{font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:#526986}
+.staff-sales-column>header span{display:grid;place-items:center;min-width:22px;height:22px;border-radius:999px;background:#eef3fa;color:#5d7290;font-size:8px;font-weight:900}
+.staff-sales-column>div{padding:8px;display:flex;flex-direction:column;gap:8px}
+.staff-sales-card{border:1px solid #e3e9f1;background:#fff;border-radius:9px;padding:10px;box-shadow:0 2px 8px rgba(27,45,73,.04)}
+.staff-sales-card>span{display:block;font-size:8px;text-transform:uppercase;color:#8d99aa;font-weight:800}
+.staff-sales-card>b{display:block;font-size:10px;color:#3d5573;margin:3px 0}
+.staff-sales-card>small{display:block;font-size:8px;line-height:1.4;color:#8390a2}
+.staff-sales-card>div{margin-top:7px;font-size:8px;color:#718197}
+.staff-sales-card>div.risk{color:#b35d40;font-weight:800}
+.staff-sales-stage{width:100%;margin-top:8px;border:1px solid #e1e7ef;border-radius:7px;padding:6px;background:#f9fbfd;font-size:8px;color:#4d6481;font-weight:800}
+.staff-sales-empty{font-size:8px;color:#9aa5b4;text-align:center;padding:18px 5px}
+.compact-money{font-size:18px!important}
+
+.staff-activity-list{padding:0 18px 18px}
+.staff-activity-list>div{display:grid;grid-template-columns:80px 1fr;gap:10px;padding:10px 0;border-bottom:1px solid #edf1f5}
+.staff-activity-list>div:last-child{border-bottom:0}
+.staff-activity-list>div>span{font-size:8px;text-transform:uppercase;color:#7690b3;font-weight:900}
+.staff-activity-list b{display:block;font-size:10px;color:#405774}
+.staff-activity-list small{display:block;margin-top:2px;font-size:8px;color:#8996a8}
+
+.staff-delivery-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.staff-delivery-card{padding:18px}
+.staff-onboarding-steps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:15px}
+.staff-onboarding-steps>div{border:1px solid #e7ecf2;border-radius:9px;padding:9px;background:#fafbfd}
+.staff-onboarding-steps span{display:block;font-size:7.5px;text-transform:uppercase;color:#8d99a9;font-weight:800;margin-bottom:4px}
+.staff-onboarding-steps b{font-size:9px;color:#4b617e}
+.staff-onboarding-steps select{width:100%;border:0;background:transparent;padding:0;font-size:9px;font-weight:800;color:#4b617e;outline:none}
+.staff-assistant-summary{margin-top:14px;padding-top:12px;border-top:1px solid #e8edf3}
+.staff-assistant-summary span{display:block;font-size:7.5px;text-transform:uppercase;color:#8d99aa;font-weight:800}
+.staff-assistant-summary b{display:block;font-size:10px;color:#405773;margin-top:3px}
+.staff-assistant-summary small{display:block;font-size:8px;color:#8996a8;margin-top:2px}
+.staff-empty-onboarding{margin-top:14px;padding:12px;border:1px dashed #dfe6ef;border-radius:9px;background:#fbfcfe}
+.staff-empty-onboarding p{margin:0 0 8px;font-size:9px;color:#7f8da0}
+
+.staff-ops-list{padding:0 18px 18px}
+.staff-ops-list>article{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:10px 0;border-bottom:1px solid #edf1f5}
+.staff-ops-list>article:last-child{border-bottom:0}
+.staff-ops-list b{display:block;font-size:10px;color:#405773}
+.staff-ops-list small{display:block;font-size:8px;color:#8b98a9;margin-top:2px}
+.staff-ops-list>article>span{font-size:8px;color:#74849a;text-align:right}
+.staff-ops-list>article>span.ok{color:#2f775a;font-weight:900}
+
+@media(max-width:1000px){
+  .staff-sales-pipeline{grid-template-columns:repeat(6,190px)}
+  .staff-delivery-grid{grid-template-columns:1fr}
+}
+@media(max-width:720px){
+  .staff-sales-pipeline{padding:0 12px 12px}
+  .staff-onboarding-steps{grid-template-columns:1fr}
+  .staff-activity-list,.staff-ops-list{padding-left:14px;padding-right:14px}
+}
