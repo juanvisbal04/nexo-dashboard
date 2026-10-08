@@ -7,6 +7,7 @@ import { renderStaffHome, renderStaffProjects, renderStaffAccounts, renderStaffP
 import { renderSalesWorkspace, renderImplementationWorkspace, renderOperationsWorkspace } from "./departmentWorkspaces.js?v=20261007-dept2";
 import { renderExecutiveTasks } from "./executiveTasks.js?v=20261007-exec2";
 import { renderPeopleWorkspace } from "./peopleWorkspace.js?v=20261007-people2";
+import { renderFounderCommandCenter } from "./founderCommandCenter.js?v=20261007-founder1";
 
 const SUPABASE_URL = "https://ixewnbjndguchunwcuhf.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_vFnLRe9cmnOcyz2Fivprhw_8UjBaRGL";
@@ -3412,13 +3413,13 @@ function pageUsesRealtimeTable(table) {
     followups: ["overview","followups","metrics"],
     client_invoices: ["crm","billing"],
     invoice_payments: ["crm","billing"],
-    demo_requests: ["crm","growth","admin","pipeline"],
+    demo_requests: ["overview","crm","growth","admin","pipeline"],
     crm_activities: ["crm","pipeline"],
     work_tasks: ["overview","tasks","clients","operations","projects","accounts","performance"],
     nexo_projects: ["overview","projects","accounts","performance"],
     organization_onboarding: ["overview","delivery"],
-    nexo_people_candidates: ["people"],
-    nexo_people_onboarding: ["people"],
+    nexo_people_candidates: ["overview","people"],
+    nexo_people_onboarding: ["overview","people"],
     assistants: ["overview","clients","operations","settings","delivery","departmentOps"],
     conversations: ["overview","conversations","metrics","departmentOps"],
     appointments: ["overview","appointments","metrics","departmentOps"],
@@ -3871,7 +3872,12 @@ async function render() {
     people:["Talento Humano","NEXO PEOPLE & CULTURE","Personas, procesos y crecimiento.","Reclutamiento, onboarding y directorio interno."],
     profile:["Mi perfil","CUENTA NEXO","Tu perfil, bajo tu control.","Foto, datos de contacto e información personal de tu acceso."],
   };
-  const meta = state.isInternalStaff ? (staffMeta[state.page] || pageMeta[state.page]) : pageMeta[state.page];
+  const founderMeta = {
+    overview:["Command Center","FOUNDER / CEO · NEXO COMMAND CENTER","Control ejecutivo de NEXO.","Ventas, clientes, equipo, proyectos, operación, talento y finanzas en una sola vista."],
+  };
+  const meta = state.isInternalStaff
+    ? (staffMeta[state.page] || pageMeta[state.page])
+    : (state.isAdmin && isInternalOrg() && founderMeta[state.page] ? founderMeta[state.page] : pageMeta[state.page]);
 
   if (["crm","growth","clients","operations","quality","audit"].includes(state.page) && state.isAdmin) {
     const internal = state.organizations.find((org) => org.name === "NEXO Internal");
@@ -3898,7 +3904,8 @@ async function render() {
   }
 
   try {
-    if (state.isInternalStaff && state.page === "overview") await renderStaffHome(staffWorkspaceContext());
+    if (state.isAdmin && isInternalOrg() && state.page === "overview") await renderFounderCommandCenter(staffWorkspaceContext());
+    else if (state.isInternalStaff && state.page === "overview") await renderStaffHome(staffWorkspaceContext());
     else if (state.isInternalStaff && state.page === "projects") await renderStaffProjects(staffWorkspaceContext());
     else if (state.isInternalStaff && state.page === "accounts") await renderStaffAccounts(staffWorkspaceContext());
     else if (state.isInternalStaff && state.page === "performance") await renderStaffPerformance(staffWorkspaceContext());
