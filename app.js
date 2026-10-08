@@ -3409,6 +3409,7 @@ function pageUsesRealtimeTable(table) {
     demo_requests: ["crm","growth","admin","pipeline"],
     crm_activities: ["crm","pipeline"],
     work_tasks: ["overview","tasks","clients","operations","projects","accounts","performance"],
+    nexo_projects: ["overview","projects","accounts","performance"],
     organization_onboarding: ["overview","delivery"],
     assistants: ["overview","clients","operations","settings","delivery","departmentOps"],
     conversations: ["overview","conversations","metrics","departmentOps"],
@@ -3472,7 +3473,7 @@ function startRealtime() {
   [
     "conversations","messages","leads","appointments","followups",
     "client_invoices","invoice_payments","demo_requests","crm_activities","work_tasks","contact_notes",
-    "conversation_reads","assistants","organization_commercials","crm_integrations","audit_log","nexo_user_roles","nexo_client_assignments"
+    "conversation_reads","assistants","organization_onboarding","nexo_projects","organization_commercials","crm_integrations","audit_log","nexo_user_roles","nexo_client_assignments"
   ].forEach((table) => {
     realtimeChannel.on("postgres_changes", { event: "*", schema: "public", table }, () => {
       scheduleRealtimeRefresh(table);
