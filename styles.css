@@ -1645,3 +1645,49 @@ aside::-webkit-scrollbar-thumb{background:#344968;border-radius:999px}
   .staff-onboarding-steps{grid-template-columns:1fr}
   .staff-activity-list,.staff-ops-list{padding-left:14px;padding-right:14px}
 }
+
+
+/* Executive work control */
+.executive-task-create{grid-template-columns:1.1fr 1fr 1.2fr 1.5fr .9fr 1.15fr 1.6fr auto}
+.executive-task-create .btn{min-height:40px}
+.task-row-meta span:first-child{max-width:62ch}
+#executiveTaskRows .task-row-actions{min-width:150px}
+
+/* Talent / People & Culture */
+.people-pipeline{display:grid;grid-template-columns:repeat(6,minmax(190px,1fr));gap:10px;overflow-x:auto;padding:0 18px 18px}
+.people-pipeline-column{min-width:190px;border:1px solid #e4eaf2;border-radius:11px;background:#fafbfd;overflow:hidden}
+.people-pipeline-column>header{display:flex;align-items:center;justify-content:space-between;padding:10px 11px;border-bottom:1px solid #e6ebf2}
+.people-pipeline-column>header b{font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:#526986}
+.people-pipeline-column>header span{display:grid;place-items:center;min-width:22px;height:22px;border-radius:999px;background:#eef3fa;color:#5d7290;font-size:8px;font-weight:900}
+.people-pipeline-column>div{padding:8px;display:flex;flex-direction:column;gap:8px}
+.people-candidate-card{border:1px solid #e3e9f1;background:#fff;border-radius:9px;padding:10px;box-shadow:0 2px 8px rgba(27,45,73,.04)}
+.people-candidate-card>span{display:block;font-size:8px;text-transform:uppercase;color:#8d99aa;font-weight:800}
+.people-candidate-card>b{display:block;font-size:10px;color:#3d5573;margin:3px 0}
+.people-candidate-card>small{display:block;font-size:8px;color:#8390a2}
+.people-candidate-card>div{margin-top:7px;font-size:8px;color:#718197}
+.people-stage-select{width:100%;margin-top:8px;border:1px solid #e1e7ef;border-radius:7px;padding:6px;background:#f9fbfd;font-size:8px;color:#4d6481;font-weight:800}
+.people-directory-table .team-role-department{font-size:9px}
+.people-onboarding-status{display:inline-flex;border-radius:999px;padding:5px 7px;font-size:8px;font-weight:900;background:#eef4ff;color:#426dbd}
+.people-onboarding-status.done{background:#e9f7f0;color:#34755b}
+.people-onboarding-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:0 18px 18px}
+.people-onboarding-card{padding:15px}
+.people-onboarding-card>div:first-child b{display:block;font-size:10px;color:#405773}
+.people-onboarding-card>div:first-child small{display:block;margin-top:3px;font-size:8px;color:#8794a6}
+.people-onboarding-steps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}
+.people-onboarding-steps label{border:1px solid #e7ecf2;border-radius:8px;padding:8px;background:#fafbfd}
+.people-onboarding-steps span{display:block;font-size:7.5px;text-transform:uppercase;color:#8e99a8;font-weight:800;margin-bottom:4px}
+.people-onboarding-steps select{width:100%;border:0;background:transparent;font-size:8.5px;color:#455c79;font-weight:800;outline:none}
+.people-onboarding-steps b{font-size:8.5px;color:#455c79}
+
+@media(max-width:1200px){
+  .executive-task-create{grid-template-columns:repeat(4,minmax(0,1fr))}
+}
+@media(max-width:1000px){
+  .people-pipeline{grid-template-columns:repeat(6,190px)}
+}
+@media(max-width:720px){
+  .executive-task-create{grid-template-columns:1fr}
+  .people-pipeline{padding:0 12px 12px}
+  .people-onboarding-grid{grid-template-columns:1fr;padding:0 14px 14px}
+  .people-onboarding-steps{grid-template-columns:1fr}
+}
