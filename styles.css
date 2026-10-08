@@ -2034,3 +2034,290 @@ table{min-width:max-content}
     grid-template-columns:1fr;
   }
 }
+
+
+/* =========================================================
+   NEXO Desktop Readability Boost — 2026-10-08
+   Desktop only. Mobile rules remain untouched.
+   ========================================================= */
+@media(min-width:1100px){
+  body{
+    font-size:16px;
+    line-height:1.5;
+  }
+
+  /* Overall frame */
+  aside{
+    width:260px;
+    padding:32px 20px 20px;
+  }
+  .workspace{
+    margin-left:260px;
+    width:calc(100% - 260px);
+  }
+  main{
+    width:min(100%,1540px);
+    padding-left:36px;
+    padding-right:36px;
+    padding-top:36px;
+  }
+  .topbar{
+    height:82px;
+    padding-left:36px;
+    padding-right:36px;
+  }
+  .live-banner{
+    padding:12px 36px;
+    font-size:14px!important;
+  }
+
+  /* Sidebar */
+  .sidebar-brand{padding-left:16px;padding-right:16px}
+  .workspace-label{
+    padding:12px 13px;
+    font-size:14px;
+  }
+  .workspace-label span{font-size:11px!important}
+  .nav-title{
+    font-size:12px!important;
+    margin-bottom:11px;
+  }
+  .nav-item{
+    padding:13px 12px;
+    font-size:15px!important;
+  }
+  .sidebar-note strong{font-size:13px}
+  .sidebar-note span{font-size:12px;line-height:1.55}
+  .profile-button strong{font-size:14px}
+  .profile-button small{font-size:12px}
+
+  /* Topbar */
+  .topbar-left,.org-switcher select{
+    font-size:15px!important;
+  }
+  .top-email{font-size:12px!important}
+  .org-badge{width:36px;height:36px;font-size:12px}
+  .topbar-right{gap:22px}
+
+  /* Page heading */
+  .page-heading{margin-bottom:30px}
+  .page-heading h1{
+    font-size:35px!important;
+    line-height:1.12;
+    letter-spacing:-1.2px;
+    margin-top:9px;
+  }
+  .page-heading>div>p:last-child{
+    font-size:16px!important;
+    line-height:1.55;
+    margin-top:10px;
+  }
+  .eyebrow{font-size:12px!important}
+
+  /* Cards and general controls */
+  .card{border-radius:14px}
+  .card-head{padding:23px 24px 18px}
+  .card-head h2{font-size:20px!important}
+  .card-head p{font-size:14px!important;line-height:1.5}
+  .btn{
+    font-size:15px!important;
+    min-height:44px;
+    padding:11px 15px;
+  }
+  .btn.small{
+    font-size:14px!important;
+    min-height:40px;
+  }
+  .control,.search input,input,select,textarea{
+    font-size:15px!important;
+  }
+  .control{padding:10px 13px}
+
+  /* KPI cards */
+  .stats-grid{gap:18px}
+  .stat-card{padding:22px 23px}
+  .stat-label{font-size:14px!important}
+  .stat-value{
+    font-size:39px!important;
+    margin:15px 0 8px;
+  }
+  .stat-card small{font-size:13px!important}
+  .count,.pill{font-size:12px!important}
+
+  /* Standard rows / tables */
+  .item-row{
+    font-size:14px!important;
+    padding:16px 0;
+  }
+  .item-row strong{font-size:15px!important}
+  .item-row small{font-size:12px!important}
+  table,.team-table,.people-directory-table{
+    font-size:14px!important;
+  }
+  th,td,
+  .team-table th,.team-table td,
+  .people-directory-table th,.people-directory-table td{
+    font-size:14px!important;
+    line-height:1.5;
+  }
+  th{padding:15px 20px}
+  td{padding:17px 20px}
+  .status-select{font-size:14px!important;padding:8px 10px}
+
+  /* Team & Access */
+  .team-person{gap:12px;min-width:220px}
+  .team-person-avatar{
+    width:40px;height:40px;
+    font-size:12px;
+  }
+  .team-person b{font-size:14px!important}
+  .team-person span,.team-person small{
+    font-size:12px!important;
+    line-height:1.45;
+  }
+  .team-role-pill,.team-status,.team-role-department{
+    font-size:12px!important;
+    padding:6px 9px;
+  }
+  .team-client-chips span{font-size:11px!important;padding:5px 8px}
+  .team-row-actions{gap:7px}
+  .nexo-team-grid{
+    grid-template-columns:minmax(0,1.55fr) minmax(390px,.75fr);
+    gap:18px;
+  }
+
+  /* Tasks: stop compressing everything into one tiny line */
+  .task-create-card{
+    padding:0 22px 22px;
+    margin-bottom:20px;
+  }
+  .task-create-card .card-head{
+    margin-left:-22px;
+    margin-right:-22px;
+  }
+  .task-create-form{
+    grid-template-columns:repeat(4,minmax(0,1fr))!important;
+    gap:12px!important;
+  }
+  .task-create-form input,
+  .task-create-form select,
+  .task-status-control{
+    min-height:46px;
+    padding:11px 12px;
+    font-size:14px!important;
+  }
+  .task-create-form .btn{
+    min-height:46px;
+  }
+  .executive-task-create{
+    grid-template-columns:repeat(4,minmax(0,1fr))!important;
+    gap:12px;
+  }
+  .task-list{padding:0 22px 20px}
+  .task-row{
+    padding:16px 0;
+    gap:20px;
+  }
+  .task-row-top>span,.task-priority{
+    font-size:11px!important;
+  }
+  .task-row-main>b{font-size:15px!important}
+  .task-row-main>p{
+    font-size:13px!important;
+    line-height:1.5;
+    margin:6px 0;
+  }
+  .task-row-meta{
+    font-size:12px!important;
+    gap:16px;
+  }
+  .task-row-meta span{font-size:12px!important}
+  .task-toolbar{gap:10px}
+
+  /* Staff workspaces / department cards */
+  .staff-kpi-grid{gap:14px}
+  .staff-kpi-grid article{padding:18px}
+  .staff-kpi-grid span{font-size:12px!important}
+  .staff-kpi-grid b{font-size:24px!important}
+  .staff-kpi-grid small{font-size:12px!important}
+
+  .staff-sales-pipeline,.people-pipeline{
+    grid-template-columns:repeat(6,minmax(220px,1fr));
+    gap:12px;
+  }
+  .staff-sales-column,.people-pipeline-column{min-width:220px}
+  .staff-sales-column>header b,.people-pipeline-column>header b{
+    font-size:12px!important;
+  }
+  .staff-sales-column>header span,.people-pipeline-column>header span{
+    font-size:11px!important;
+  }
+  .staff-sales-card,.people-candidate-card{padding:13px}
+  .staff-sales-card>span,.people-candidate-card>span{font-size:11px!important}
+  .staff-sales-card>b,.people-candidate-card>b{font-size:14px!important}
+  .staff-sales-card>small,.people-candidate-card>small,
+  .staff-sales-card>div,.people-candidate-card>div{
+    font-size:12px!important;
+  }
+  .staff-sales-stage,.people-stage-select{font-size:13px!important;min-height:38px}
+
+  /* Founder Command Center */
+  .founder-command-hero{
+    padding:28px 30px;
+    margin-bottom:18px;
+  }
+  .founder-command-hero h2{font-size:32px!important}
+  .founder-command-hero p{font-size:15px!important}
+  .founder-kpi-grid{
+    gap:12px;
+    margin-bottom:18px;
+  }
+  .founder-kpi-grid>article{padding:17px 18px}
+  .founder-kpi-grid span{font-size:12px!important}
+  .founder-kpi-grid b{font-size:25px!important}
+  .founder-kpi-grid small{font-size:12px!important}
+  .founder-command-layout{gap:16px;margin-bottom:16px}
+  .founder-attention-item{padding:13px 0}
+  .founder-attention-item span{font-size:11px!important}
+  .founder-attention-item b{font-size:14px!important}
+  .founder-attention-item small,.founder-attention-item em{font-size:12px!important}
+  .founder-finance-grid span{font-size:11px!important}
+  .founder-finance-grid b{font-size:17px!important}
+  .founder-finance-grid small{font-size:12px!important}
+  .founder-department-grid{gap:12px}
+  .founder-department-card{padding:15px}
+  .founder-dept-top>span{font-size:14px!important}
+  .founder-department-card>small,
+  .founder-dept-main span,
+  .founder-department-card>strong,
+  .founder-department-card>p{
+    font-size:12px!important;
+  }
+  .founder-dept-main b{font-size:25px!important}
+  .founder-client-health b{font-size:14px!important}
+  .founder-client-health small,.founder-client-signals span{font-size:12px!important}
+  .founder-team-numbers span{font-size:12px!important}
+  .founder-department-headcount span,.founder-department-headcount b{font-size:13px!important}
+  .founder-mini-metrics span{font-size:12px!important}
+  .founder-mini-metrics b{font-size:18px!important}
+
+  /* Modals / drawers */
+  .task-editor-form label,.contact360-form label{
+    font-size:12px!important;
+  }
+  .task-editor-form input,.task-editor-form select,.task-editor-form textarea,
+  .contact360-form input,.contact360-task-form input,.contact360-task-form select,
+  .contact-note-form textarea{
+    font-size:14px!important;
+  }
+
+  /* Footer */
+  footer{font-size:12px!important}
+}
+
+/* Extra-wide monitors: don't spread the app so far that everything feels tiny */
+@media(min-width:1700px){
+  main{width:min(100%,1480px)}
+  .founder-kpi-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .founder-department-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
