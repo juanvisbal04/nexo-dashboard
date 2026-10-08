@@ -3103,3 +3103,16 @@ p{
     left:-20px;
   }
 }
+
+
+/* NEXO product lines in catalog */
+.nexo-lines-section{background:#f7f9fc;border-bottom:1px solid var(--line)}
+.nexo-lines-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:42px}
+.nexo-line-card{position:relative;min-height:330px;padding:28px;border:1px solid #dfe7ef;border-radius:20px;background:#fff}
+.nexo-line-card.featured{background:linear-gradient(145deg,#eef7ff,#fff);border-color:#cfe4f8}
+.nexo-line-card>span{display:block;color:var(--blue);font-size:10px;font-weight:800;letter-spacing:.1em}
+.nexo-line-card h3{margin:58px 0 12px;color:var(--navy);font-size:clamp(23px,2vw,31px);line-height:1.1;letter-spacing:-.035em}
+.nexo-line-card p{margin:0;color:#6b7d91;font-size:13px;line-height:1.7}
+.nexo-line-card .text-link{position:absolute;left:28px;bottom:26px}
+@media(max-width:900px){.nexo-lines-grid{grid-template-columns:1fr}.nexo-line-card{min-height:280px}}
+@media(max-width:700px){.nexo-lines-grid{margin-top:28px}.nexo-line-card{padding:24px}.nexo-line-card>span{font-size:11px}.nexo-line-card h3{margin-top:42px;font-size:28px}.nexo-line-card p{font-size:14px}.nexo-line-card .text-link{left:24px;bottom:24px}}
