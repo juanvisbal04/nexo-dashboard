@@ -65,3 +65,26 @@ drop trigger if exists touch_nora_web_sessions_updated_at on public.nora_web_ses
 create trigger touch_nora_web_sessions_updated_at
 before update on public.nora_web_sessions
 for each row execute function private.set_updated_at();
+
+
+-- Explicit browser denial policies. Edge Functions use service_role and bypass these.
+drop policy if exists "deny browser access nora sessions" on public.nora_web_sessions;
+create policy "deny browser access nora sessions"
+on public.nora_web_sessions as restrictive for all
+to anon, authenticated
+using (false)
+with check (false);
+
+drop policy if exists "deny browser access nora messages" on public.nora_web_messages;
+create policy "deny browser access nora messages"
+on public.nora_web_messages as restrictive for all
+to anon, authenticated
+using (false)
+with check (false);
+
+drop policy if exists "deny browser access nora rate limits" on public.nora_web_rate_limits;
+create policy "deny browser access nora rate limits"
+on public.nora_web_rate_limits as restrictive for all
+to anon, authenticated
+using (false)
+with check (false);
