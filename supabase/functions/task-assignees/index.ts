@@ -3,12 +3,19 @@ import { createClient } from "npm:@supabase/supabase-js@2.58.0";
 const SUPABASE_URL=Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const service=createClient(SUPABASE_URL,SERVICE_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
+const CORS_HEADERS={
+  "access-control-allow-origin":"*",
+  "access-control-allow-headers":"authorization, apikey, content-type, x-client-info",
+  "access-control-allow-methods":"POST, OPTIONS",
+  "cache-control":"no-store",
+};
 
 function json(body:unknown,status=200){
-  return new Response(JSON.stringify(body),{status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store"}});
+  return new Response(JSON.stringify(body),{status,headers:{...CORS_HEADERS,"content-type":"application/json; charset=utf-8"}});
 }
 
 Deno.serve(async(req:Request)=>{
+  if(req.method==="OPTIONS") return new Response(null,{status:204,headers:CORS_HEADERS});
   if(req.method!=="POST") return json({error:"Method not allowed"},405);
   try{
     const auth=req.headers.get("authorization")||"";
