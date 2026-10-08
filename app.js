@@ -5,6 +5,8 @@ import { renderDataQuality, openOnboarding, closeQualityDrawer } from "./quality
 import { renderInternalTeam } from "./team.js?v=20261007-company1";
 import { renderStaffHome, renderStaffProjects, renderStaffAccounts, renderStaffPerformance } from "./staffWorkspace.js?v=20261007-company1";
 import { renderSalesWorkspace, renderImplementationWorkspace, renderOperationsWorkspace } from "./departmentWorkspaces.js?v=20261007-dept2";
+import { renderExecutiveTasks } from "./executiveTasks.js?v=20261007-exec1";
+import { renderPeopleWorkspace } from "./peopleWorkspace.js?v=20261007-people1";
 
 const SUPABASE_URL = "https://ixewnbjndguchunwcuhf.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_vFnLRe9cmnOcyz2Fivprhw_8UjBaRGL";
@@ -84,11 +86,12 @@ function canAccessPage(page) {
     if (hasPermission("crm.assigned.read") || hasPermission("crm.all.read")) allowed.add("pipeline");
     if (state.internalDepartmentKey === "implementation_cs") allowed.add("delivery");
     if (state.internalDepartmentKey === "operations") allowed.add("departmentOps");
+    if (state.internalDepartmentKey === "people_culture" || hasPermission("people.directory.read") || hasPermission("people.recruiting.read") || hasPermission("people.onboarding.read")) allowed.add("people");
     return allowed.has(page);
   }
 
-  if (["admin","crm","growth","clients","operations","quality","audit"].includes(page) && !state.isAdmin) return false;
-  if (["crm","growth","clients","operations","quality","audit"].includes(page) && !adminInternalView()) return false;
+  if (["admin","crm","growth","clients","operations","quality","audit","people"].includes(page) && !state.isAdmin) return false;
+  if (["crm","growth","clients","operations","quality","audit","people"].includes(page) && !adminInternalView()) return false;
   if (page === "team" && !canManageCurrentOrgUsers()) return false;
   return true;
 }
@@ -144,6 +147,7 @@ const pageMeta = {
   pipeline: ["Mi pipeline", "NEXO SALES", "Tu pipeline comercial.", "Oportunidades, próximas acciones y actividad comercial sin finanzas internas."],
   delivery: ["Implementación", "NEXO DELIVERY", "Onboarding y éxito del cliente.", "Configuración, readiness y seguimiento dentro de tu scope."],
   departmentOps: ["Centro operativo", "NEXO OPERATIONS", "Operación bajo control.", "Asistentes, conversaciones, alertas y agenda de clientes asignados."],
+  people: ["Talento Humano", "NEXO PEOPLE & CULTURE", "Las personas también son operación.", "Reclutamiento, onboarding interno y directorio del equipo."],
   settings: ["Configuración", "NEXO SETTINGS", "Cada negocio, bien configurado.", "Identidad, contacto, asistente, notificaciones y preferencias."],
   audit: ["Audit Log", "NEXO GOVERNANCE", "Cada cambio deja rastro.", "Historial administrativo de configuración, accesos, cobros e integraciones."],
   profile: ["Mi perfil", "CUENTA NEXO", "Tu perfil, bajo tu control.", "Foto, datos de contacto e información personal de tu acceso."],
@@ -922,6 +926,8 @@ function updateNavigationAccess() {
     document.querySelectorAll(".staff-pipeline-nav").forEach((item)=>item.classList.toggle("hidden",!canPipeline));
     document.querySelectorAll(".staff-delivery-nav").forEach((item)=>item.classList.toggle("hidden",!canDelivery));
     document.querySelectorAll(".staff-ops-nav").forEach((item)=>item.classList.toggle("hidden",!canOps));
+    const canPeople=state.internalDepartmentKey==="people_culture"||hasPermission("people.directory.read")||hasPermission("people.recruiting.read")||hasPermission("people.onboarding.read");
+    document.querySelectorAll(".staff-people-nav").forEach((item)=>item.classList.toggle("hidden",!canPeople));
   }
 
   if ($("profileRole")) {
@@ -3411,6 +3417,8 @@ function pageUsesRealtimeTable(table) {
     work_tasks: ["overview","tasks","clients","operations","projects","accounts","performance"],
     nexo_projects: ["overview","projects","accounts","performance"],
     organization_onboarding: ["overview","delivery"],
+    nexo_people_candidates: ["people"],
+    nexo_people_onboarding: ["people"],
     assistants: ["overview","clients","operations","settings","delivery","departmentOps"],
     conversations: ["overview","conversations","metrics","departmentOps"],
     appointments: ["overview","appointments","metrics","departmentOps"],
@@ -3473,7 +3481,7 @@ function startRealtime() {
   [
     "conversations","messages","leads","appointments","followups",
     "client_invoices","invoice_payments","demo_requests","crm_activities","work_tasks","contact_notes",
-    "conversation_reads","assistants","organization_onboarding","nexo_projects","organization_commercials","crm_integrations","audit_log","nexo_user_roles","nexo_client_assignments"
+    "conversation_reads","assistants","organization_onboarding","nexo_projects","nexo_people_candidates","nexo_people_onboarding","organization_commercials","crm_integrations","audit_log","nexo_user_roles","nexo_client_assignments"
   ].forEach((table) => {
     realtimeChannel.on("postgres_changes", { event: "*", schema: "public", table }, () => {
       scheduleRealtimeRefresh(table);
@@ -3860,6 +3868,7 @@ async function render() {
     pipeline:[hasPermission("crm.all.read")?"Pipeline del equipo":"Mi pipeline","NEXO SALES","Ventas en movimiento.","Oportunidades y próximas acciones sin exponer finanzas internas."],
     delivery:["Implementación","NEXO DELIVERY","Onboarding y éxito del cliente.","Configuración, readiness y seguimiento dentro de tu scope."],
     departmentOps:["Centro operativo","NEXO OPERATIONS","Operación bajo control.","Asistentes, conversaciones, alertas y agenda."],
+    people:["Talento Humano","NEXO PEOPLE & CULTURE","Personas, procesos y crecimiento.","Reclutamiento, onboarding y directorio interno."],
     profile:["Mi perfil","CUENTA NEXO","Tu perfil, bajo tu control.","Foto, datos de contacto e información personal de tu acceso."],
   };
   const meta = state.isInternalStaff ? (staffMeta[state.page] || pageMeta[state.page]) : pageMeta[state.page];
@@ -3873,9 +3882,9 @@ async function render() {
   }
 
   persistUiState();
-  const noPeriod = ["crm","billing","clients","tasks","quality","settings","audit","profile","team","projects","accounts","performance","pipeline","delivery","departmentOps"].includes(state.page);
+  const noPeriod = ["crm","billing","clients","tasks","quality","settings","audit","profile","team","projects","accounts","performance","pipeline","delivery","departmentOps","people"].includes(state.page);
   $("periodSelect").classList.toggle("hidden", noPeriod);
-  $("exportButton").classList.toggle("hidden", ["settings","profile","team","projects","accounts","performance","pipeline","delivery","departmentOps"].includes(state.page) || state.isInternalStaff);
+  $("exportButton").classList.toggle("hidden", ["settings","profile","team","projects","accounts","performance","pipeline","delivery","departmentOps","people"].includes(state.page) || state.isInternalStaff);
   $("exportButton").textContent = state.page === "crm" ? "Exportar CRM" : state.page === "growth" ? "Exportar growth" : state.page === "billing" ? "Exportar cobros" : state.page === "audit" ? "Exportar audit" : state.page === "clients" ? "Exportar clientes" : state.page === "tasks" ? "Exportar tareas" : state.page === "quality" ? "Exportar calidad" : "Exportar CSV";
 
   $("breadcrumb").textContent = meta[0];
@@ -3896,6 +3905,7 @@ async function render() {
     else if (state.isInternalStaff && state.page === "pipeline") await renderSalesWorkspace(staffWorkspaceContext());
     else if (state.isInternalStaff && state.page === "delivery") await renderImplementationWorkspace(staffWorkspaceContext());
     else if (state.isInternalStaff && state.page === "departmentOps") await renderOperationsWorkspace(staffWorkspaceContext());
+    else if ((state.isAdmin && isInternalOrg() || state.isInternalStaff) && state.page === "people") await renderPeopleWorkspace(staffWorkspaceContext());
     else if (state.page === "overview") await renderOverview();
     else if (["conversations", "leads", "appointments", "followups"].includes(state.page)) await renderTablePage(state.page);
     else if (state.page === "metrics") await renderMetrics();
@@ -3905,6 +3915,7 @@ async function render() {
     else if (state.page === "growth") await renderGrowth();
     else if (state.page === "clients" || state.page === "admin") await renderClients();
     else if (state.page === "operations") await renderOperations();
+    else if (state.page === "tasks" && state.isAdmin && isInternalOrg()) await renderExecutiveTasks(staffWorkspaceContext());
     else if (state.page === "tasks") await renderTasks(workspace360Context());
     else if (state.page === "quality") await renderDataQuality(qualityContext());
     else if (state.page === "settings") await renderSettings();
@@ -4236,8 +4247,8 @@ $("orgSelect").addEventListener("change", async () => {
   const internal=adminInternalView();
   if (state.isInternalStaff && !canAccessPage(state.page)) state.page="overview";
   if (!state.isInternalStaff) {
-    if (internal && !["overview","crm","clients","operations","conversations","tasks","quality","settings","audit","profile","growth","team"].includes(state.page)) state.page="overview";
-    if (!internal && ["crm","growth","clients","operations","quality","audit","admin"].includes(state.page)) state.page="overview";
+    if (internal && !["overview","crm","clients","operations","conversations","tasks","quality","settings","audit","profile","growth","team","people"].includes(state.page)) state.page="overview";
+    if (!internal && ["crm","growth","clients","operations","quality","audit","admin","people"].includes(state.page)) state.page="overview";
     if (state.page === "team" && !canManageCurrentOrgUsers()) state.page = "overview";
   }
   document.querySelectorAll(".nav-item").forEach((item) => item.classList.toggle("active", item.dataset.page === state.page));
