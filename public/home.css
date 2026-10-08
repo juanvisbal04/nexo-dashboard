@@ -1108,3 +1108,95 @@
     transition:none;
   }
 }
+
+
+/* NEXO product architecture */
+.nx-products{
+  padding:clamp(90px,10vw,145px) max(22px,6vw);
+  background:#fff;
+}
+.nx-products-head{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(280px,500px);
+  gap:48px;
+  align-items:end;
+  margin-bottom:42px;
+}
+.nx-products-head p{
+  margin:0;
+  color:#65788f;
+  font-size:14px;
+  line-height:1.75;
+}
+.nx-product-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:14px;
+}
+.nx-product-card{
+  position:relative;
+  min-height:390px;
+  padding:28px;
+  border:1px solid #dfe7ef;
+  border-radius:20px;
+  overflow:hidden;
+  background:#fff;
+}
+.nx-product-card>span{
+  display:block;
+  color:#2d9cff;
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:.1em;
+}
+.nx-product-card h3{
+  max-width:460px;
+  margin:82px 0 14px;
+  color:#0b1f3b;
+  font-size:clamp(24px,2.3vw,34px);
+  line-height:1.08;
+  letter-spacing:-.035em;
+}
+.nx-product-card p{
+  max-width:500px;
+  margin:0;
+  color:#6c7e92;
+  font-size:13px;
+  line-height:1.7;
+}
+.nx-product-card .nx-text-link{
+  position:absolute;
+  left:28px;
+  bottom:28px;
+}
+.nx-product-card.assistants{
+  background:
+    radial-gradient(circle at 90% 8%,rgba(45,156,255,.14),transparent 32%),
+    #f8fbff;
+}
+.nx-product-card.marketing{
+  background:
+    radial-gradient(circle at 85% 10%,rgba(99,186,255,.16),transparent 32%),
+    linear-gradient(145deg,#eef7ff,#fff);
+}
+.nx-product-card.solutions{
+  background:
+    radial-gradient(circle at 90% 10%,rgba(86,134,188,.15),transparent 33%),
+    #f7f9fc;
+}
+@media(max-width:1000px){
+  .nx-products-head{grid-template-columns:1fr;gap:20px}
+  .nx-product-grid{grid-template-columns:1fr}
+  .nx-product-card{min-height:310px}
+  .nx-product-card h3{margin-top:50px}
+}
+@media(max-width:700px){
+  .nx-products{padding:78px 18px}
+  .nx-products-head{margin-bottom:28px}
+  .nx-products-head p{font-size:15px}
+  .nx-product-card{min-height:300px;padding:24px}
+  .nx-product-card>span{font-size:11px}
+  .nx-product-card h3{font-size:29px;margin-top:44px}
+  .nx-product-card p{font-size:14px}
+  .nx-product-card .nx-text-link{left:24px;bottom:24px}
+}
