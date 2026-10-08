@@ -5,7 +5,7 @@
   --orange:#ad6439;--orangebg:#fff0e6;
 }
 *{box-sizing:border-box}
-html,body{margin:0;min-height:100%;font-family:"DM Sans",system-ui,sans-serif;background:var(--surface);color:var(--ink)}\nhtml{overflow-x:clip}body{overflow-x:clip;touch-action:pan-y;-webkit-overflow-scrolling:touch}
+html,body{margin:0;min-height:100%;font-family:"DM Sans",system-ui,sans-serif;background:var(--surface);color:var(--ink)}\nhtml{overflow-x:clip}body{overflow-x:clip;touch-action:auto;-webkit-overflow-scrolling:touch}
 button,input,select{font:inherit}button,select{cursor:pointer}button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #80a8ff;outline-offset:2px}
 .hidden{display:none!important}
 h1,h2,h3,p{margin:0}
@@ -173,7 +173,7 @@ footer b{color:#77869c}footer b span{color:#4b82f2}
 .bubble small{display:block;font-size:9px;font-weight:800;letter-spacing:.5px;opacity:.65;margin-bottom:5px;text-transform:uppercase}
 .bubble p{font-size:13px;line-height:1.5;white-space:pre-wrap;word-break:break-word}
 .bubble time{display:block;font-size:9px;opacity:.55;margin-top:7px;text-align:right}
-body.modal-open{overflow:hidden;touch-action:none}
+body.modal-open{overflow:hidden;touch-action:pinch-zoom}
 
 .admin-grid{align-items:start}
 .access-card{overflow:visible}
@@ -1805,4 +1805,232 @@ aside::-webkit-scrollbar-thumb{background:#344968;border-radius:999px}
   .founder-client-health>article{grid-template-columns:auto 1fr}
   .founder-client-signals{grid-column:1/-1;justify-content:flex-start;padding-left:44px}
   .founder-team-numbers{grid-template-columns:1fr 1fr}
+}
+
+
+/* =========================================================
+   NEXO Responsive Readability Layer — 2026-10-08
+   Keeps dense operational UI readable without wasting space.
+   ========================================================= */
+html{
+  -webkit-text-size-adjust:100%;
+  text-size-adjust:100%;
+}
+body{
+  font-size:14px;
+  line-height:1.45;
+}
+
+/* Core UI readability */
+.eyebrow,.nav-title,.workspace-label span,.count,.pill,
+.stat-card small,.card-head p,.value-box span,.top-email,
+footer,.security-note,.bubble small,.bubble time{
+  font-size:12px!important;
+  line-height:1.45;
+}
+.card-head h2{font-size:18px!important;line-height:1.25}
+.item-row,table,.metric-list .metric-line,.funnel-line{font-size:13px!important}
+.item-row strong,td b{font-size:14px}
+th,td{font-size:13px!important;line-height:1.45}
+th{padding-top:14px;padding-bottom:14px}
+td{padding-top:15px;padding-bottom:15px}
+.status-select,.control,.search input,
+input,select,textarea{font-size:14px}
+.btn{font-size:14px;min-height:42px}
+.btn.small{font-size:13px!important;min-height:38px}
+.empty{font-size:14px}
+.empty strong{font-size:15px}
+.phone-cell a,.chat-phone a,.chat-button{font-size:12px!important}
+.bubble p{font-size:14px!important}
+
+/* Team / staff / project surfaces */
+.team-table,.people-directory-table{font-size:13px!important}
+.team-table th,.team-table td,.people-directory-table th,.people-directory-table td{
+  font-size:13px!important;
+}
+.team-person b,.team-role-pill,.team-role-department,
+.team-status,.team-invite-meta,.team-permission-pill,
+.staff-client-card b,.staff-project-card b,.staff-task-card b{
+  font-size:12px!important;
+}
+.team-person span,.team-person small,
+.staff-client-card small,.staff-project-card small,.staff-task-card small{
+  font-size:11px!important;
+  line-height:1.45;
+}
+
+/* Department workspaces */
+.staff-sales-column>header b,.people-pipeline-column>header b,
+.staff-sales-card>span,.people-candidate-card>span,
+.staff-activity-list>div>span,.staff-onboarding-steps span,
+.staff-assistant-summary span,.people-onboarding-steps span{
+  font-size:11px!important;
+}
+.staff-sales-column>header span,.people-pipeline-column>header span,
+.staff-sales-card>small,.people-candidate-card>small,
+.staff-sales-card>div,.people-candidate-card>div,
+.staff-activity-list small,.staff-assistant-summary small,
+.staff-ops-list small,.staff-ops-list>article>span,
+.people-onboarding-card>div:first-child small{
+  font-size:11px!important;
+}
+.staff-sales-card>b,.people-candidate-card>b,
+.staff-activity-list b,.staff-assistant-summary b,
+.staff-ops-list b,.people-onboarding-card>div:first-child b{
+  font-size:13px!important;
+}
+.staff-sales-stage,.people-stage-select,
+.staff-onboarding-steps b,.staff-onboarding-steps select,
+.people-onboarding-steps select,.people-onboarding-steps b,
+.people-onboarding-status{
+  font-size:12px!important;
+}
+.staff-sales-empty,.staff-empty-onboarding p{font-size:12px!important}
+
+/* Founder Command Center */
+.founder-command-hero p{font-size:14px!important}
+.founder-kpi-grid span,.founder-attention-item span,
+.founder-finance-grid span,.founder-department-card>small,
+.founder-dept-main span,.founder-department-card>p,
+.founder-client-signals span,.founder-team-numbers span,
+.founder-mini-metrics span{
+  font-size:11px!important;
+  line-height:1.4;
+}
+.founder-kpi-grid small,.founder-attention-item small,
+.founder-attention-item em,.founder-finance-grid small,
+.founder-client-health small{
+  font-size:11px!important;
+  line-height:1.45;
+}
+.founder-dept-top>span,.founder-department-card>strong,
+.founder-client-health b,.founder-department-headcount span,
+.founder-department-headcount b{
+  font-size:12px!important;
+}
+.founder-finance-grid b{font-size:15px!important}
+.founder-kpi-grid b{font-size:22px!important}
+
+/* Give dense tables room instead of shrinking text */
+.table-wrap,.team-table-wrap,.people-pipeline,.staff-sales-pipeline{
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior-inline:contain;
+}
+table{min-width:max-content}
+
+/* Desktop fluid sizing */
+@media(min-width:721px){
+  main{
+    width:min(100%,1680px);
+    padding-left:clamp(24px,2.2vw,38px);
+    padding-right:clamp(24px,2.2vw,38px);
+  }
+  .page-heading h1{font-size:clamp(27px,2vw,33px)}
+  .page-heading>div>p:last-child{font-size:15px}
+  .topbar-left,.org-switcher select{font-size:14px}
+  .live-banner{font-size:13px}
+  .nav-item{font-size:14px}
+}
+
+/* Tablet: reflow sooner instead of compressing */
+@media(max-width:1050px){
+  .executive-task-create{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .founder-department-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .founder-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
+/* Mobile readability and native zoom */
+@media(max-width:720px){
+  body{font-size:16px;touch-action:auto}
+  main{padding:22px 14px 88px}
+  .topbar{padding-left:14px;padding-right:14px}
+  .live-banner{padding-left:14px;padding-right:14px;font-size:13px}
+  .org-switcher select{font-size:14px;max-width:170px}
+  .page-heading{gap:12px;margin-bottom:18px}
+  .page-heading h1{font-size:clamp(25px,7.2vw,31px);line-height:1.12}
+  .page-heading>div>p:last-child{font-size:15px;line-height:1.55}
+  .eyebrow{font-size:12px!important}
+  .card{border-radius:14px}
+  .card-head{padding:17px 16px 13px}
+  .card-head h2{font-size:19px!important}
+  .card-head p{font-size:13px!important;line-height:1.5}
+  .stats-grid{grid-template-columns:1fr 1fr;gap:9px}
+  .stat-card{padding:15px 14px}
+  .stat-label{font-size:13px}
+  .stat-value{font-size:30px}
+  .stat-card small{font-size:12px!important}
+  .btn{min-height:46px;font-size:15px}
+  .btn.small{min-height:42px;font-size:14px!important}
+  input,select,textarea,.control,.search input{
+    font-size:16px!important; /* avoids iOS input auto-zoom */
+    min-height:46px;
+  }
+  textarea{line-height:1.5}
+  .table-wrap{
+    margin-left:-1px;
+    margin-right:-1px;
+    overflow-x:auto;
+  }
+  table{font-size:14px!important}
+  th,td{font-size:14px!important;padding:14px 15px}
+  .item-row{font-size:14px!important}
+  .item-row strong{font-size:15px}
+  .pill,.count,.team-status,.team-role-pill,.team-role-department{
+    font-size:12px!important;
+  }
+  footer{font-size:11px!important;padding-bottom:22px}
+
+  /* Department cards remain readable */
+  .staff-sales-pipeline,.people-pipeline{
+    grid-template-columns:repeat(6,minmax(230px,78vw));
+    gap:12px;
+  }
+  .staff-sales-column,.people-pipeline-column{min-width:230px}
+  .staff-sales-card>b,.people-candidate-card>b,
+  .staff-activity-list b,.staff-assistant-summary b,.staff-ops-list b{
+    font-size:14px!important;
+  }
+  .staff-sales-card>small,.people-candidate-card>small,
+  .staff-sales-card>div,.people-candidate-card>div,
+  .staff-activity-list small,.staff-assistant-summary small,.staff-ops-list small{
+    font-size:12px!important;
+  }
+
+  /* Founder overview */
+  .founder-command-hero{padding:20px 17px;border-radius:14px}
+  .founder-command-hero h2{font-size:27px}
+  .founder-command-hero p{font-size:14px!important}
+  .founder-kpi-grid{grid-template-columns:1fr 1fr}
+  .founder-kpi-grid>article{padding:14px}
+  .founder-kpi-grid span{font-size:11px!important}
+  .founder-kpi-grid b{font-size:22px!important}
+  .founder-kpi-grid small{font-size:12px!important}
+  .founder-department-grid{grid-template-columns:1fr}
+  .founder-dept-top>span{font-size:14px!important}
+  .founder-department-card>small,
+  .founder-dept-main span,.founder-department-card>p,
+  .founder-department-card>strong{font-size:12px!important}
+  .founder-attention-item b{font-size:14px}
+  .founder-attention-item span,.founder-attention-item small,.founder-attention-item em{font-size:12px!important}
+  .founder-finance-grid{grid-template-columns:1fr 1fr}
+  .founder-finance-grid span{font-size:11px!important}
+  .founder-finance-grid b{font-size:15px!important}
+  .founder-client-health b{font-size:14px!important}
+  .founder-client-health small,.founder-client-signals span{font-size:12px!important}
+
+  /* Forms / task center */
+  .executive-task-create,.task-create-form,.staff-work-form{
+    grid-template-columns:1fr!important;
+  }
+  .task-row{gap:12px}
+  .task-row b{font-size:14px}
+  .task-row p,.task-row-meta span{font-size:12px!important;line-height:1.45}
+  #executiveTaskRows .task-row-actions{min-width:0;width:100%}
+}
+
+/* Very narrow devices: one-column KPIs rather than microscopic cards */
+@media(max-width:390px){
+  .stats-grid,.founder-kpi-grid,.founder-finance-grid,.founder-team-numbers{
+    grid-template-columns:1fr;
+  }
 }
