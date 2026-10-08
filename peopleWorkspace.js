@@ -15,11 +15,15 @@ const stageLabel=(value)=>Object.fromEntries(candidateStages)[value]||value||"Pr
 function can(permission){return C.state.isAdmin||Boolean(C.hasPermission?.(permission));}
 function safeDate(value){return value?C.dateTime(value):"—";}
 
-async function loadDirectory(){
+async function loadPeopleData(){
   const {data,error}=await C.supabase.functions.invoke("nexo-people-directory",{body:{}});
   if(error)throw error;
-  if(!data?.ok)throw new Error(data?.error||"No pudimos cargar el directorio.");
-  return data.people||[];
+  if(!data?.ok)throw new Error(data?.error||"No pudimos cargar Talento Humano.");
+  return {
+    people:data.people||[],
+    departments:data.departments||[],
+    roles:data.roles||[],
+  };
 }
 
 function modalShell(id,title,subtitle,body){
@@ -92,21 +96,19 @@ function openCandidateModal(departments,roles){
 
 export async function renderPeopleWorkspace(context){
   C=context;
-  const [directory,{data:candidates,error:candidateError},{data:onboarding,error:onboardingError},{data:departments,error:departmentError},{data:roles,error:roleError}]=await Promise.all([
-    loadDirectory(),
+  const [directoryData,{data:candidates,error:candidateError},{data:onboarding,error:onboardingError}]=await Promise.all([
+    loadPeopleData(),
     C.supabase.from("nexo_people_candidates").select("*").order("created_at",{ascending:false}).limit(1000),
     C.supabase.from("nexo_people_onboarding").select("*").order("created_at",{ascending:false}).limit(1000),
-    C.supabase.from("nexo_departments").select("id,department_key,name,active,planned").eq("active",true).order("sort_order"),
-    C.supabase.from("nexo_team_roles").select("id,role_key,name,department_id,active,assignable,planned").eq("active",true).eq("assignable",true).order("name"),
   ]);
   if(candidateError)throw candidateError;
   if(onboardingError)throw onboardingError;
-  if(departmentError)throw departmentError;
-  if(roleError)throw roleError;
 
+  const departments=directoryData.departments||[];
+  const roles=directoryData.roles||[];
   const canRecruit=can("people.recruiting.write");
   const canOnboard=can("people.onboarding.write");
-  const people=directory||[];
+  const people=directoryData.people||[];
   const rows=candidates||[];
   const onboardingRows=onboarding||[];
   const onboardingMap=new Map(onboardingRows.map((row)=>[row.user_id,row]));
