@@ -4022,6 +4022,8 @@ function renderSetupActivation(token) {
 
 let enterAppPromise = null;
 let activeSessionToken = null;
+let activeSessionUserId = null;
+let appSessionReady = false;
 
 function resetDashboardUiState() {
   try { localStorage.removeItem(UI_STATE_KEY); } catch {}
@@ -4057,27 +4059,48 @@ function showLoginLoadError(error) {
 }
 
 async function enterApp(session, { allowRecovery = true } = {}) {
-  if (!session) return;
-  const token = session.access_token || session.user?.id || "session";
-  if (activeSessionToken === token && !$("appView").classList.contains("hidden")) return;
+  if (!session?.user?.id) return;
+  const userId = session.user.id;
+  const token = session.access_token || userId || "session";
+
+  // Access tokens rotate. A refreshed token must not remount the whole app.
+  if (appSessionReady && activeSessionUserId === userId && !$("appView").classList.contains("hidden")) {
+    state.session = session;
+    activeSessionToken = token;
+    return;
+  }
   if (enterAppPromise) return enterAppPromise;
 
+  activeSessionUserId = userId;
+  state.session = session;
+
   enterAppPromise = (async () => {
-    state.session = session;
     const box = $("loginMessage");
     showBootView("Cargando tu espacio NEXO…");
     box.className = "message hidden";
     box.textContent = "";
     $("topEmail").textContent = session.user.email || "";
 
-    try {
+    const hydrate = async () => {
       await loadIdentity();
       await loadOrganizations();
       restoreUiState();
       startRealtime();
       await render();
+    };
+
+    try {
+      try {
+        await hydrate();
+      } catch (error) {
+        if (!allowRecovery) throw error;
+        console.warn("NEXO enterApp recovery", error);
+        resetDashboardUiState();
+        await hydrate();
+      }
 
       activeSessionToken = token;
+      appSessionReady = true;
       $("loginView").classList.add("hidden");
       $("appView").classList.remove("hidden");
       hideBootView();
@@ -4085,11 +4108,8 @@ async function enterApp(session, { allowRecovery = true } = {}) {
       box.textContent = "";
     } catch (error) {
       console.error("NEXO enterApp failed", error);
-      if (allowRecovery) {
-        resetDashboardUiState();
-        enterAppPromise = null;
-        return enterApp(session, { allowRecovery: false });
-      }
+      appSessionReady = false;
+      activeSessionUserId = null;
       showLoginLoadError(error);
     }
   })();
@@ -4214,8 +4234,7 @@ async function performLogout(sourceButton = null) {
       await supabase.removeChannel(realtimeChannel);
       realtimeChannel = null;
     }
-    await supabase.auth.signOut();
-    window.location.replace(window.location.origin);
+    await supabase.auth.signOut({ scope: "local" });
   } catch (error) {
     buttons.forEach((button) => {
       button.disabled = false;
@@ -4377,13 +4396,34 @@ document.addEventListener("visibilitychange", () => {
 });
 
 supabase.auth.onAuthStateChange((event, session) => {
-  if (event === "SIGNED_IN" && session && activeSessionToken !== session.access_token && !enterAppPromise) {
-    enterApp(session);
+  if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session) {
+    state.session = session;
+    const sameUserReady = appSessionReady
+      && activeSessionUserId === session.user?.id
+      && !$("appView").classList.contains("hidden");
+    if (!sameUserReady && !enterAppPromise) enterApp(session);
+    return;
   }
+
+  if ((event === "TOKEN_REFRESHED" || event === "USER_UPDATED") && session) {
+    // Keep the fresh JWT without remounting the dashboard.
+    state.session = session;
+    activeSessionToken = session.access_token || activeSessionToken;
+    return;
+  }
+
   if (event === "SIGNED_OUT") {
     activeSessionToken = null;
+    activeSessionUserId = null;
+    appSessionReady = false;
     state.session = null;
-    window.location.reload();
+    if (realtimeChannel) {
+      supabase.removeChannel(realtimeChannel).catch(()=>{});
+      realtimeChannel = null;
+    }
+    hideBootView();
+    $("appView")?.classList.add("hidden");
+    $("loginView")?.classList.remove("hidden");
   }
 });
 
