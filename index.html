@@ -23,7 +23,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=20261007-company1" />
+  <link rel="stylesheet" href="./styles.css?v=20261007-departments2" />
   <link rel="stylesheet" href="./crm.css?v=20261001-crm32" />
 </head>
 <body>
@@ -97,10 +97,13 @@
         <p class="nav-title">MI ESPACIO NEXO</p>
         <nav>
           <button class="nav-item active" data-page="overview">Mi inicio</button>
-          <button class="nav-item staff-projects-nav" data-page="projects">Mis proyectos</button>
-          <button class="nav-item staff-tasks-nav" data-page="tasks">Mis tareas</button>
-          <button class="nav-item staff-accounts-nav" data-page="accounts">Clientes asignados</button>
-          <button class="nav-item" data-page="performance">Mi rendimiento</button>
+          <button class="nav-item staff-pipeline-nav hidden" data-page="pipeline">Mi pipeline</button>
+          <button class="nav-item staff-delivery-nav hidden" data-page="delivery">Implementación</button>
+          <button class="nav-item staff-ops-nav hidden" data-page="departmentOps">Centro operativo</button>
+          <button class="nav-item staff-projects-nav" data-page="projects">Proyectos</button>
+          <button class="nav-item staff-tasks-nav" data-page="tasks">Tareas</button>
+          <button class="nav-item staff-accounts-nav" data-page="accounts">Clientes</button>
+          <button class="nav-item" data-page="performance">Rendimiento</button>
           <button class="nav-item" data-page="profile">Mi perfil</button>
         </nav>
       </div>
@@ -211,6 +214,9 @@
     <button class="nav-item mobile-nav-item client-mobile-nav-item" data-page="tasks"><span>✓</span><small>Tareas</small></button>
 
     <button class="nav-item mobile-nav-item staff-mobile-nav-item hidden" data-page="overview"><span>⌂</span><small>Inicio</small></button>
+    <button class="nav-item mobile-nav-item staff-mobile-nav-item staff-pipeline-nav hidden" data-page="pipeline"><span>↗</span><small>Pipeline</small></button>
+    <button class="nav-item mobile-nav-item staff-mobile-nav-item staff-delivery-nav hidden" data-page="delivery"><span>◫</span><small>Delivery</small></button>
+    <button class="nav-item mobile-nav-item staff-mobile-nav-item staff-ops-nav hidden" data-page="departmentOps"><span>◎</span><small>Operación</small></button>
     <button class="nav-item mobile-nav-item staff-mobile-nav-item staff-projects-nav hidden" data-page="projects"><span>◫</span><small>Proyectos</small></button>
     <button class="nav-item mobile-nav-item staff-mobile-nav-item staff-tasks-nav hidden" data-page="tasks"><span>✓</span><small>Tareas</small></button>
     <button class="nav-item mobile-nav-item staff-mobile-nav-item staff-accounts-nav hidden" data-page="accounts"><span>◎</span><small>Clientes</small></button>
@@ -248,6 +254,6 @@
   </aside>
   <div id="toast" class="toast hidden"></div>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-  <script type="module" src="./app.js?v=20261007-company2"></script>
+  <script type="module" src="./app.js?v=20261007-departments2"></script>
 </body>
 </html>
