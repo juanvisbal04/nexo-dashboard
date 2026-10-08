@@ -1691,3 +1691,118 @@ aside::-webkit-scrollbar-thumb{background:#344968;border-radius:999px}
   .people-onboarding-grid{grid-template-columns:1fr;padding:0 14px 14px}
   .people-onboarding-steps{grid-template-columns:1fr}
 }
+
+
+/* Founder / CEO Command Center */
+.founder-command-hero{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:22px;
+  padding:24px 26px;margin-bottom:16px;border-radius:16px;
+  background:linear-gradient(135deg,#111d35,#1c3155 72%,#244b87);
+  color:#fff;box-shadow:0 12px 32px rgba(17,29,53,.12)
+}
+.founder-command-hero h2{font:800 28px/1.1 "Manrope",sans-serif;margin:5px 0 8px;color:#fff}
+.founder-command-hero p{max-width:760px;margin:0;font-size:11px;line-height:1.55;color:#bdc9d9}
+.founder-command-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.founder-command-actions .btn:not(.primary){background:#ffffff12;border-color:#ffffff2c;color:#fff}
+.founder-command-actions .btn.primary{box-shadow:none}
+
+.founder-kpi-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:16px}
+.founder-kpi-grid>article{background:#fff;border:1px solid var(--border);border-radius:13px;padding:14px 15px;min-width:0}
+.founder-kpi-grid>article.risk{background:#fff9f6;border-color:#f2d5c8}
+.founder-kpi-grid span{display:block;font-size:8px;text-transform:uppercase;letter-spacing:.07em;color:#8693a5;font-weight:900}
+.founder-kpi-grid b{display:block;font:800 19px/1.1 "Manrope",sans-serif;color:#304965;margin:7px 0 4px;overflow-wrap:anywhere}
+.founder-kpi-grid>article.risk b{color:#b05c3f}
+.founder-kpi-grid small{display:block;font-size:8px;line-height:1.4;color:#94a0b0}
+
+.founder-command-layout{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(320px,.65fr);gap:14px;margin-bottom:14px;align-items:start}
+.founder-lower-layout{grid-template-columns:1fr 1fr}
+.founder-attention-panel,.founder-finance-panel{min-height:100%}
+.founder-attention-count{display:grid;place-items:center;min-width:30px;height:30px;border-radius:9px;background:#fff1e8;color:#a65c39;font-size:10px;font-weight:900}
+.founder-attention-list{padding:0 18px 18px}
+.founder-attention-item{width:100%;display:grid;grid-template-columns:8px minmax(0,1fr) auto;gap:10px;align-items:center;text-align:left;border:0;border-bottom:1px solid #edf1f5;background:transparent;padding:11px 0;cursor:pointer}
+.founder-attention-item:last-child{border-bottom:0}
+.founder-attention-item>i{width:7px;height:7px;border-radius:999px;background:#c69256}
+.founder-attention-item.danger>i{background:#bf6548}
+.founder-attention-item.warn>i{background:#c89952}
+.founder-attention-item span{display:block;font-size:7.5px;text-transform:uppercase;letter-spacing:.06em;font-weight:900;color:#8c98a9}
+.founder-attention-item b{display:block;margin-top:2px;font-size:10px;color:#3d5573}
+.founder-attention-item small{display:block;margin-top:2px;font-size:8px;color:#8694a7;line-height:1.35}
+.founder-attention-item em{font-style:normal;font-size:8px;color:#8e99a9;white-space:nowrap}
+
+.founder-finance-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 18px 18px}
+.founder-finance-grid>div{border:1px solid #e7ecf3;background:#fafbfd;border-radius:10px;padding:11px}
+.founder-finance-grid>div.risk{border-color:#f0d1c4;background:#fff8f5}
+.founder-finance-grid span{display:block;font-size:7.5px;text-transform:uppercase;letter-spacing:.05em;color:#8c99aa;font-weight:900}
+.founder-finance-grid b{display:block;font:800 13px/1.2 "Manrope",sans-serif;color:#3c5573;margin-top:5px;overflow-wrap:anywhere}
+.founder-finance-grid>div.risk b{color:#ac5a3d}
+.founder-finance-grid small{display:block;margin-top:3px;font-size:8px;color:#8a97a8}
+
+.founder-departments-section{margin-bottom:14px}
+.founder-department-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;padding:0 18px 18px}
+.founder-department-card{border:1px solid #e5eaf1;border-radius:11px;background:#fbfcfe;padding:12px;text-align:left;cursor:pointer;min-width:0}
+.founder-department-card.risk{background:#fffaf7;border-color:#f0d9ce}
+.founder-department-card:hover{border-color:#c9d7eb;background:#fff}
+.founder-dept-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.founder-dept-top>span{font-size:9px;font-weight:900;color:#425b79}
+.founder-dept-top i{width:8px;height:8px;border-radius:50%;background:#95a3b5}
+.founder-dept-top i.ok{background:#4fa37d}
+.founder-dept-top i.risk{background:#c86b4d}
+.founder-department-card>small{display:block;margin-top:3px;font-size:7.5px;color:#909bab}
+.founder-dept-main{display:flex;align-items:baseline;gap:5px;margin:11px 0 4px}
+.founder-dept-main b{font:800 22px/1 "Manrope",sans-serif;color:#304966}
+.founder-dept-main span{font-size:7.5px;color:#8a97a9}
+.founder-department-card>strong{display:block;font-size:9px;color:#55708f}
+.founder-department-card>p{margin:4px 0 0;font-size:7.5px;line-height:1.35;color:#8e9aaa}
+
+.founder-client-health{padding:0 18px 18px}
+.founder-client-health>article{display:grid;grid-template-columns:auto minmax(120px,1fr) minmax(220px,1.35fr);gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid #edf1f5}
+.founder-client-health>article:last-child{border-bottom:0}
+.founder-client-health b{display:block;font-size:10px;color:#3d5573}
+.founder-client-health small{display:block;margin-top:2px;font-size:8px;color:#8a97a8}
+.founder-client-signals{display:flex;justify-content:flex-end;gap:5px;flex-wrap:wrap}
+.founder-client-signals span{display:inline-flex;border-radius:999px;background:#f1f3f7;color:#718095;padding:4px 6px;font-size:7px;font-weight:800}
+.founder-client-signals span.ok{background:#e9f7f0;color:#39785d}
+.founder-client-signals span.risk{background:#fff0e8;color:#aa6042}
+
+.founder-team-summary{padding:0 18px 18px}
+.founder-team-numbers{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:13px}
+.founder-team-numbers>div{border:1px solid #e7ecf3;border-radius:9px;background:#fafbfd;padding:10px;text-align:center}
+.founder-team-numbers>div.risk{background:#fff9f6;border-color:#f1d6ca}
+.founder-team-numbers b{display:block;font:800 18px "Manrope",sans-serif;color:#3c5573}
+.founder-team-numbers span{display:block;font-size:7.5px;color:#8a97a9;margin-top:2px}
+.founder-department-headcount{display:flex;flex-direction:column}
+.founder-department-headcount>div{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid #edf1f5}
+.founder-department-headcount>div:last-child{border-bottom:0}
+.founder-department-headcount span{font-size:8.5px;color:#667890}
+.founder-department-headcount b{font-size:10px;color:#3c5573}
+
+.founder-mini-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:0 18px 18px}
+.founder-mini-metrics>div{border:1px solid #e7ecf3;border-radius:9px;background:#fafbfd;padding:11px}
+.founder-mini-metrics>div.risk{background:#fff9f6;border-color:#f1d7cb}
+.founder-mini-metrics span{display:block;font-size:8px;color:#8592a4}
+.founder-mini-metrics b{display:block;margin-top:5px;font:800 15px "Manrope",sans-serif;color:#3d5573;overflow-wrap:anywhere}
+.founder-mini-metrics>div.risk b{color:#ad5d40}
+
+@media(max-width:1200px){
+  .founder-kpi-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .founder-department-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media(max-width:900px){
+  .founder-command-layout,.founder-lower-layout{grid-template-columns:1fr}
+  .founder-command-hero{flex-direction:column}
+  .founder-command-actions{justify-content:flex-start;width:100%}
+}
+@media(max-width:720px){
+  .founder-command-hero{padding:20px 18px}
+  .founder-command-hero h2{font-size:23px}
+  .founder-command-actions{display:grid;grid-template-columns:1fr 1fr}
+  .founder-command-actions .btn{width:100%;min-width:0}
+  .founder-kpi-grid{grid-template-columns:1fr 1fr;gap:8px}
+  .founder-kpi-grid>article{padding:12px}
+  .founder-kpi-grid b{font-size:17px}
+  .founder-department-grid{grid-template-columns:1fr 1fr;padding:0 14px 14px}
+  .founder-attention-list,.founder-finance-grid,.founder-client-health,.founder-team-summary,.founder-mini-metrics{padding-left:14px;padding-right:14px}
+  .founder-client-health>article{grid-template-columns:auto 1fr}
+  .founder-client-signals{grid-column:1/-1;justify-content:flex-start;padding-left:44px}
+  .founder-team-numbers{grid-template-columns:1fr 1fr}
+}
