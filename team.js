@@ -36,6 +36,12 @@ export async function renderInternalTeam(ctx) {
     "projects.department.assign": "Asignar proyectos",
     "crm.team.read": "Ver pipeline del equipo",
     "crm.team.write": "Gestionar pipeline del equipo",
+    "people.directory.read": "Ver directorio interno",
+    "people.recruiting.read": "Ver candidatos",
+    "people.recruiting.write": "Gestionar reclutamiento",
+    "people.onboarding.read": "Ver onboarding interno",
+    "people.onboarding.write": "Gestionar onboarding interno",
+    "people.analytics.read": "Ver métricas de Talento Humano",
   };
 
   const invoke = async (body) => {
