@@ -21,7 +21,7 @@ function applyPlanFromUrl(){
   const hashPlan=new URLSearchParams(window.location.hash.replace(/^#/,"")).get("plan");
   const planParam=searchPlan||hashPlan;
   const planSelect=document.getElementById("demoPlan");
-  if(planSelect&&["start","growth","pro","custom"].includes(planParam||"")){
+  if(planSelect&&["start","growth","pro","custom","marketing"].includes(planParam||"")){
     planSelect.value=planParam;
     const option=planSelect.querySelector('option[value="'+planParam+'"]');
     if(option) option.selected=true;
@@ -67,6 +67,11 @@ form?.addEventListener("submit",async(event)=>{
           agenda:"Organizar citas o reservas",
           seguimiento:"Mejorar seguimiento a clientes",
           integraciones:"Conectar herramientas y procesos",
+          web:"Crear o rediseñar sitio web / landing",
+          catalogo:"Diseñar catálogo, brochure o material comercial",
+          branding:"Crear o mejorar identidad visual / branding",
+          creativos:"Crear piezas promocionales o campaña",
+          presencia:"Mejorar presencia digital y conversión",
           otro:"Otro"
         };
         const volumeLabels={
@@ -103,7 +108,7 @@ form?.addEventListener("submit",async(event)=>{
           website:document.getElementById("demoWebsite").value,
           privacy_consent:document.getElementById("privacyConsent")?.checked===true,
           privacy_policy_version:"2026-10-06",
-          source:"nexobyjv.online/demo"
+          source:document.getElementById("demoPlan").value==="marketing"?"nexobyjv.online/nexo-marketing":"nexobyjv.online/demo"
         };
       })())
     });
