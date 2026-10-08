@@ -41,7 +41,7 @@ Deno.serve(async(req:Request)=>{
       service.from("nexo_user_roles")
         .select("user_id,role_id,active,deactivated_at,nexo_team_roles(id,role_key,name,hierarchy_level,role_scope,active,nexo_departments(department_key,name))"),
       service.from("profiles")
-        .select("id,full_name,contact_email,phone,job_title,avatar_url,created_at"),
+        .select("id,full_name,contact_email,phone,job_title,avatar_url,created_at,platform_role"),
       service.from("nexo_team_invites")
         .select("user_id,status,sent_at,accepted_at,cancelled_at")
         .order("created_at",{ascending:false})
@@ -115,7 +115,21 @@ Deno.serve(async(req:Request)=>{
       if(d)return d;
       return String(a.full_name||a.contact_email||"").localeCompare(String(b.full_name||b.contact_email||""),"es");
     });
-    return json({ok:true,people:rows});
+    const [{data:departments,error:departmentError},{data:roleCatalog,error:catalogError}]=await Promise.all([
+      service.from("nexo_departments")
+        .select("id,department_key,name,active,planned,sort_order")
+        .eq("active",true)
+        .order("sort_order"),
+      service.from("nexo_team_roles")
+        .select("id,role_key,name,department_id,active,assignable,planned,hierarchy_level")
+        .eq("active",true)
+        .eq("assignable",true)
+        .order("hierarchy_level",{ascending:false})
+        .order("name"),
+    ]);
+    if(departmentError) throw departmentError;
+    if(catalogError) throw catalogError;
+    return json({ok:true,people:rows,departments:departments||[],roles:roleCatalog||[]});
   }catch(error){
     console.error("NEXO_PEOPLE_DIRECTORY_ERROR",error);
     return json({error:"No pudimos cargar el directorio interno."},500);
