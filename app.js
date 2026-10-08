@@ -2,11 +2,11 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
 import { renderCrm, openProspectEditorFromGrowth, openNewProspectFromGrowth } from "./crm.js?v=20261006-webfunnel1";
 import { renderTasks, openCustomer360, openContact360, closeDrawer } from "./workspace360.js?v=20261007-dept1";
 import { renderDataQuality, openOnboarding, closeQualityDrawer } from "./qualityOnboarding.js?v=20261001-quality2";
-import { renderInternalTeam } from "./team.js?v=20261007-company1";
+import { renderInternalTeam } from "./team.js?v=20261007-company2";
 import { renderStaffHome, renderStaffProjects, renderStaffAccounts, renderStaffPerformance } from "./staffWorkspace.js?v=20261007-company1";
 import { renderSalesWorkspace, renderImplementationWorkspace, renderOperationsWorkspace } from "./departmentWorkspaces.js?v=20261007-dept2";
-import { renderExecutiveTasks } from "./executiveTasks.js?v=20261007-exec1";
-import { renderPeopleWorkspace } from "./peopleWorkspace.js?v=20261007-people1";
+import { renderExecutiveTasks } from "./executiveTasks.js?v=20261007-exec2";
+import { renderPeopleWorkspace } from "./peopleWorkspace.js?v=20261007-people2";
 
 const SUPABASE_URL = "https://ixewnbjndguchunwcuhf.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_vFnLRe9cmnOcyz2Fivprhw_8UjBaRGL";
