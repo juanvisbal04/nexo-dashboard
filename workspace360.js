@@ -297,7 +297,20 @@ export async function renderTasks(context=C){
       if(timeFilter==="nodate"&&due)return false;
       return true;
     });
-    C.$("taskRows").innerHTML=visible.length?visible.map((row)=>{
+    // Work queue: overdue first, then urgency, then nearest due date.
+    // Keep the source array intact so filters and task editors share the same records.
+    const priorityWeight={urgent:0,high:1,medium:2,low:3};
+    const sortedVisible=[...visible].sort((a,b)=>{
+      const overdue=(task)=>["pending","in_progress"].includes(task.status)&&task.due_at&&new Date(task.due_at).getTime()<now.getTime();
+      if(Boolean(overdue(a))!==Boolean(overdue(b)))return overdue(a)?-1:1;
+      const aPriority=priorityWeight[a.priority]??2;
+      const bPriority=priorityWeight[b.priority]??2;
+      if(aPriority!==bPriority)return aPriority-bPriority;
+      const aDue=a.due_at?new Date(a.due_at).getTime():Infinity;
+      const bDue=b.due_at?new Date(b.due_at).getTime():Infinity;
+      return aDue-bDue;
+    });
+    C.$("taskRows").innerHTML=sortedVisible.length?sortedVisible.map((row)=>{
       const due=row.due_at?new Date(row.due_at).getTime():null;
       const isOverdue=due&&due<Date.now()&&["pending","in_progress"].includes(row.status);
       return `<article class="task-row ${isOverdue?"overdue":""}">
