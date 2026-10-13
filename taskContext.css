@@ -1,0 +1,20 @@
+
+.nexo-task-context{margin-top:18px;padding:18px;border:1px solid var(--border,#dce3ef);border-radius:14px;background:var(--surface,#fff);max-width:100%;min-width:0}
+.nexo-task-context h3{font-size:17px;margin:0 0 4px}.nexo-task-context h4{font-size:14px;margin:0 0 10px}.nexo-task-context p.muted{margin:0 0 14px}
+.nexo-context-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.nexo-context-columns>div{min-width:0}.nexo-task-context [data-list]{min-height:36px;max-height:270px;overflow:auto}
+.nexo-task-context [data-add]{display:flex;gap:8px;margin:10px 0 4px;align-items:flex-start;flex-wrap:wrap}
+.nexo-task-context [data-add] input,.nexo-task-context textarea{min-width:0;min-height:38px;flex:1;background:var(--card,#fff);color:inherit;border:1px solid #d9dfeb;border-radius:9px;padding:10px;box-sizing:border-box}
+.nexo-task-context [data-add="comment"] textarea{flex-basis:100%;resize:vertical}
+.nexo-check-item,.nexo-file-row{display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid #e9edf4;padding:8px 0}
+.nexo-check-item label{display:flex;align-items:center;gap:8px;min-width:0;flex:1;word-break:break-word}
+.nexo-check-item .done{text-decoration:line-through;opacity:.65}
+.nexo-text-button{border:0;background:transparent;cursor:pointer;padding:4px 8px;color:inherit;font-size:19px}
+.nexo-comment{padding:9px 0;border-bottom:1px solid #e9edf4;word-break:break-word}
+.nexo-comment small{opacity:.65;font-size:11px}.nexo-comment p{white-space:pre-wrap;margin:5px 0}
+.nexo-files{border-top:1px solid #e9edf4;margin-top:16px;padding-top:16px}
+.nexo-file-link{flex:1;min-width:0;text-align:left;border:none;background:none;cursor:pointer;color:var(--primary,#316bff);overflow-wrap:anywhere}
+.nexo-file-row small{font-size:11px;opacity:.7}
+.nexo-upload-label{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-top:13px;font-size:12px}
+.nexo-upload-label input{font-size:12px;max-width:100%}
+@media(max-width:700px){.nexo-context-columns{grid-template-columns:1fr}.nexo-task-context{padding:13px}}
