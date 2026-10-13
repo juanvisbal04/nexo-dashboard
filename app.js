@@ -3239,7 +3239,7 @@ async function renderBillingPortal() {
 
 async function renderTeam() {
   if (state.isAdmin && isInternalOrg()) {
-    await renderInternalTeam({ supabase, $, esc, shortDate, dateTime, showToast, showError });
+    await renderInternalTeam({ supabase, state, $, esc, shortDate, dateTime, showToast, showError });
     return;
   }
   if (!canManageCurrentOrgUsers() || isInternalOrg()) {
