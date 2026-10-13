@@ -7,7 +7,7 @@ import { renderDataQuality, openOnboarding, closeQualityDrawer } from "./quality
 import { renderInternalTeam } from "./team.js?v=20261013-team2";
 import { renderStaffHome, renderStaffProjects, renderStaffAccounts, renderStaffPerformance } from "./staffWorkspace.js?v=20261013-ops360-1";
 import { renderSalesWorkspace, renderImplementationWorkspace, renderOperationsWorkspace } from "./departmentWorkspaces.js?v=20261013-followup1";
-import { renderExecutiveTasks } from "./executiveTasks.js?v=20261013-ops360-1";
+import { renderExecutiveTasks } from "./executiveTasks.js?v=20261013-ops360-2";
 import { renderPeopleWorkspace } from "./peopleWorkspace.js?v=20261007-people2";
 import { renderFounderCommandCenter } from "./founderCommandCenter.js?v=20261013-ops360-1";
 
