@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="robots" content="noindex,nofollow" />
+  <meta name="theme-color" content="#111d35" />
+  <title>Restablecer contraseña | NEXO</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css?v=20261013-team2" />
+  <link rel="stylesheet" href="./auth-recovery.css?v=20261013-1" />
+</head>
+<body>
+  <main class="login-screen">
+    <section class="login-card" aria-labelledby="recoveryTitle">
+      <div class="logo-wrap">
+        <div class="logo-word">NE<span>X</span>O</div>
+        <div class="logo-by">by Juan Visbal</div>
+      </div>
+      <div class="login-copy">
+        <span class="eyebrow">SEGURIDAD DE TU CUENTA</span>
+        <h1 id="recoveryTitle">Crea una nueva contraseña.</h1>
+        <p>Protege tu acceso al dashboard de NEXO.</p>
+      </div>
+      <p class="recovery-hint" id="recoveryHint">Validando tu enlace de recuperación…</p>
+      <form id="recoveryForm" class="recovery-form hidden">
+        <label for="newPassword">Nueva contraseña</label>
+        <input id="newPassword" type="password" minlength="10" autocomplete="new-password" required placeholder="Mínimo 10 caracteres" />
+        <label for="confirmPassword">Confirmar contraseña</label>
+        <input id="confirmPassword" type="password" minlength="10" autocomplete="new-password" required placeholder="Repite tu nueva contraseña" />
+        <button id="recoverySubmit" class="btn primary" type="submit">Guardar nueva contraseña</button>
+      </form>
+      <div id="recoveryMessage" class="message hidden" role="status" aria-live="polite"></div>
+      <div class="recovery-actions"><a href="./">Volver a iniciar sesión</a></div>
+      <p class="security-note">Nunca compartas tu contraseña ni tu enlace privado de recuperación.</p>
+    </section>
+  </main>
+  <script type="module" src="./reset-password.js?v=20261013-1"></script>
+</body>
+</html>
