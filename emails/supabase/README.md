@@ -14,8 +14,9 @@
 
 **Dominio de NEXO verificado:** `nexobyjv.online` (Resend).  
 **Remitente ya existente y aprobado:** `NEXO by Juan Visbal <equipo@nexobyjv.online>`.  
+**Reply-To para plantillas Resend:** `nexobyjuanvisbal@gmail.com` (las respuestas llegan al Gmail operativo; no existe buzón de entrada en el dominio).  
 **Plantilla existente activa:** `nexo-team-invite` (invitaciones a colaboradores).  
-**Bienvenida preparada y publicada:** `nexo-dashboard-welcome` (Resend). No se envía automáticamente hasta integrar el evento de activación.
+**Bienvenida preparada y publicada:** `nexo-dashboard-welcome` (Resend). Las plantillas `nexo-team-invite` y `nexo-dashboard-welcome` tienen Reply-To a Gmail. No se envía automáticamente hasta integrar el evento de activación.
 
 Sin necesidad de Gmail, Google App Passwords ni contratar otro proveedor.
 
