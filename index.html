@@ -25,6 +25,7 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./styles.css?v=20261008-desktop2" />
   <link rel="stylesheet" href="./crm.css?v=20261001-crm32" />
+  <link rel="stylesheet" href="./salesCrm.css?v=20261013-crm1" />
 </head>
 <body>
   <div id="bootView" class="boot-screen">
@@ -97,7 +98,7 @@
         <p class="nav-title">MI ESPACIO NEXO</p>
         <nav>
           <button class="nav-item active" data-page="overview">Mi inicio</button>
-          <button class="nav-item staff-pipeline-nav hidden" data-page="pipeline">Mi pipeline</button>
+          <button class="nav-item staff-pipeline-nav hidden" data-page="pipeline">CRM</button>
           <button class="nav-item staff-delivery-nav hidden" data-page="delivery">Implementación</button>
           <button class="nav-item staff-ops-nav hidden" data-page="departmentOps">Centro operativo</button>
           <button class="nav-item staff-people-nav hidden" data-page="people">Talento Humano</button>
@@ -115,10 +116,11 @@
       </div>
 
       <div class="admin-nav hidden" id="adminNav">
-        <p class="nav-title">NEXO CRM</p>
+        <p class="nav-title">COMERCIAL</p>
+        <button class="nav-item" data-page="pipeline">CRM</button>
+        <p class="nav-title">DIRECCIÓN · CEO</p>
         <button class="nav-item" data-page="overview">Command Center</button>
-        <button class="nav-item" data-page="crm">Ventas & Finanzas</button>
-        <button class="nav-item" data-page="growth">Growth</button>
+        <button class="nav-item" data-page="crm">Finanzas</button>
         <button class="nav-item" data-page="clients">Clientes</button>
         <button class="nav-item" data-page="conversations">Conversaciones</button>
         <button class="nav-item" data-page="operations">Operaciones</button>
@@ -216,7 +218,7 @@
     <button class="nav-item mobile-nav-item client-mobile-nav-item" data-page="tasks"><span>✓</span><small>Tareas</small></button>
 
     <button class="nav-item mobile-nav-item staff-mobile-nav-item hidden" data-page="overview"><span>⌂</span><small>Inicio</small></button>
-    <button class="nav-item mobile-nav-item staff-mobile-nav-item staff-pipeline-nav hidden" data-page="pipeline"><span>↗</span><small>Pipeline</small></button>
+    <button class="nav-item mobile-nav-item staff-mobile-nav-item staff-pipeline-nav hidden" data-page="pipeline"><span>↗</span><small>CRM</small></button>
     <button class="nav-item mobile-nav-item staff-mobile-nav-item staff-delivery-nav hidden" data-page="delivery"><span>◫</span><small>Delivery</small></button>
     <button class="nav-item mobile-nav-item staff-mobile-nav-item staff-ops-nav hidden" data-page="departmentOps"><span>◎</span><small>Operación</small></button>
     <button class="nav-item mobile-nav-item staff-mobile-nav-item staff-people-nav hidden" data-page="people"><span>♙</span><small>Talento</small></button>
@@ -226,8 +228,8 @@
     <button class="nav-item mobile-nav-item staff-mobile-nav-item hidden" data-page="performance"><span>↗</span><small>Rendimiento</small></button>
 
     <button class="nav-item mobile-nav-item admin-mobile-nav-item hidden" data-page="overview"><span>⌂</span><small>Centro</small></button>
-    <button class="nav-item mobile-nav-item admin-mobile-nav-item hidden" data-page="crm"><span>↗</span><small>CRM</small></button>
-    <button class="nav-item mobile-nav-item admin-mobile-nav-item hidden" data-page="growth"><span>⌁</span><small>Growth</small></button>
+    <button class="nav-item mobile-nav-item admin-mobile-nav-item hidden" data-page="pipeline"><span>↗</span><small>CRM</small></button>
+    <button class="nav-item mobile-nav-item admin-mobile-nav-item hidden" data-page="crm"><span>↗</span><small>Finanzas</small></button>
     <button class="nav-item mobile-nav-item admin-mobile-nav-item hidden" data-page="clients"><span>◫</span><small>Clientes</small></button>
     <button class="nav-item mobile-nav-item admin-mobile-nav-item hidden" data-page="conversations"><span>◌</span><small>Chats</small></button>
     <button class="nav-item mobile-nav-item admin-mobile-nav-item hidden" data-page="operations"><span>◎</span><small>Operación</small></button>
@@ -258,6 +260,6 @@
   </aside>
   <div id="toast" class="toast hidden"></div>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-  <script type="module" src="./app.js?v=20261008-authloop1"></script>
+  <script type="module" src="./app.js?v=20261013-crm1"></script>
 </body>
 </html>

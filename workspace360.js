@@ -304,6 +304,7 @@ export async function renderTasks(context=C){
         <div class="task-row-main">
           <div class="task-row-top">${priorityPill(row.priority)}<span>${esc(selfWorkspace?orgName(row.organization_id):"")}</span></div>
           <b>${esc(row.title)}</b>
+          ${row.source_type==="crm_lead"&&row.source_id?`<button class="btn small crm-task-lead" data-lead-id="${esc(row.source_id)}" type="button">Ver lead en CRM</button>`:""}
           <p>${esc(row.description||"Sin nota adicional")}</p>
           <div class="task-row-meta"><span>Responsable: ${esc(assigneeName(allAssignees,row.assigned_to))}</span><span>${row.due_at?(isOverdue?"Venció ":"Vence ")+dateTime(row.due_at):"Sin fecha límite"}</span></div>
         </div>
@@ -315,6 +316,7 @@ export async function renderTasks(context=C){
       </article>`;
     }).join(""):C.emptyState("No hay tareas con este filtro.","Crea una tarea o cambia el filtro.");
 
+    document.querySelectorAll(".crm-task-lead").forEach((button)=>button.addEventListener("click",async()=>{C.state.crmLeadId=button.dataset.leadId;await C.navigateToPage("pipeline",{historyMode:"push"});}));
     document.querySelectorAll(".task-status-control").forEach((select)=>{
       select.addEventListener("change",async()=>{
         const task=rows.find((r)=>r.id===select.dataset.taskId);

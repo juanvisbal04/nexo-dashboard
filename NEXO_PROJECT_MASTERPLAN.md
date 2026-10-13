@@ -1,6 +1,6 @@
 # NEXO — Product & Team Master Plan
 
-_Last updated: 2026-10-07_
+_Last updated: 2026-10-13_
 
 ## Business direction
 
@@ -268,3 +268,10 @@ The company-level RBAC foundation, department hierarchy, Marketing Lead workspac
 - Talento Humano / People & Culture activated with People & Culture Lead, Talent Acquisition Specialist, People Operations Specialist and People Coordinator.
 - Talent workspace includes recruitment pipeline, secure internal directory and employee onboarding.
 - People & Culture permissions are isolated from Sales, Marketing, client operations and internal finance by default.
+
+## Unified commercial CRM — 2026-10-13
+
+- One Commercial → CRM entry for Founder and authorized Sales staff, with Pipeline, Leads and contacts, Commercial tasks, and Activity subviews. Growth legacy navigation redirects to this workspace.
+- Manual leads reuse demo_requests, including owner_user_id, contact information, stage, expected MRR and next action. Assignment is available to existing crm.all.write holders; assigned staff retain their existing RLS scope. The picker lists Sales and Executive staff, without granting new role permissions.
+- Lead follow-up tasks reuse work_tasks, tagged source_type=crm_lead and source_id=the lead UUID. They also appear in existing personal/team/executive task lists, with a link back to the lead. Reassigning a lead does not silently reassign existing tasks.
+- Founder CEO navigation and Finance remain separate. Finance's duplicate pipeline/activity sections are hidden; client conversion remains available from the Founder lead card. No database migrations, paid services, or changes to client assistant data are required.
