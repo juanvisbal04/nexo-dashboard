@@ -1,4 +1,5 @@
-import { mountTaskContext } from "./taskContext.js?v=20261013-tasks1";
+import { bogotaDayStart } from "./workDates.js?v=20261013-work2";
+import { mountTaskContext, openTaskContext, canEditTask } from "./taskContext.js?v=20261013-work2";
 let C=null;
 
 const taskStatusLabels={pending:"Pendiente",in_progress:"En progreso",completed:"Completada",cancelled:"Cancelada"};
@@ -78,7 +79,7 @@ function currentRole(){
   return C.currentOrgRole();
 }
 function canWrite(){
-  if(C.state.isInternalStaff)return Boolean(C.hasPermission?.("tasks.self.write"));
+  if(C.state.isInternalStaff)return Boolean(C.hasPermission?.("tasks.self.write")||C.hasPermission?.("tasks.team.write"));
   return C.state.isAdmin || ["owner","admin","operator","support"].includes(currentRole());
 }
 
@@ -285,9 +286,9 @@ export async function renderTasks(context=C){
     const timeFilter=C.$("taskTimeFilter")?.value||"";
     const orgFilter=C.$("taskOrgFilter")?.value||"";
     const now=new Date();
-    const todayStart=new Date(now);todayStart.setHours(0,0,0,0);
-    const tomorrow=new Date(todayStart);tomorrow.setDate(tomorrow.getDate()+1);
-    const weekEnd=new Date(todayStart);weekEnd.setDate(weekEnd.getDate()+7);
+    const todayStart=bogotaDayStart(now);
+    const tomorrow=new Date(todayStart.getTime()+86400000);
+    const weekEnd=new Date(todayStart.getTime()+7*86400000);
     const visible=rows.filter((row)=>{
       if(orgFilter&&row.organization_id!==orgFilter)return false;
       if(status==="open"&&!["pending","in_progress"].includes(row.status))return false;
@@ -311,8 +312,9 @@ export async function renderTasks(context=C){
           <div class="task-row-meta"><span>Responsable: ${esc(assigneeName(allAssignees,row.assigned_to))}</span><span>${row.due_at?(isOverdue?"Venció ":"Vence ")+dateTime(row.due_at):"Sin fecha límite"}</span></div>
         </div>
         <div class="task-row-actions">
-          ${taskStatusSelect(row,!canEdit)}
-          ${canEdit?`<button class="btn small task-edit-button" data-task-id="${row.id}" type="button">Editar</button>`:""}
+          ${taskStatusSelect(row,!canEditTask(C,row))}
+          <button class="btn small task-detail-button" data-task-id="${row.id}" type="button">Detalle</button>
+          ${canEditTask(C,row)?`<button class="btn small task-edit-button" data-task-id="${row.id}" type="button">Editar</button>`:""}
           ${row.contact_id?`<button class="btn small task-contact-360" data-contact-id="${row.contact_id}" data-org-id="${row.organization_id}" type="button">Contact 360</button>`:""}
         </div>
       </article>`;
@@ -332,6 +334,7 @@ export async function renderTasks(context=C){
         await C.renderApp();
       });
     });
+    document.querySelectorAll(".task-detail-button").forEach(button=>button.addEventListener("click",()=>openTaskContext(C,rows.find(row=>row.id===button.dataset.taskId))));
     document.querySelectorAll(".task-edit-button").forEach((button)=>{
       button.addEventListener("click",()=>{
         const task=rows.find((row)=>row.id===button.dataset.taskId);

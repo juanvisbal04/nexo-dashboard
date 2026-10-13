@@ -1,3 +1,4 @@
+import { openTaskContext } from "./taskContext.js?v=20261013-work2";
 import { openProspectEditorFromGrowth } from "./crm.js?v=20261013-finance1";
 let C;
 const stages=[['prospecto','Prospecto'],['demo','Demo'],['propuesta','Propuesta'],['cliente','Cliente'],['implementacion','Implementación'],['activo','Activo'],['perdido','Perdido']];
@@ -27,6 +28,7 @@ function leadAlerts(r){
 
 export async function renderSalesWorkspace(context){
   C=context;
+  if(C.state.salesCrmView){view=C.state.salesCrmView;C.state.salesCrmView=null;}
   internalOrg=C.state.organizations.find(o=>o.name==='NEXO Internal');
   if(!internalOrg)throw new Error('NEXO Internal no está disponible.');
   const results=await Promise.all([
@@ -63,7 +65,7 @@ function card(r){return `<article class="staff-sales-card crm-board-deal" data-d
   <div class="crm-deal-next">${r.next_action_at?'Próxima acción: '+esc(date(r.next_action_at)):'Sin próxima acción'}</div>${leadAlerts(r).length?'<div class="crm-alert-tags">'+leadAlerts(r).map(label=>'<span class="pill">'+esc(label)+'</span>').join('')+'</div>':''}<small>${openTasks(r.id).length} tareas pendientes</small>
   ${writable()?`<label class="crm-deal-move">Mover a etapa<select data-move-lead="${esc(r.id)}" aria-label="Etapa de ${esc(r.business_name)}" ${movingLeads.has(r.id)?'disabled':''}>${stages.map(([v,l])=>`<option value="${v}" ${r.stage===v?'selected':''}>${l}</option>`).join('')}</select></label>`:''}
 </article>`;}
-function taskRows(rows){return rows.map(t=>{const lead=leads.find(r=>r.id===t.source_id);return `<article class="task-row"><div class="task-row-main"><b>${esc(t.title)}</b><p>${esc(t.description||'')}</p>${lead?`<button class="crm-hub-open" data-open-lead="${esc(lead.id)}">${esc(lead.business_name)}</button>`:'<small>Lead fuera de tu acceso actual</small>'}<div class="task-row-meta"><span>${esc(person(t.assigned_to))}</span><span>${esc(date(t.due_at))}</span></div></div><div class="task-row-actions">${(can('tasks.team.write')||(t.assigned_to===C.state.session.user.id&&can('tasks.self.write')))?`<select data-task-status="${esc(t.id)}" aria-label="Estado de tarea">${Object.entries(statuses).map(([v,l])=>`<option value="${v}" ${t.status===v?'selected':''}>${l}</option>`).join('')}</select>`:esc(statuses[t.status])}</div></article>`;}).join('')||C.emptyState('Sin tareas comerciales.','Agrega una tarea desde la ficha de un lead.');}
+function taskRows(rows){return rows.map(t=>{const lead=leads.find(r=>r.id===t.source_id);return `<article class="task-row"><div class="task-row-main"><b>${esc(t.title)}</b><p>${esc(t.description||'')}</p>${lead?`<button class="crm-hub-open" data-open-lead="${esc(lead.id)}">${esc(lead.business_name)}</button>`:'<small>Lead fuera de tu acceso actual</small>'}<div class="task-row-meta"><span>${esc(person(t.assigned_to))}</span><span>${esc(date(t.due_at))}</span></div></div><div class="task-row-actions"><button class="btn small" type="button" data-task-context="${esc(t.id)}">Detalle</button>${(can('tasks.team.write')||(t.assigned_to===C.state.session.user.id&&can('tasks.self.write')))?`<select data-task-status="${esc(t.id)}" aria-label="Estado de tarea">${Object.entries(statuses).map(([v,l])=>`<option value="${v}" ${t.status===v?'selected':''}>${l}</option>`).join('')}</select>`:esc(statuses[t.status])}</div></article>`;}).join('')||C.emptyState('Sin tareas comerciales.','Agrega una tarea desde la ficha de un lead.');}
 function activityRows(rows){return rows.map(a=>`<article class="crm-hub-activity"><b>${esc(a.title)}</b><small>${esc(date(a.created_at))}</small><p>${esc(a.details||'')}</p></article>`).join('')||C.emptyState('Sin actividad registrada.','Las notas y seguimientos aparecerán aquí.');}
 function draw(){
   const rows=filtered(),ids=new Set(rows.map(r=>r.id));
@@ -81,6 +83,7 @@ function draw(){
   bindBoard(C.$('hubBody'));
 }
 function bind(root){
+  root.querySelectorAll('[data-task-context]').forEach(b=>b.addEventListener('click',()=>openTaskContext(C,tasks.find(t=>t.id===b.dataset.taskContext))));
   root.querySelectorAll('[data-open-lead]').forEach(b=>b.addEventListener('click',()=>editor(leads.find(r=>r.id===b.dataset.openLead))));
   root.querySelectorAll('[data-task-status]').forEach(s=>s.addEventListener('change',async()=>{
     const t=tasks.find(t=>t.id===s.dataset.taskStatus),next=s.value;s.disabled=true;
