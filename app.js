@@ -3694,9 +3694,13 @@ async function refreshNotifications() {
       : scoped(supabase.from("appointments").select("id,organization_id,name,status,starts_at,created_at").in("status",["Solicitada","Pendiente"]).order("created_at",{ascending:false}).limit(12)),
     scoped(supabase.from("client_invoices").select("id,organization_id,invoice_number,status,due_date,amount_cop,reference").in("status",["pending","overdue"]).order("due_date",{ascending:true}).limit(20)),
     workTaskQuery,
+    supabase.from("nexo_client_assignment_notices")
+      .select("id,recipient_user_id,organization_id,assignment_type,created_at")
+      .eq("recipient_user_id", notificationUserId)
+      .order("created_at",{ascending:false}).limit(25),
   ];
 
-  const [conversationResult, appointmentResult, invoiceResult, workTaskResult] = await Promise.all(tasks);
+  const [conversationResult, appointmentResult, invoiceResult, workTaskResult, assignmentNoticeResult] = await Promise.all(tasks);
 
   (conversationResult.data || []).forEach((row) => items.push({
     key:`conversation:${row.id}`,tone:"risk", priority:100, page:"conversations", orgId:row.organization_id,
@@ -3736,6 +3740,24 @@ async function refreshNotifications() {
       title:overdue?"Tarea vencida":urgent?"Tarea urgente":"Tarea próxima a vencer",
       detail:(row.title||"Tarea")+" · "+notificationOrgName(row.organization_id),
       date:row.due_at,
+    });
+  });
+
+  // Recipient-only, durable account assignment notifications. Read status is
+  // stored by notification_reads, like every other item in the NEXO bell.
+  (assignmentNoticeResult.data || []).forEach((row) => {
+    if (!state.organizations.some((org) => org.id === row.organization_id)) return;
+    const responsibility = {
+      sales:"Ventas",marketing:"Marketing",implementation:"Implementación",
+      operations:"Operaciones",support:"Soporte",account_owner:"Responsable de cuenta",
+      collaborator:"Colaborador"
+    }[row.assignment_type] || "Colaborador";
+    items.push({
+      key:`client-assignment:${row.id}`,tone:"info",priority:85,
+      page:"accounts",orgId:row.organization_id,
+      title:"Nueva cuenta asignada",
+      detail:notificationOrgName(row.organization_id)+" · "+responsibility,
+      date:row.created_at,
     });
   });
 
