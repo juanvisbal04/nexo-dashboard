@@ -250,11 +250,28 @@ Deno.serve(async(req:Request)=>{
       });
       if(addRole.error) throw addRole.error;
 
-      const delAssignments=await service.from("nexo_client_assignments").delete().eq("user_id",target.id);
-      if(delAssignments.error) throw delAssignments.error;
-      if(requestedClientIds.length){
-        const addAssignments=await service.from("nexo_client_assignments").insert(requestedClientIds.map(orgId=>({
-          organization_id:orgId,user_id:target.id,assignment_type:assignmentType(role.role_key),assigned_by:requester.id,
+      // Preserve existing assignments so editing a role/profile never triggers
+      // duplicate client assignment email notifications.
+      const priorAssignments=oldAssignmentsRes.data||[];
+      const requestedSet=new Set(requestedClientIds);
+      const priorSet=new Set(priorAssignments.map((row:any)=>row.organization_id));
+      const obsolete=priorAssignments.filter((row:any)=>!requestedSet.has(row.organization_id));
+      const newlyAssigned=requestedClientIds.filter((id:string)=>!priorSet.has(id));
+      const desiredType=assignmentType(role.role_key);
+
+      for(const previous of obsolete){
+        const removal=await service.from("nexo_client_assignments").delete()
+          .eq("user_id",target.id).eq("organization_id",previous.organization_id).eq("assignment_type",previous.assignment_type);
+        if(removal.error) throw removal.error;
+      }
+      for(const previous of priorAssignments.filter((row:any)=>requestedSet.has(row.organization_id)&&row.assignment_type!==desiredType)){
+        const changeType=await service.from("nexo_client_assignments").update({assignment_type:desiredType,assigned_by:requester.id})
+          .eq("user_id",target.id).eq("organization_id",previous.organization_id).eq("assignment_type",previous.assignment_type);
+        if(changeType.error) throw changeType.error;
+      }
+      if(newlyAssigned.length){
+        const addAssignments=await service.from("nexo_client_assignments").insert(newlyAssigned.map((orgId:string)=>({
+          organization_id:orgId,user_id:target.id,assignment_type:desiredType,assigned_by:requester.id,
         })));
         if(addAssignments.error) throw addAssignments.error;
       }
