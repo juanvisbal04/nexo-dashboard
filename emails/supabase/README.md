@@ -7,20 +7,29 @@
 ## Estado
 - Las plantillas están versionadas aquí, pero **subirlas a GitHub no las activa en Supabase**.
 - El flujo "¿Olvidaste tu contraseña?" del dashboard solicita `resetPasswordForEmail` y redirige a `https://dashboard.nexobyjv.online/reset.html`; el correo de magia para iniciar sesión se conserva por separado.
-- La plantilla `welcome.html` es una plantilla para un envío transaccional futuro: Supabase Auth **no tiene una plantilla de bienvenida automática**. No afirmar que se envía hasta conectar el evento de activación.
+- La plantilla `welcome.html` es una referencia para un envío transaccional; Supabase Auth **no tiene una plantilla de bienvenida automática**. La plantilla `nexo-dashboard-welcome` ya está publicada en Resend, pero **todavía no tiene activado un disparador automático**.
 - La plantilla existente `emails/nexo-team-invite.html` se utiliza para invitaciones internas de colaboradores mediante `nexo-mailer` (actualmente Resend con remitente `equipo@nexobyjv.online`). **No sustituirla sin revisar el flujo personalizado y su remitente.**
 
-## Activar Gmail SMTP en Supabase (acción administrativa pendiente)
-1. Accede a https://supabase.com/dashboard/project/ixewnbjndguchunwcuhf/auth/smtp
-2. Habilita **Custom SMTP**.
-3. Remitente / Sender email: `nexobyjuanvisbal@gmail.com`.
-4. Sender name: `NEXO by Juan Visbal`.
-5. Host: `smtp.gmail.com`. Port: `465` (SSL/TLS; alternativamente 587 con STARTTLS según proveedor).
-6. Username: `nexobyjuanvisbal@gmail.com`.
-7. Password: **contraseña de aplicación de Google generada por el propietario**. No utilizar la contraseña habitual ni guardar secretos en GitHub, correos o chats.
-8. Guardar y enviar prueba. Si la cuenta Google no ofrece contraseñas de aplicación, utilizar un servicio SMTP autenticado de dominio propio en vez de debilitar su seguridad.
+## Activar el SMTP de Resend que NEXO ya utiliza (pendiente en Supabase)
 
-> Precaución: Gmail personal tiene límites y no está optimizado para correo transaccional de una plataforma. Para escalar, preferir un remitente verificado `@nexobyjv.online` con un proveedor especializado.
+**Dominio de NEXO verificado:** `nexobyjv.online` (Resend).  
+**Remitente ya existente y aprobado:** `NEXO by Juan Visbal <equipo@nexobyjv.online>`.  
+**Plantilla existente activa:** `nexo-team-invite` (invitaciones a colaboradores).  
+**Bienvenida preparada y publicada:** `nexo-dashboard-welcome` (Resend). No se envía automáticamente hasta integrar el evento de activación.
+
+Sin necesidad de Gmail, Google App Passwords ni contratar otro proveedor.
+
+1. Abrir https://supabase.com/dashboard/project/ixewnbjndguchunwcuhf/auth/smtp y activar **Custom SMTP**.
+2. **Sender email:** `equipo@nexobyjv.online`.
+3. **Sender name:** `NEXO by Juan Visbal`.
+4. **SMTP host:** `smtp.resend.com`.
+5. **SMTP port:** `465` (SSL/TLS; alternativamente 587 con STARTTLS, si está soportado).
+6. **SMTP username:** `resend` (literal).
+7. **SMTP password:** una **Resend API Key** con permiso de enviar en `nexobyjv.online`. Crearla en https://resend.com/api-keys y pegarla **solo en el panel de Supabase**; no enviarla por chat, agregarla a archivos ni reutilizar la de otros servicios si se puede evitar.
+8. Guardar y verificar un correo de recuperación con un usuario de prueba.
+9. **No cambiar el remitente del `nexo-mailer` existente**: ya utiliza Resend. La configuración SMTP de Supabase es independiente y complementaria.
+
+Esto usa el mismo proveedor que NEXO ya posee. Sujeto a las cuotas del plan gratuito. Como Supabase carece de credenciales de Resend y el conector de Supabase no permite modificar Auth SMTP, el paso del panel debe realizarlo un administrador.
 
 ## Activar plantillas en Supabase
 En https://supabase.com/dashboard/project/ixewnbjndguchunwcuhf/auth/templates copiar el HTML y asunto correspondiente:
@@ -49,7 +58,7 @@ En **Authentication → URL Configuration**:
 4. Probar invitación a un usuario del equipo y cliente en entornos autorizados; validar que sus roles siguen intactos.
 5. Probar una solicitud con correo no registrado: la interfaz no debe revelar si existe la cuenta.
 6. Validar asunto, remitente, spam, vistas de Gmail y Outlook, funcionamiento en móvil y validez de enlaces.
-7. Confirmar que se ha configurado SMTP antes de depender de envíos continuos.
+7. Confirmar que se ha configurado Resend SMTP antes de depender de envíos continuos.
 
 ## Seguridad
 - Nunca almacenar contraseña de aplicación en código o archivos del repositorio.
