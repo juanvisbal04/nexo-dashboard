@@ -10,7 +10,7 @@ import { renderStaffHome, renderStaffProjects, renderStaffAccounts, renderStaffP
 import { renderSalesWorkspace, renderImplementationWorkspace, renderOperationsWorkspace } from "./departmentWorkspaces.js?v=20261013-followup1";
 import { renderExecutiveTasks } from "./executiveTasks.js?v=20261013-ops360-2";
 import { renderPeopleWorkspace } from "./peopleWorkspace.js?v=20261007-people2";
-import { renderFounderCommandCenter } from "./founderCommandCenter.js?v=20261013-ops360-1";
+import { renderFounderCommandCenter } from "./founderCommandCenter.js?v=20261013-shield1";
 
 const SUPABASE_URL = "https://ixewnbjndguchunwcuhf.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_vFnLRe9cmnOcyz2Fivprhw_8UjBaRGL";
