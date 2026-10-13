@@ -23,7 +23,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=20261013-access1" />
+  <link rel="stylesheet" href="./styles.css?v=20261013-team2" />
   <link rel="stylesheet" href="./crm.css?v=20261001-crm32" />
   <link rel="stylesheet" href="./salesCrm.css?v=20261013-crm2" />
 </head>
@@ -164,7 +164,7 @@
             <span>⌕</span><small>Buscar</small>
           </button>
           <button id="notificationButton" class="notification-button" type="button" aria-label="Centro de atención" aria-expanded="false">
-            <span class="notification-icon">◎</span>
+            <svg class="notification-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M9 21h6"/></svg>
             <span id="notificationBadge" class="notification-badge hidden">0</span>
           </button>
           <span id="topEmail" class="top-email"></span>
@@ -256,10 +256,11 @@
       <div><span class="eyebrow">NEXO LIVE</span><h2>Centro de atención</h2><p>Lo que merece revisión ahora.</p></div>
       <button id="notificationClose" type="button" aria-label="Cerrar">×</button>
     </div>
+    <div class="notification-read-toolbar"><button id="notificationReadAll" class="btn small" type="button">Marcar todas como leídas</button><small>Abrirlas no completa las tareas pendientes.</small></div>
     <div id="notificationList" class="notification-list"></div>
   </aside>
   <div id="toast" class="toast hidden"></div>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-  <script type="module" src="./app.js?v=20261013-access2"></script>
+  <script type="module" src="./app.js?v=20261013-team2"></script>
 </body>
 </html>

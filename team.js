@@ -139,12 +139,13 @@ export async function renderInternalTeam(ctx) {
     `;
   }).join("");
 
+  document.body.classList.remove("modal-open");
   $("content").innerHTML = `
     <div class="team-summary nexo-team-hero">
       <div>
         <span class="eyebrow">NEXO INTERNAL · EQUIPO</span>
         <h2>${users.length} colaborador${users.length === 1 ? "" : "es"} configurado${users.length === 1 ? "" : "s"}</h2>
-        <p>Administra departamentos, cargos, jerarquía, clientes asignados y acceso al workspace interno. Los permisos sensibles siguen gobernados por RBAC.</p>
+        <p>Personas, cargos y clientes asignados en una sola vista.</p>
       </div>
       <div class="team-hero-stats">
         <span><b>${activeCount}</b> activos</span>
@@ -153,7 +154,7 @@ export async function renderInternalTeam(ctx) {
       </div>
     </div>
 
-    <div class="team-security-note">
+    <details class="team-security-note team-governance-details"><summary>Accesos y estructura de permisos</summary>
       <div>
         <span class="team-security-icon">◎</span>
         <div>
@@ -161,22 +162,23 @@ export async function renderInternalTeam(ctx) {
           <p>Los cargos activos reciben solo los permisos de su función. Finance & Administration permanece planificado y sin roles asignables hasta autorización del Founder.</p>
         </div>
       </div>
-      <span class="pill green">Founder only</span>
-    </div>
+      <span class="pill green">Solo CEO</span>
+    </details>
 
     <div class="grid-two team-grid nexo-team-grid">
       <section class="card nexo-team-list-card">
         <div class="card-head">
           <div><h2>Equipo NEXO</h2><p>Usuarios internos, rol y cartera asignada</p></div>
-          <span class="count">${users.length}</span>
+          <button id="teamNewCollaborator" class="btn primary" type="button">+ Nuevo colaborador</button>
         </div>
-        <div class="table-wrap">
+        <div class="team-directory-toolbar"><input id="teamDirectorySearch" type="search" placeholder="Buscar persona, correo o cargo" aria-label="Buscar colaborador"><select id="teamDirectoryStatus" aria-label="Estado del colaborador"><option value="">Todos los estados</option><option value="active">Activos</option><option value="invited">Invitados</option><option value="inactive">Inactivos</option></select></div>
+        <div class="table-wrap team-directory-wrap">
           <table class="team-table">
             <thead><tr><th>Colaborador</th><th>Rol</th><th>Clientes</th><th>Estado</th><th>Último acceso</th><th></th></tr></thead>
             <tbody>
               ${users.length ? users.map((user) => `
-                <tr>
-                  <td>
+                <tr data-team-row="${esc(user.user_id)}" data-team-status="${esc(user.status)}">
+                  <td data-label="Colaborador">
                     <div class="team-person">
                       <span class="team-person-avatar">${esc((user.full_name || user.email || "NX").split(/\s+/).filter(Boolean).slice(0,2).map((x)=>x[0]?.toUpperCase()||"").join("") || "NX")}</span>
                       <div>
@@ -186,55 +188,52 @@ export async function renderInternalTeam(ctx) {
                       </div>
                     </div>
                   </td>
-                  <td><span class="team-role-pill">${esc(user.role_name || user.role_key || "—")}</span>${user.department_name ? `<small class="team-role-department">${esc(user.department_name)}</small>` : ""}</td>
-                  <td>${clientChips(user)}</td>
-                  <td>${statusBadge(user)}</td>
-                  <td>
+                  <td data-label="Cargo"><span class="team-role-pill">${esc(user.role_name || user.role_key || "—")}</span>${user.department_name ? `<small class="team-role-department">${esc(user.department_name)}</small>` : ""}</td>
+                  <td data-label="Clientes">${clientChips(user)}</td>
+                  <td data-label="Estado">${statusBadge(user)}</td>
+                  <td data-label="Último acceso">
                     ${user.last_sign_in_at
                       ? esc(dateTime(user.last_sign_in_at))
                       : user.invite?.last_sent_at
                         ? `<span class="team-invite-meta">Invite enviado<br><small>${esc(dateTime(user.invite.last_sent_at))}${user.invite.resend_count ? ` · ${user.invite.resend_count} reenvío${user.invite.resend_count === 1 ? "" : "s"}` : ""}</small></span>`
                         : '<span class="muted">Aún no ingresa</span>'}
                   </td>
-                  <td>
+                  <td data-label="Acciones">
                     <div class="team-row-actions">
-                      <button class="btn small team-extra-permissions" type="button" data-user-id="${esc(user.user_id)}">Permisos adicionales</button>
-                      <button class="btn small team-edit" type="button" data-user-id="${esc(user.user_id)}">Editar</button>
+                      <button class="btn small team-extra-permissions" type="button" data-user-id="${esc(user.user_id)}" title="Permisos adicionales" aria-label="Permisos de ${esc(user.full_name||user.email)}"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="9" r="4"/><path d="m11 12 8 8 3-3-3-3-2 2"/></svg></button>
+                      <button class="btn small team-edit" type="button" data-user-id="${esc(user.user_id)}" title="Editar colaborador" aria-label="Editar ${esc(user.full_name||user.email)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5 4 4M4 20l4-1L20 7a3 3 0 0 0-4-4L4 15z"/></svg></button>
+                      <details class="team-actions-menu"><summary title="Más acciones" aria-label="Más acciones para ${esc(user.full_name||user.email)}"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></summary><div class="team-actions-popover">
                       ${user.status === "invited" ? `
                         <button class="btn small team-resend" type="button" data-user-id="${esc(user.user_id)}">Reenviar invite</button>
                         <button class="btn small warn team-cancel-invite" type="button" data-user-id="${esc(user.user_id)}">Cancelar invite</button>
                       ` : `
                         <button class="btn small team-toggle ${user.active ? "warn" : ""}" type="button" data-user-id="${esc(user.user_id)}" data-active="${user.active ? "true" : "false"}">${user.active ? "Desactivar" : "Activar"}</button>
                       `}
-                      <button class="member-remove team-remove" type="button" data-user-id="${esc(user.user_id)}">Quitar</button>
+                      <button class="member-remove team-remove" type="button" data-user-id="${esc(user.user_id)}">Quitar acceso</button></div></details>
                     </div>
                   </td>
                 </tr>
               `).join("") : `
-                <tr><td colspan="6"><div class="team-empty"><b>Aún no hay colaboradores internos.</b><span>Crea el primero desde el panel de la derecha.</span></div></td></tr>
+                <tr><td colspan="6"><div class="team-empty"><b>Aún no hay colaboradores internos.</b><span>Usa Nuevo colaborador para agregar una persona.</span></div></td></tr>
               `}
             </tbody>
           </table>
         </div>
       </section>
 
-      <section class="card access-card nexo-team-editor-card">
+      <dialog id="teamEditorDialog" class="team-editor-dialog" aria-labelledby="internalTeamFormTitle"><section class="card access-card nexo-team-editor-card">
         <div class="card-head">
           <div><h2 id="internalTeamFormTitle">Nuevo colaborador</h2><p id="internalTeamFormSubtitle">Crea su acceso y define lo que necesita para trabajar.</p></div>
-          <button id="internalTeamCancel" class="btn small hidden" type="button">Cancelar</button>
+          <button id="teamEditorClose" class="team-editor-close" type="button" aria-label="Cerrar editor">×</button><button id="internalTeamCancel" class="btn small hidden" type="button">Cancelar</button>
         </div>
         <form id="internalTeamForm" class="admin-form nexo-team-form">
           <input id="internalTeamUserId" type="hidden" />
-          <label>Nombre</label>
-          <input id="internalTeamName" type="text" placeholder="Nombre completo" required />
-          <label>Correo</label>
-          <input id="internalTeamEmail" type="email" placeholder="persona@correo.com" required />
-          <label>Cargo / título</label>
-          <input id="internalTeamJobTitle" type="text" placeholder="Ej. Sales Executive" />
-          <label>Cargo NEXO</label>
-          <select id="internalTeamRole" required>
+          <label>Nombre<input id="internalTeamName" type="text" placeholder="Nombre completo" required /></label>
+          <label>Correo<input id="internalTeamEmail" type="email" placeholder="persona@correo.com" required /></label>
+          <label>Cargo / título<input id="internalTeamJobTitle" type="text" placeholder="Ej. Sales Executive" /></label>
+          <label>Cargo NEXO<select id="internalTeamRole" required>
             ${roleOptionsHtml}
-          </select>
+          </select></label>
           <div id="internalRolePreview" class="internal-role-preview"></div>
 
           <div class="team-client-selector">
@@ -256,13 +255,13 @@ export async function renderInternalTeam(ctx) {
           <button id="internalTeamSubmit" class="btn primary" type="submit">Crear colaborador</button>
         </form>
         <div id="internalTeamResult" class="access-result hidden"></div>
-      </section>
+      </section></dialog>
     </div>
 
-    <section class="card team-roles-section">
+    <details class="card team-roles-section team-structure-details"><summary>Estructura de NEXO · departamentos y cargos</summary>
       <div class="card-head"><div><h2>Estructura de NEXO</h2><p>Departamentos, jerarquía, líneas de reporte y cargos futuros. Los roles planificados no se pueden asignar todavía.</p></div></div>
       <div class="team-department-grid">${departmentCards}</div>
-    </section>
+    </details>
   `;
 
   const rolePreview = () => {
@@ -273,9 +272,9 @@ export async function renderInternalTeam(ctx) {
     const department = departmentMap.get(role.department_id);
     preview.innerHTML = `
       <div><strong>${esc(role.name)}</strong><span>${esc(department?.name || "NEXO")} · ${esc(levelLabel(role.hierarchy_level,role.role_scope))}</span><span>${esc(role.description || "")}</span></div>
-      <div class="team-permission-chips">
+      <details class="team-base-permissions"><summary>Ver ${permissions.length} permisos del cargo</summary><div class="team-permission-chips">
         ${permissions.map((permission) => `<span>${esc(permissionLabels[permission] || permission)}</span>`).join("")}
-      </div>
+      </div></details>
     `;
   };
 
@@ -299,7 +298,16 @@ export async function renderInternalTeam(ctx) {
   $("internalTeamRole")?.addEventListener("change", rolePreview);
   rolePreview();
 
-  $("internalTeamCancel")?.addEventListener("click", resetForm);
+  const editor=$("teamEditorDialog");
+  const openEditor=()=>{editor.showModal();document.body.classList.add("modal-open");$("internalTeamName").focus();};
+  const closeEditor=()=>editor.close();
+  editor.addEventListener("close",()=>document.body.classList.remove("modal-open"));
+  $("teamEditorClose").addEventListener("click",closeEditor);
+  $("teamNewCollaborator").addEventListener("click",()=>{resetForm();openEditor();});
+  $("internalTeamCancel")?.addEventListener("click",()=>{resetForm();closeEditor();});
+  const filterUsers=()=>{const query=$("teamDirectorySearch").value.toLowerCase().trim(),status=$("teamDirectoryStatus").value;document.querySelectorAll("[data-team-row]").forEach(row=>{const user=users.find(u=>u.user_id===row.dataset.teamRow);row.hidden=Boolean((status&&user.status!==status)||![user.full_name,user.email,user.role_name,user.job_title,user.department_name].join(" ").toLowerCase().includes(query));});};
+  $("teamDirectorySearch").addEventListener("input",filterUsers);$("teamDirectoryStatus").addEventListener("change",filterUsers);
+  document.querySelectorAll(".team-actions-menu").forEach(menu=>menu.addEventListener("toggle",()=>{if(menu.open)document.querySelectorAll(".team-actions-menu").forEach(other=>{if(other!==menu)other.open=false;});}));
 
   document.querySelectorAll(".team-edit").forEach((button) => {
     button.addEventListener("click", () => {
@@ -319,7 +327,7 @@ export async function renderInternalTeam(ctx) {
       $("internalTeamCancel").classList.remove("hidden");
       $("internalTeamResult").className = "access-result hidden";
       rolePreview();
-      $("internalTeamName").scrollIntoView({ behavior: "smooth", block: "center" });
+      openEditor();
     });
   });
 

@@ -1,9 +1,10 @@
+import { notificationFingerprint, loadNotificationReads, markNotificationReads } from "./notificationReads.js?v=20261013-read1";
 import { SERVICE_LINES, serviceLinesField, serviceLinesLabel, selectedServiceLines, needsAssistant, bindServiceLines, openServiceLineEditor } from "./serviceLines.js?v=20261013-lines1";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
 import { renderCrm, openProspectEditorFromGrowth, openNewProspectFromGrowth } from "./crm.js?v=20261013-finance1";
 import { renderTasks, openCustomer360, openContact360, closeDrawer } from "./workspace360.js?v=20261013-crm2";
 import { renderDataQuality, openOnboarding, closeQualityDrawer } from "./qualityOnboarding.js?v=20261001-quality2";
-import { renderInternalTeam } from "./team.js?v=20261013-access1";
+import { renderInternalTeam } from "./team.js?v=20261013-team2";
 import { renderStaffHome, renderStaffProjects, renderStaffAccounts, renderStaffPerformance } from "./staffWorkspace.js?v=20261007-company1";
 import { renderSalesWorkspace, renderImplementationWorkspace, renderOperationsWorkspace } from "./departmentWorkspaces.js?v=20261013-crm2";
 import { renderExecutiveTasks } from "./executiveTasks.js?v=20261013-crm2";
@@ -3409,7 +3410,7 @@ function isUserEditing() {
   const formFocused = active && ["INPUT","TEXTAREA","SELECT"].includes(active.tagName);
   const chat = document.getElementById("chatModal");
   const chatOpen = chat && !chat.classList.contains("hidden");
-  const crmOpen = !!(document.getElementById("crmModal")||document.getElementById("salesCrmModal")||document.getElementById("userPermissionsModal"));
+  const crmOpen = !!(document.querySelector("#teamEditorDialog[open]")||document.getElementById("crmModal")||document.getElementById("salesCrmModal")||document.getElementById("userPermissionsModal"));
   const drawerOpen = !!document.querySelector(".nexo-drawer:not(.hidden)");
   return Boolean(formFocused || chatOpen || crmOpen || drawerOpen || document.body.classList.contains("crm-board-dragging"));
 }
@@ -3669,18 +3670,22 @@ function notificationOrgName(orgId) {
   return state.organizations.find((org) => org.id === orgId)?.name || "NEXO";
 }
 
+const acknowledgedNotifications=new Map();
+let notificationRefreshVersion=0;
 async function refreshNotifications() {
+  const refreshVersion=++notificationRefreshVersion;
   if (!state.session) return;
   const orgIds = notificationOrgIds();
   const internalAdmin=state.isAdmin && isInternalOrg();
   const items = [];
+  const notificationUserId=state.session.user.id;
   const scoped = (query) => {
     if (!orgIds.length) return query.eq("organization_id", "00000000-0000-0000-0000-000000000000");
     return orgIds.length === 1 ? query.eq("organization_id", orgIds[0]) : query.in("organization_id", orgIds);
   };
 
   let workTaskQuery=scoped(supabase.from("work_tasks").select("id,organization_id,title,status,priority,due_at,contact_id,assigned_to").in("status",["pending","in_progress"]).order("due_at",{ascending:true,nullsFirst:false}).limit(30));
-  if(internalAdmin) workTaskQuery=workTaskQuery.eq("assigned_to",state.session.user.id);
+  if(internalAdmin||state.isInternalStaff)workTaskQuery=supabase.from("work_tasks").select("id,organization_id,title,status,priority,due_at,contact_id,assigned_to").eq("assigned_to",state.session.user.id).in("status",["pending","in_progress"]).order("due_at",{ascending:true,nullsFirst:false}).limit(30);
 
   const tasks = [
     scoped(supabase.from("conversations").select("id,organization_id,name,status,last_message_at").eq("status","Requiere atención").order("last_message_at",{ascending:false}).limit(12)),
@@ -3694,14 +3699,14 @@ async function refreshNotifications() {
   const [conversationResult, appointmentResult, invoiceResult, workTaskResult] = await Promise.all(tasks);
 
   (conversationResult.data || []).forEach((row) => items.push({
-    tone:"risk", priority:100, page:"conversations", orgId:row.organization_id,
+    key:`conversation:${row.id}`,tone:"risk", priority:100, page:"conversations", orgId:row.organization_id,
     title:"Chat requiere atención",
     detail:(row.name || "Conversación") + " · " + notificationOrgName(row.organization_id),
     date:row.last_message_at,
   }));
 
   (appointmentResult.data || []).forEach((row) => items.push({
-    tone:"watch", priority:80, page:"appointments", orgId:row.organization_id,
+    key:`appointment:${row.id}`,tone:"watch", priority:80, page:"appointments", orgId:row.organization_id,
     title:"Cita pendiente de confirmar",
     detail:(row.name || "Solicitud") + " · " + notificationOrgName(row.organization_id),
     date:row.starts_at || row.created_at,
@@ -3710,7 +3715,7 @@ async function refreshNotifications() {
   (invoiceResult.data || []).forEach((row) => {
     const overdue = row.status === "overdue" || new Date(String(row.due_date)+"T23:59:59-05:00").getTime() < Date.now();
     items.push({
-      tone:overdue?"risk":"watch", priority:overdue?95:65, page:"billing", orgId:row.organization_id,
+      key:`invoice:${row.id}`,version:[row.status,row.amount_cop],tone:overdue?"risk":"watch", priority:overdue?95:65, page:"billing", orgId:row.organization_id,
       title:overdue?"Cobro vencido":"Cobro pendiente",
       detail:(row.invoice_number || "Cuenta de cobro") + " · " + money(row.amount_cop) + " · " + notificationOrgName(row.organization_id),
       date:row.due_date,
@@ -3724,7 +3729,7 @@ async function refreshNotifications() {
     const dueSoon=due && due>=Date.now() && due<=Date.now()+48*60*60*1000;
     if(!overdue && !urgent && !dueSoon) return;
     items.push({
-      tone:overdue||urgent?"risk":"watch",
+      key:`task:${row.id}`,version:[row.status,row.priority,row.assigned_to],tone:overdue||urgent?"risk":"watch",
       priority:overdue?98:urgent?93:72,
       page:"tasks",
       orgId:row.organization_id,
@@ -3743,7 +3748,7 @@ async function refreshNotifications() {
     (prospects || []).forEach((row) => {
       const stale = row.next_action_at && new Date(row.next_action_at).getTime() < Date.now();
       items.push({
-        tone:stale?"risk":"info", priority:stale?90:70, page:"crm", orgId:null,
+        key:`prospect:${row.id}`,version:row.stage,tone:stale?"risk":"info", priority:stale?90:70, page:"pipeline", orgId:null,
         title:stale?"Seguimiento comercial vencido":"Nuevo prospecto en pipeline",
         detail:(row.business_name || row.full_name || "Prospecto") + " · " + (row.stage || "prospecto"),
         date:row.next_action_at || row.created_at,
@@ -3753,7 +3758,7 @@ async function refreshNotifications() {
     (commercials || []).forEach((row) => {
       if (["attention","pending","partial"].includes(row.integration_status)) {
         items.push({
-          tone:row.integration_status==="attention"?"risk":"watch", priority:75, page:"crm", orgId:row.organization_id,
+          key:`integration:${row.organization_id}`,version:row.integration_status,tone:row.integration_status==="attention"?"risk":"watch", priority:75, page:"operations", orgId:row.organization_id,
           title:"Integración por revisar",
           detail:notificationOrgName(row.organization_id) + " · " + row.integration_status,
           date:null,
@@ -3763,7 +3768,7 @@ async function refreshNotifications() {
         const renewal = new Date(String(row.renewal_date)+"T23:59:59-05:00").getTime();
         if (renewal >= Date.now() && renewal <= Date.now()+30*86400000) {
           items.push({
-            tone:"watch", priority:60, page:"crm", orgId:row.organization_id,
+            key:`renewal:${row.organization_id}`,tone:"watch", priority:60, page:"crm", orgId:row.organization_id,
             title:"Renovación próxima",
             detail:notificationOrgName(row.organization_id) + " · " + shortDate(row.renewal_date),
             date:row.renewal_date,
@@ -3773,40 +3778,36 @@ async function refreshNotifications() {
     });
   }
 
-  items.sort((a,b)=>b.priority-a.priority || String(b.date||"").localeCompare(String(a.date||"")));
-  state.notifications = items;
-
-  const badge=$("notificationBadge");
-  if (badge) {
-    badge.textContent=String(Math.min(items.length,99));
-    badge.classList.toggle("hidden",!items.length);
-  }
-
-  const list=$("notificationList");
-  if (!list) return;
-  list.innerHTML=items.length ? items.slice(0,20).map((item,index)=>`
-    <button class="notification-item ${item.tone}" type="button" data-notification-index="${index}">
-      <i></i>
-      <div><b>${esc(item.title)}</b><span>${esc(item.detail)}</span>${item.date?`<small>${esc(shortDate(item.date))}</small>`:""}</div>
-      <em>→</em>
-    </button>
-  `).join("") : `
-    <div class="notification-empty"><span>✓</span><b>Todo al día</b><p>No hay alertas activas en este momento.</p></div>
-  `;
-
-  list.querySelectorAll("[data-notification-index]").forEach((button)=>{
-    button.addEventListener("click",async()=>{
-      const item=items[Number(button.dataset.notificationIndex)];
-      if (!item) return;
-      if (item.orgId && state.organizations.some((org)=>org.id===item.orgId)) $("orgSelect").value=item.orgId;
-      state.page=item.page||"overview";
-      document.querySelectorAll(".nav-item").forEach((el)=>el.classList.toggle("active",el.dataset.page===state.page));
-      persistUiState();
-      $("notificationPanel")?.classList.add("hidden");
-      $("notificationButton")?.setAttribute("aria-expanded","false");
-      await render();
-    });
-  });
+  const reads=await loadNotificationReads(supabase,notificationUserId,items);
+  if(state.session?.user.id!==notificationUserId||refreshVersion!==notificationRefreshVersion)return;
+  items.forEach(item=>{const fingerprint=notificationFingerprint(item);item.isRead=reads.get(item.key)===fingerprint||acknowledgedNotifications.get(`${notificationUserId}:${item.key}`)===fingerprint;});
+  items.sort((a,b)=>Number(a.isRead)-Number(b.isRead)||b.priority-a.priority||String(b.date||"").localeCompare(String(a.date||"")));
+  state.notifications=items;
+  renderNotificationList();
+  // Opening the panel acknowledges only the notifications displayed to the user.
+  if(!$("notificationPanel")?.classList.contains("hidden"))await acknowledgeNotifications(items.slice(0,20));
+}
+async function acknowledgeNotifications(items){
+  const unread=items.filter(item=>!item.isRead);if(!unread.length||!state.session)return;
+  const userId=state.session.user.id;
+  try{await markNotificationReads(supabase,userId,unread);if(state.session?.user.id!==userId)return;unread.forEach(item=>{const fingerprint=notificationFingerprint(item);acknowledgedNotifications.set(`${userId}:${item.key}`,fingerprint);item.isRead=true;(state.notifications||[]).forEach(current=>{if(current.key===item.key&&notificationFingerprint(current)===fingerprint)current.isRead=true;});});renderNotificationList();}
+  catch(error){showError("No pudimos guardar la lectura de notificaciones. Inténtalo de nuevo.");}
+}
+function renderNotificationList(){
+  const items=state.notifications||[],unread=items.filter(item=>!item.isRead).length,badge=$("notificationBadge");
+  if(badge){badge.textContent=unread>99?"99+":String(unread);badge.classList.toggle("hidden",!unread);}
+  $("notificationButton")?.setAttribute("aria-label",`Notificaciones: ${unread} sin leer`);
+  if($("notificationReadAll"))$("notificationReadAll").disabled=!unread;
+  const list=$("notificationList");if(!list)return;
+  list.innerHTML=items.length?items.slice(0,20).map((item,index)=>`<button class="notification-item ${item.tone} ${item.isRead?'read':'unread'}" type="button" data-notification-index="${index}"><i></i><div><b>${esc(item.title)}</b><span>${esc(item.detail)}</span>${item.date?`<small>${esc(shortDate(item.date))}</small>`:''}<small>${item.isRead?'Revisada':'Nueva'}</small></div><em>→</em></button>`).join(""):`<div class="notification-empty"><span>✓</span><b>Todo al día</b><p>No hay alertas activas en este momento.</p></div>`;
+  list.querySelectorAll("[data-notification-index]").forEach(button=>button.addEventListener("click",async()=>{
+    const item=state.notifications[Number(button.dataset.notificationIndex)];if(!item)return;
+    await acknowledgeNotifications([item]);
+    if(item.orgId&&state.organizations.some(org=>org.id===item.orgId))$("orgSelect").value=item.orgId;
+    let page=item.page||"overview";
+    if(!canAccessPage(page))page=canAccessPage("departmentOps")?"departmentOps":canAccessPage("delivery")?"delivery":"overview";
+    toggleNotificationPanel(false);await navigateToPage(page,{historyMode:"push"});
+  }));
 }
 
 function toggleNotificationPanel(force) {
@@ -4320,6 +4321,7 @@ $("notificationButton")?.addEventListener("click",(event)=>{
   event.stopPropagation();
   toggleNotificationPanel();
 });
+$("notificationReadAll")?.addEventListener("click",()=>acknowledgeNotifications(state.notifications||[]));
 $("notificationClose")?.addEventListener("click",()=>toggleNotificationPanel(false));
 $("notificationPanel")?.addEventListener("click",(event)=>event.stopPropagation());
 document.addEventListener("click",()=>toggleNotificationPanel(false));
@@ -4329,7 +4331,7 @@ $("menuButton").addEventListener("click", () => document.body.classList.toggle("
 function repairUiLocks() {
   const chat = document.getElementById("chatModal");
   const chatOpen = chat && !chat.classList.contains("hidden");
-  const crmOpen = !!(document.getElementById("crmModal")||document.getElementById("salesCrmModal")||document.getElementById("userPermissionsModal"));
+  const crmOpen = !!(document.querySelector("#teamEditorDialog[open]")||document.getElementById("crmModal")||document.getElementById("salesCrmModal")||document.getElementById("userPermissionsModal"));
   const drawerOpen = !!document.querySelector(".nexo-drawer:not(.hidden)");
   if (!chatOpen && !crmOpen && !drawerOpen) document.body.classList.remove("modal-open");
 }
