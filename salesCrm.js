@@ -13,6 +13,17 @@ const person=id=>people.find(p=>p.id===id)?.full_name||people.find(p=>p.id===id)
 const ownTasks=id=>tasks.filter(t=>t.source_id===id);
 const openTasks=id=>ownTasks(id).filter(t=>['pending','in_progress'].includes(t.status));
 const stageName=v=>Object.fromEntries(stages)[v]||v;
+const activeLead=r=>!['activo','perdido'].includes(r.stage);
+function leadAlerts(r){
+  if(!activeLead(r))return [];
+  const flags=[],now=Date.now();
+  if(!r.next_action_at)flags.push('Sin próxima acción');
+  else if(new Date(r.next_action_at).getTime()<now)flags.push('Seguimiento vencido');
+  const lastTouch=Math.max(0,...activities.filter(a=>a.demo_request_id===r.id).map(a=>new Date(a.created_at).getTime()||0));
+  const latest=Math.max(new Date(r.updated_at||r.created_at).getTime()||0,lastTouch);
+  if(latest&&now-latest>=7*86400000)flags.push('Sin actividad reciente (+7 días)');
+  return flags;
+}
 
 export async function renderSalesWorkspace(context){
   C=context;
@@ -34,7 +45,7 @@ export async function renderSalesWorkspace(context){
     if(!people.some(p=>p.id===C.state.session.user.id))people.push({id:C.state.session.user.id,full_name:'Yo'});
   }
   C.$('content').innerHTML=`<section class="crm-workspace-toolbar"><p>Gestiona oportunidades y seguimientos con tu equipo.</p>${writable()?'<button class="btn primary" id="crmAddLead">+ Agregar lead</button>':''}</section>
-  <div class="crm-hub-tabs" role="tablist">${[['pipeline','Pipeline'],['leads','Leads y contactos'],['tasks','Tareas comerciales'],['activity','Actividad']].map(([v,l])=>`<button role="tab" data-hub-view="${v}" aria-selected="${view===v}">${l}</button>`).join('')}</div>
+  <div class="crm-hub-tabs" role="tablist">${[['pipeline','Pipeline'],['attention','Requieren seguimiento'],['leads','Leads y contactos'],['tasks','Tareas comerciales'],['activity','Actividad']].map(([v,l])=>`<button role="tab" data-hub-view="${v}" aria-selected="${view===v}">${l}</button>`).join('')}</div>
   <section class="card"><div class="crm-hub-filters"><input id="hubSearch" type="search" placeholder="Buscar negocio, contacto, teléfono o correo" value="${esc(search)}" aria-label="Buscar lead"><select id="hubOwner" aria-label="Responsable"><option value="">Todos los responsables</option><option value="unassigned" ${owner==='unassigned'?'selected':''}>Sin asignar</option>${people.map(p=>`<option value="${esc(p.id)}" ${owner===p.id?'selected':''}>${esc(p.full_name||p.contact_email)}</option>`).join('')}</select><select id="hubStage" aria-label="Etapa"><option value="">Todas las etapas</option>${stages.map(([v,l])=>`<option value="${v}" ${stage===v?'selected':''}>${l}</option>`).join('')}</select></div><div id="hubBody"></div></section>`;
   C.$('crmAddLead')?.addEventListener('click',()=>editor());
   C.$('hubSearch').addEventListener('input',e=>{search=e.target.value;draw();});
@@ -49,7 +60,7 @@ const movingLeads=new Set();
 function card(r){return `<article class="staff-sales-card crm-board-deal" data-deal-id="${esc(r.id)}" draggable="${writable()&&!movingLeads.has(r.id)}">
   <div class="crm-deal-heading"><button class="crm-hub-open" data-open-lead="${esc(r.id)}"><b>${esc(r.business_name)}</b><span>${esc(r.full_name)}</span></button>${writable()?`<button class="crm-drag-grip" data-drag-lead="${esc(r.id)}" type="button" aria-label="Arrastrar ${esc(r.business_name)}" title="Arrastrar a otra etapa">⠿</button>`:''}</div>
   <small class="crm-deal-owner">${esc(person(r.owner_user_id))}</small><strong class="crm-deal-value">${esc(amount(r.expected_mrr))}${r.expected_mrr?' / mes':''}</strong>
-  <div class="crm-deal-next">${r.next_action_at?'Próxima acción: '+esc(date(r.next_action_at)):'Sin próxima acción'}</div><small>${openTasks(r.id).length} tareas pendientes</small>
+  <div class="crm-deal-next">${r.next_action_at?'Próxima acción: '+esc(date(r.next_action_at)):'Sin próxima acción'}</div>${leadAlerts(r).length?'<div class="crm-alert-tags">'+leadAlerts(r).map(label=>'<span class="pill">'+esc(label)+'</span>').join('')+'</div>':''}<small>${openTasks(r.id).length} tareas pendientes</small>
   ${writable()?`<label class="crm-deal-move">Mover a etapa<select data-move-lead="${esc(r.id)}" aria-label="Etapa de ${esc(r.business_name)}" ${movingLeads.has(r.id)?'disabled':''}>${stages.map(([v,l])=>`<option value="${v}" ${r.stage===v?'selected':''}>${l}</option>`).join('')}</select></label>`:''}
 </article>`;}
 function taskRows(rows){return rows.map(t=>{const lead=leads.find(r=>r.id===t.source_id);return `<article class="task-row"><div class="task-row-main"><b>${esc(t.title)}</b><p>${esc(t.description||'')}</p>${lead?`<button class="crm-hub-open" data-open-lead="${esc(lead.id)}">${esc(lead.business_name)}</button>`:'<small>Lead fuera de tu acceso actual</small>'}<div class="task-row-meta"><span>${esc(person(t.assigned_to))}</span><span>${esc(date(t.due_at))}</span></div></div><div class="task-row-actions">${(can('tasks.team.write')||(t.assigned_to===C.state.session.user.id&&can('tasks.self.write')))?`<select data-task-status="${esc(t.id)}" aria-label="Estado de tarea">${Object.entries(statuses).map(([v,l])=>`<option value="${v}" ${t.status===v?'selected':''}>${l}</option>`).join('')}</select>`:esc(statuses[t.status])}</div></article>`;}).join('')||C.emptyState('Sin tareas comerciales.','Agrega una tarea desde la ficha de un lead.');}
@@ -57,6 +68,12 @@ function activityRows(rows){return rows.map(a=>`<article class="crm-hub-activity
 function draw(){
   const rows=filtered(),ids=new Set(rows.map(r=>r.id));
   if(view==='pipeline')C.$('hubBody').innerHTML=`<div class="crm-board-caption"><span>${rows.length} oportunidades · ${writable()?'Arrastra las tarjetas para cambiar de etapa':'Vista de oportunidades'}</span><span class="crm-board-status" role="status" aria-live="polite">${movingLeads.size?'Guardando cambio…':''}</span></div><div class="staff-sales-pipeline crm-fit-board">${stages.map(([v,l])=>`<section class="staff-sales-column crm-board-column" data-drop-stage="${v}" aria-label="Etapa ${l}"><header><b>${l}</b><span>${rows.filter(r=>r.stage===v).length}</span></header><div class="crm-stage-deals">${rows.filter(r=>r.stage===v).map(card).join('')||'<div class="staff-sales-empty">Sin oportunidades</div>'}</div></section>`).join('')}</div>`;
+  else if(view==='attention'){
+    const flagged=rows.map(r=>({lead:r,flags:leadAlerts(r)})).filter(item=>item.flags.length)
+      .sort((a,b)=>(b.flags.includes('Seguimiento vencido')?1:0)-(a.flags.includes('Seguimiento vencido')?1:0));
+    C.$('hubBody').innerHTML=`<div class="crm-board-caption"><span>${flagged.length} oportunidades requieren seguimiento · ${flagged.filter(x=>x.flags.includes('Seguimiento vencido')).length} vencidas</span></div>
+      <div class="crm-hub-table"><table><thead><tr><th>Negocio / contacto</th><th>Alertas</th><th>Responsable</th><th>Próxima acción</th><th>Etapa</th></tr></thead><tbody>${flagged.map(({lead:r,flags})=>`<tr><td><button class="crm-hub-open" data-open-lead="${esc(r.id)}"><b>${esc(r.business_name)}</b><span>${esc(r.full_name)}</span></button></td><td>${flags.map(label=>`<span class="pill">${esc(label)}</span>`).join(' ')}</td><td>${esc(person(r.owner_user_id))}</td><td>${esc(date(r.next_action_at))}</td><td>${esc(stageName(r.stage))}</td></tr>`).join('')}</tbody></table>${flagged.length?'':C.emptyState('No hay oportunidades pendientes de seguimiento.','Todo al día con estos filtros.')}</div>`;
+  }
   else if(view==='leads')C.$('hubBody').innerHTML=`<div class="crm-hub-table"><table><thead><tr><th>Negocio / contacto</th><th>Correo / WhatsApp</th><th>Etapa</th><th>Responsable</th><th>Próxima acción</th><th>Tareas abiertas</th></tr></thead><tbody>${rows.map(r=>`<tr><td><button class="crm-hub-open" data-open-lead="${esc(r.id)}"><b>${esc(r.business_name)}</b><span>${esc(r.full_name)}</span></button></td><td>${esc(r.email||'—')}<br>${esc(r.phone||'—')}</td><td>${esc(stageName(r.stage))}</td><td>${esc(person(r.owner_user_id))}</td><td>${esc(date(r.next_action_at))}</td><td>${openTasks(r.id).length}</td></tr>`).join('')}</tbody></table>${rows.length?'':C.emptyState('No hay leads con estos filtros.','Agrega un lead o cambia los filtros.')}</div>`;
   else if(view==='tasks')C.$('hubBody').innerHTML=taskRows(tasks.filter(t=>ids.has(t.source_id)));
   else C.$('hubBody').innerHTML=activityRows(activities.filter(a=>ids.has(a.demo_request_id)).slice(0,100));
