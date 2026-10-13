@@ -111,11 +111,19 @@ export async function renderFounderCommandCenter(context){
   const openProspects=prospects.filter(activeProspect);
   const pipelineMrr=sum(openProspects,"expected_mrr");
   const overdueFollowups=openProspects.filter((p)=>p.next_action_at&&new Date(p.next_action_at).getTime()<now);
+  const unscheduledProspects=openProspects.filter(p=>!p.next_action_at);
+  const staleProspects=openProspects.filter(p=>p.updated_at&&now-new Date(p.updated_at).getTime()>=7*86400000);
   const upcomingDemos=openProspects.filter((p)=>p.demo_at&&new Date(p.demo_at).getTime()>=now);
 
   const activeProjects=projects.filter(openProject);
   const projectReview=projects.filter((p)=>["review","changes"].includes(p.status));
   const overdueProjects=activeProjects.filter((p)=>p.due_at&&new Date(p.due_at).getTime()<now);
+  const teamTaskLoad=[...new Map(openTasks.map(t=>[t.assigned_to||"unassigned",t.assigned_to||"unassigned"])).keys()].map(id=>{
+    const owned=openTasks.filter(t=>(t.assigned_to||"unassigned")===id);
+    return {id,name:id==="unassigned"?"Sin responsable":personName(peopleMap,id),open:owned.length,
+      overdue:owned.filter(t=>t.due_at&&new Date(t.due_at).getTime()<now).length,
+      urgent:owned.filter(t=>t.priority==="urgent").length};
+  }).sort((a,b)=>b.overdue-a.overdue||b.open-a.open);
 
   const attentionConversations=conversations.filter((r)=>r.status==="Requiere atención");
   const conv30=conversations.filter((r)=>r.last_message_at&&new Date(r.last_message_at).getTime()>=thirtyDaysAgo);
@@ -148,6 +156,10 @@ export async function renderFounderCommandCenter(context){
     "Operación",row.name||"Conversación requiere atención",
     `${orgName(orgMap,row.organization_id)} · ${row.channel||"Canal"}`,
     row.last_message_at?daysAgo(row.last_message_at):"","operations","danger"
+  )));
+  unscheduledProspects.slice(0,4).forEach(row=>attention.push(attentionItem(
+    "Venta sin próximo paso",row.business_name||row.full_name||"Prospecto",
+    "Necesita una próxima acción programada","","pipeline","warn"
   )));
   overdueFollowups.slice(0,6).forEach((row)=>attention.push(attentionItem(
     "Seguimiento comercial",row.business_name||row.full_name||"Prospecto",
@@ -250,6 +262,27 @@ export async function renderFounderCommandCenter(context){
       <article><span>Equipo activo</span><b>${activePeople.length}</b><small>${invitedPeople.length} invitados · ${inactivePeople.length} inactivos</small></article>
       <article class="${attentionConversations.length?"risk":""}"><span>Atención operativa</span><b>${attentionConversations.length}</b><small>${conv30.length} chats monitoreados · 30d</small></article>
     </div>
+
+    <section class="card nexo-ceo-priorities">
+      <div class="card-head"><div><span class="eyebrow">DECISIONES DEL CEO</span><h2>Ventas, entregables y capacidad de ejecución</h2><p>Indicadores para decidir dónde intervenir hoy, sin sustituir los módulos operativos.</p></div></div>
+      <div class="founder-mini-metrics">
+        <div class="${unscheduledProspects.length?"risk":""}"><span>Leads sin próxima acción</span><b>${unscheduledProspects.length}</b></div>
+        <div class="${staleProspects.length?"risk":""}"><span>Sin actualización CRM · +7d</span><b>${staleProspects.length}</b></div>
+        <div class="${overdueProjects.length?"risk":""}"><span>Entregas atrasadas</span><b>${overdueProjects.length}</b></div>
+        <div class="${projectReview.length?"risk":""}"><span>Proyectos en revisión / cambios</span><b>${projectReview.length}</b></div>
+      </div>
+      <div class="founder-command-actions">
+        <button class="btn small" data-founder-page="pipeline" type="button">Resolver seguimientos</button>
+        <button class="btn small" data-founder-page="tasks" type="button">Redistribuir trabajo</button>
+        <button class="btn small" data-founder-page="clients" type="button">Ver entregas</button>
+      </div>
+    </section>
+    <section class="card nexo-ceo-workload">
+      <div class="card-head"><div><span class="eyebrow">CARGA DEL EQUIPO</span><h2>Tareas pendientes por responsable</h2><p>Prioriza vencimientos y carga; estos datos no son una evaluación de desempeño.</p></div><button class="btn small" data-founder-page="tasks" type="button">Ver tareas</button></div>
+      <div class="staff-performance-list">
+        ${teamTaskLoad.length?teamTaskLoad.slice(0,20).map(person=>`<div><span>${C.esc(person.name)}</span><b>${person.open} abiertas · ${person.overdue} vencidas · ${person.urgent} urgentes</b></div>`).join(""):'<p class="muted">No hay tareas abiertas asignadas.</p>'}
+      </div>
+    </section>
 
     <div class="founder-command-layout">
       <section class="card founder-attention-panel">
