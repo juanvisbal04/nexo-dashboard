@@ -377,7 +377,7 @@ export async function openCustomer360(context,orgId){
   if(!org)return;
   showDrawer("customer360Modal",'<div class="drawer-loading">Cargando Customer 360…</div>');
   try{
-    const [settingsR,commercialR,integrationsR,conversationsR,leadsR,appointmentsR,invoicesR,tasksR,servicesR,onboardingR,assignees]=await Promise.all([
+    const [settingsR,commercialR,integrationsR,conversationsR,leadsR,appointmentsR,invoicesR,tasksR,servicesR,onboardingR,projectsR,assignmentsR,contactsR,historyR,assignees]=await Promise.all([
       C.supabase.from("organization_settings").select("*").eq("organization_id",orgId).maybeSingle(),
       C.supabase.from("organization_commercials").select("*").eq("organization_id",orgId).maybeSingle(),
       C.supabase.from("crm_integrations").select("*").eq("organization_id",orgId).order("created_at"),
@@ -388,6 +388,10 @@ export async function openCustomer360(context,orgId){
       C.supabase.from("work_tasks").select("*").eq("organization_id",orgId).order("created_at",{ascending:false}).limit(200),
       C.supabase.from("services").select("id,name,price,active").eq("organization_id",orgId),
       C.supabase.from("organization_onboarding").select("*").eq("organization_id",orgId).maybeSingle(),
+      C.supabase.from("nexo_projects").select("id,title,status,due_at,updated_at,owner_user_id,project_type").eq("organization_id",orgId).order("updated_at",{ascending:false}).limit(100),
+      C.supabase.from("nexo_client_assignments").select("organization_id,user_id,assignment_type,created_at").eq("organization_id",orgId),
+      C.supabase.from("contacts").select("id,name,phone,email,created_at").eq("organization_id",orgId).order("created_at",{ascending:false}).limit(100),
+      C.supabase.from("crm_activities").select("id,title,details,activity_type,created_at").eq("organization_id",orgId).order("created_at",{ascending:false}).limit(20),
       assigneesForOrg(orgId)
     ]);
     const commercial=commercialR.data||{};
@@ -401,6 +405,16 @@ export async function openCustomer360(context,orgId){
     const services=servicesR.data||[];
     const assistant=C.state.assistantProfiles[orgId]||null;
     const onboarding=onboardingR.data||{};
+    const projects=projectsR.data||[];
+    const clientAssignments=assignmentsR.data||[];
+    const clientContacts=contactsR.data||[];
+    const history=historyR.data||[];
+    const serviceNames={marketing:"NEXO Marketing",assistants:"NEXO Assistants",solutions:"NEXO Solutions"};
+    const lines=(org.service_lines||[]).map(key=>serviceNames[key]||key);
+    const hasAssistant=!(org.service_lines||[]).length||org.service_lines.includes("assistants");
+    const assignedNames=new Map(assignees.map(person=>[person.id,person.full_name||person.contact_email||"Colaborador"]));
+    const ownerName=assignedNames.get(org.internal_owner_user_id)||"Sin responsable asignado";
+    const projectOpen=projects.filter(row=>!["delivered","cancelled"].includes(row.status));
     const openTasks=tasks.filter((r)=>["pending","in_progress"].includes(r.status));
     const confirmed=appointments.filter((r)=>["Confirmada","Completada"].includes(r.status));
     const attention=conversations.filter((r)=>r.status==="Requiere atención");
@@ -441,7 +455,7 @@ export async function openCustomer360(context,orgId){
         <div><span>Costo mensual</span><b>${money(directCost)}</b></div>
         <div><span>Margen</span><b>${mrr?margin+"%":"—"}</b></div>
       </div>
-      <section class="drawer-card drawer-wide customer-health-card">
+      ${hasAssistant?`<section class="drawer-card drawer-wide customer-health-card">
         <div class="customer-health-score ${health.tone}">
           <div><span>HEALTH SCORE</span><b>${health.score}/100</b><small>${esc(health.level)}</small></div>
           <div class="customer-health-checks">
@@ -449,11 +463,12 @@ export async function openCustomer360(context,orgId){
           </div>
         </div>
       </section>
+      `:""}
       <div class="customer360-grid">
-        <section class="drawer-card">
+${hasAssistant?`<section class="drawer-card">
           <h3>Asistente virtual</h3>
           <div class="drawer-assistant">${C.assistantAvatarHtml(assistant,org,"drawer-assistant-avatar")}<div><b>${esc(assistant?.name||org.assistant||"Asistente NEXO")}</b><span>${esc(assistant?.role_label||"Asistente virtual")}</span><p>${esc(assistant?.description||"Configurado por NEXO.")}</p></div></div>
-        </section>
+        </section>`:""}
         <section class="drawer-card"><h3>Estado comercial</h3><dl class="drawer-dl">
           <div><dt>Etapa</dt><dd>${esc(commercial.lifecycle_stage||"—")}</dd></div>
           <div><dt>Implementación</dt><dd>${esc(commercial.implementation_status||"—")}</dd></div>
@@ -472,6 +487,29 @@ export async function openCustomer360(context,orgId){
         </dl></section>
         <section class="drawer-card"><h3>Integraciones</h3><div class="drawer-list">${integrations.length?integrations.map((r)=>`<div><b>${esc(r.integration_name)}</b><span>${esc(r.provider||"")} · ${esc(r.status)}</span></div>`).join(""):'<p class="muted">Sin integraciones registradas.</p>'}</div></section>
       </div>
+      <section class="drawer-card drawer-wide">
+        <div class="drawer-card-head"><h3>Relación comercial NEXO</h3><span>${lines.length} línea(s)</span></div>
+        <dl class="drawer-dl">
+          <div><dt>Líneas contratadas</dt><dd>${esc(lines.join(" · ")||"Sin clasificar")}</dd></div>
+          <div><dt>Responsable interno</dt><dd>${esc(ownerName)}</dd></div>
+          <div><dt>Proyectos en curso</dt><dd>${projectOpen.length}</dd></div>
+          <div><dt>Colaboradores asignados</dt><dd>${clientAssignments.length}</dd></div>
+        </dl>
+        <div class="drawer-list">${clientAssignments.length?clientAssignments.map(a=>`<div><b>${esc(assignedNames.get(a.user_id)||"Miembro del equipo")}</b><span>${esc(a.assignment_type||"Asignado")}</span></div>`).join(""):'<p class="muted">Sin colaboradores asignados directamente a esta cuenta.</p>'}</div>
+      </section>
+      <section class="drawer-card drawer-wide">
+        <div class="drawer-card-head"><h3>Proyectos y entregables</h3><span>${projects.length}</span></div>
+        <div class="drawer-list">${projects.length?projects.slice(0,12).map(p=>`<div><b>${esc(p.title)}</b><span>${esc(p.status)} · ${p.due_at?"Entrega: "+shortDate(p.due_at):"Sin fecha de entrega"} · ${esc(assignedNames.get(p.owner_user_id)||"Sin responsable")}</span></div>`).join(""):'<p class="muted">Todavía no hay proyectos registrados para este cliente.</p>'}</div>
+      </section>
+      <section class="drawer-card drawer-wide">
+        <div class="drawer-card-head"><h3>Contactos del cliente</h3><span>${clientContacts.length} encontrados</span></div>
+        <p class="muted">Personas atendidas por este negocio (no confundir con el contacto comercial de la empresa).</p>
+        <div class="drawer-list">${clientContacts.length?clientContacts.slice(0,8).map(p=>`<div><b>${esc(p.name)}</b><span>${esc(p.phone||p.email||"Sin información de contacto")}</span></div>`).join(""):'<p class="muted">Sin contactos registrados.</p>'}</div>
+      </section>
+      <section class="drawer-card drawer-wide">
+        <div class="drawer-card-head"><h3>Historial comercial</h3><span>${history.length} eventos recientes</span></div>
+        <div class="drawer-list">${history.length?history.slice(0,8).map(p=>`<div><b>${esc(p.title)}</b><span>${shortDate(p.created_at)} · ${esc(p.details||p.activity_type||"")}</span></div>`).join(""):'<p class="muted">Sin eventos comerciales registrados para esta cuenta.</p>'}</div>
+      </section>
       <section class="drawer-card drawer-wide">
         <div class="drawer-card-head"><h3>Alertas actuales</h3><span>${alertCount}</span></div>
         <div class="customer360-alerts">
