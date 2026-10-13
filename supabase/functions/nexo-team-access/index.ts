@@ -61,7 +61,7 @@ Deno.serve(async(req:Request)=>{
         service.from("nexo_team_roles").select("id,role_key,name,description,active,department_id,hierarchy_level,role_scope,assignable,planned,reports_to_role_id").order("hierarchy_level",{ascending:false}).order("name"),
         service.from("nexo_permissions").select("permission_key,category,description").order("category").order("permission_key"),
         service.from("nexo_role_permissions").select("role_id,permission_key"),
-        service.from("organizations").select("id,name,sector,status,initials,color").neq("name","NEXO Internal").order("name"),
+        service.from("organizations").select("id,name,sector,status,initials,color,service_lines").neq("name","NEXO Internal").order("name"),
       ]);
       if(departmentsRes.error) throw departmentsRes.error;
       if(rolesRes.error) throw rolesRes.error;

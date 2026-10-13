@@ -1,3 +1,4 @@
+import { openUserPermissions } from "./teamPermissions.js?v=20261013-access1";
 import { serviceLinesLabel } from "./serviceLines.js?v=20261013-lines1";
 export async function renderInternalTeam(ctx) {
   const { supabase, $, esc, shortDate, dateTime, showToast, showError } = ctx;
@@ -197,6 +198,7 @@ export async function renderInternalTeam(ctx) {
                   </td>
                   <td>
                     <div class="team-row-actions">
+                      <button class="btn small team-extra-permissions" type="button" data-user-id="${esc(user.user_id)}">Permisos adicionales</button>
                       <button class="btn small team-edit" type="button" data-user-id="${esc(user.user_id)}">Editar</button>
                       ${user.status === "invited" ? `
                         <button class="btn small team-resend" type="button" data-user-id="${esc(user.user_id)}">Reenviar invite</button>
@@ -293,6 +295,7 @@ export async function renderInternalTeam(ctx) {
     rolePreview();
   };
 
+  document.querySelectorAll(".team-extra-permissions").forEach(button=>button.addEventListener("click",()=>{const user=users.find(u=>u.user_id===button.dataset.userId);if(user)openUserPermissions(ctx,user,data.permissions||[]);}));
   $("internalTeamRole")?.addEventListener("change", rolePreview);
   rolePreview();
 

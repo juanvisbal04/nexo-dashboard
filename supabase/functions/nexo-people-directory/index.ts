@@ -40,7 +40,9 @@ Deno.serve(async(req:Request)=>{
       const {data:perms,error}=await service.from("nexo_role_permissions")
         .select("permission_key").in("role_id",roleIds).eq("permission_key","people.directory.read");
       if(error) throw error;
-      canDirectory=Boolean((perms||[]).length);
+      const {data:extra,error:extraError}=await service.from("nexo_user_permissions").select("permission_key").eq("user_id",user.id).eq("permission_key","people.directory.read");
+      if(extraError)throw extraError;
+      canDirectory=Boolean((perms||[]).length||(extra||[]).length);
     }
     if(!isAdmin&&!canDirectory) return json({error:"Forbidden"},403);
 
