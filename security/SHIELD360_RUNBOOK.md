@@ -55,6 +55,15 @@ Actualizado: 2026-10-13. Entorno: Supabase **NEXO Platform** / repositorio **nex
 - Revisar HTTP/CSP, origen de scripts externos, monitoreo de abuso de endpoints públicos y rotación controlada de claves en una iteración posterior.
 - No se ejecutó prueba de penetración de proveedores externos ni simulación de recuperación de datos.
 
+## Actualización de seguridad del 13 de octubre de 2026
+
+- **Escalada de privilegios corregida en producción:** los perfiles ya no permiten a `authenticated` editar `platform_role`, `id` ni `created_at`; se preservan campos personales. Un trigger adicional rechaza cambios protegidos. Se probó el bloqueo con contexto de una cuenta normal dentro de transacción revertida. Migración: `20261013224000_shield360_block_profile_platform_role_self_promotion.sql`.
+- **MFA aún sin activar:** consulta de `auth.mfa_factors` devolvió 0. La función de enrolamiento del dashboard está publicada, pero debe completarla el titular con su aplicación TOTP. Supabase TOTP no dispone de códigos de recuperación; no imponer AAL2 a la cuenta del CEO antes de definir rescate.
+- **`pg_net` investigado:** versión 0.20.4, `extrelocatable=false`. El HTTP asíncrono de los triggers `notify_task_assignment_email` y `notify_client_assignment_email` depende de la extensión. Moverla o reinstalarla sin pruebas puede interrumpir las notificaciones.
+- **Plan gratuito de Supabase confirmado:** no hay backup diario administrado garantizado. Se agregó `security/backup/nexo_encrypted_db_backup.sh` y `security/backup/README.md`, solamente para ejecución manual en un equipo confiable con cifrado `age`. **Ningún backup ni restauración ha sido realizado.** El destino de almacenamiento cifrado y las claves aún deben configurarse; no alojar volcados en este repositorio público.
+- **Control de integridad:** el monitoreo de Supabase reportó 54/54 tablas públicas con RLS. Las advertencias abiertas continúan siendo `extension_in_public` y `auth_leaked_password_protection`.
+- **Nunca afirmar protección completa** hasta confirmar enrolamiento MFA, seguridad AAL2 de operaciones privilegiadas, respaldo real y prueba de restauración de base y Storage.
+
 ## Pruebas mínimas de aceptación antes de declarar el proyecto terminado
 
 1. CEO puede abrir el Centro Shield, leer métricas y registrar/cerrar incidentes.
