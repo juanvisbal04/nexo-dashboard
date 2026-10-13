@@ -4221,6 +4221,43 @@ $("magicButton").addEventListener("click", async () => {
   }
 });
 
+// Recovery is deliberately distinct from the magic sign-in link.
+$("forgotPasswordButton")?.addEventListener("click", async () => {
+  const email = $("emailInput").value.trim().toLowerCase();
+  const box = $("loginMessage");
+  const button = $("forgotPasswordButton");
+  box.className = "message hidden";
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    box.textContent = "Escribe un correo válido para recuperar tu contraseña.";
+    box.className = "message error";
+    box.setAttribute("role", "alert");
+    $("emailInput").focus();
+    return;
+  }
+
+  button.disabled = true;
+  button.textContent = "Enviando instrucciones…";
+  try {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + "/reset.html",
+    });
+    if (error) throw error;
+    // Avoid revealing whether an email exists in Supabase Auth.
+    box.textContent = "Si este correo tiene acceso a NEXO, recibirás las instrucciones para crear una nueva contraseña. Revisa también spam.";
+    box.className = "message ok";
+    box.setAttribute("role", "status");
+  } catch (_error) {
+    // Do not expose account existence or provider error details in the login UI.
+    box.textContent = "No pudimos procesar la solicitud en este momento. Espera un minuto e inténtalo de nuevo.";
+    box.className = "message error";
+    box.setAttribute("role", "alert");
+  } finally {
+    button.disabled = false;
+    button.textContent = "¿Olvidaste tu contraseña?";
+  }
+});
+
 $("passwordForm").addEventListener("submit", async (event) => {
   event.preventDefault();
   const box = $("loginMessage");
