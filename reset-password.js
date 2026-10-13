@@ -8,7 +8,7 @@ const query = new URLSearchParams(window.location.search);
 const fragment = new URLSearchParams(window.location.hash.slice(1));
 const isRecoveryLink = fragment.get("type") === "recovery" || query.has("code") || query.has("token_hash");
 const auth = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+  auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: true },
 });
 
 let recoveryReady = false;
