@@ -17,7 +17,7 @@ function can(permission){return Boolean(C.hasPermission?.(permission));}
 function money(value){return new Intl.NumberFormat("es-CO",{style:"currency",currency:"COP",maximumFractionDigits:0}).format(Number(value||0));}
 function safeDate(value){return value?C.dateTime(value):"—";}
 
-export { renderSalesWorkspace } from "./salesCrm.js?v=20261013-crm1";
+export { renderSalesWorkspace } from "./salesCrm.js?v=20261013-crm2";
 
 export async function renderImplementationWorkspace(context){
   C=context;

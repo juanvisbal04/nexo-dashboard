@@ -33,7 +33,7 @@ export async function renderSalesWorkspace(context){
     people=(data.assignees||[]).filter(p=>['sales','executive'].includes(p.department_key));
     if(!people.some(p=>p.id===C.state.session.user.id))people.push({id:C.state.session.user.id,full_name:'Yo'});
   }
-  C.$('content').innerHTML=`<section class="staff-page-intro staff-page-intro-actions"><div><span class="eyebrow">NEXO · COMERCIAL</span><h2>CRM</h2><p>Gestiona leads, oportunidades y seguimientos con tu equipo.</p></div>${writable()?'<button class="btn primary" id="crmAddLead">+ Agregar lead</button>':''}</section>
+  C.$('content').innerHTML=`<section class="crm-workspace-toolbar"><p>Gestiona oportunidades y seguimientos con tu equipo.</p>${writable()?'<button class="btn primary" id="crmAddLead">+ Agregar lead</button>':''}</section>
   <div class="crm-hub-tabs" role="tablist">${[['pipeline','Pipeline'],['leads','Leads y contactos'],['tasks','Tareas comerciales'],['activity','Actividad']].map(([v,l])=>`<button role="tab" data-hub-view="${v}" aria-selected="${view===v}">${l}</button>`).join('')}</div>
   <section class="card"><div class="crm-hub-filters"><input id="hubSearch" type="search" placeholder="Buscar negocio, contacto, teléfono o correo" value="${esc(search)}" aria-label="Buscar lead"><select id="hubOwner" aria-label="Responsable"><option value="">Todos los responsables</option><option value="unassigned" ${owner==='unassigned'?'selected':''}>Sin asignar</option>${people.map(p=>`<option value="${esc(p.id)}" ${owner===p.id?'selected':''}>${esc(p.full_name||p.contact_email)}</option>`).join('')}</select><select id="hubStage" aria-label="Etapa"><option value="">Todas las etapas</option>${stages.map(([v,l])=>`<option value="${v}" ${stage===v?'selected':''}>${l}</option>`).join('')}</select></div><div id="hubBody"></div></section>`;
   C.$('crmAddLead')?.addEventListener('click',()=>editor());
@@ -45,16 +45,23 @@ export async function renderSalesWorkspace(context){
   if(C.state.crmLeadId){const id=C.state.crmLeadId;C.state.crmLeadId=null;const lead=leads.find(r=>r.id===id);if(lead)editor(lead);else C.showToast('El lead ya no está disponible en tu acceso actual.');}
 }
 function filtered(){return leads.filter(r=>(!owner||(owner==='unassigned'?!r.owner_user_id:r.owner_user_id===owner))&&(!stage||r.stage===stage)&&[r.full_name,r.business_name,r.phone,r.email,r.industry].join(' ').toLowerCase().includes(search.trim().toLowerCase()));}
-function card(r){return `<article class="staff-sales-card"><button class="crm-hub-open" data-open-lead="${esc(r.id)}"><b>${esc(r.business_name)}</b><span>${esc(r.full_name)}</span></button><small>${esc(person(r.owner_user_id))}</small><small>${esc(amount(r.expected_mrr))} / mes</small><div>Próxima acción: ${esc(date(r.next_action_at))}</div><small>${openTasks(r.id).length} tareas pendientes</small></article>`;}
+const movingLeads=new Set();
+function card(r){return `<article class="staff-sales-card crm-board-deal" data-deal-id="${esc(r.id)}" draggable="${writable()&&!movingLeads.has(r.id)}">
+  <div class="crm-deal-heading"><button class="crm-hub-open" data-open-lead="${esc(r.id)}"><b>${esc(r.business_name)}</b><span>${esc(r.full_name)}</span></button>${writable()?`<button class="crm-drag-grip" data-drag-lead="${esc(r.id)}" type="button" aria-label="Arrastrar ${esc(r.business_name)}" title="Arrastrar a otra etapa">⠿</button>`:''}</div>
+  <small class="crm-deal-owner">${esc(person(r.owner_user_id))}</small><strong class="crm-deal-value">${esc(amount(r.expected_mrr))}${r.expected_mrr?' / mes':''}</strong>
+  <div class="crm-deal-next">${r.next_action_at?'Próxima acción: '+esc(date(r.next_action_at)):'Sin próxima acción'}</div><small>${openTasks(r.id).length} tareas pendientes</small>
+  ${writable()?`<label class="crm-deal-move">Mover a etapa<select data-move-lead="${esc(r.id)}" aria-label="Etapa de ${esc(r.business_name)}" ${movingLeads.has(r.id)?'disabled':''}>${stages.map(([v,l])=>`<option value="${v}" ${r.stage===v?'selected':''}>${l}</option>`).join('')}</select></label>`:''}
+</article>`;}
 function taskRows(rows){return rows.map(t=>{const lead=leads.find(r=>r.id===t.source_id);return `<article class="task-row"><div class="task-row-main"><b>${esc(t.title)}</b><p>${esc(t.description||'')}</p>${lead?`<button class="crm-hub-open" data-open-lead="${esc(lead.id)}">${esc(lead.business_name)}</button>`:'<small>Lead fuera de tu acceso actual</small>'}<div class="task-row-meta"><span>${esc(person(t.assigned_to))}</span><span>${esc(date(t.due_at))}</span></div></div><div class="task-row-actions">${(can('tasks.team.write')||(t.assigned_to===C.state.session.user.id&&can('tasks.self.write')))?`<select data-task-status="${esc(t.id)}" aria-label="Estado de tarea">${Object.entries(statuses).map(([v,l])=>`<option value="${v}" ${t.status===v?'selected':''}>${l}</option>`).join('')}</select>`:esc(statuses[t.status])}</div></article>`;}).join('')||C.emptyState('Sin tareas comerciales.','Agrega una tarea desde la ficha de un lead.');}
 function activityRows(rows){return rows.map(a=>`<article class="crm-hub-activity"><b>${esc(a.title)}</b><small>${esc(date(a.created_at))}</small><p>${esc(a.details||'')}</p></article>`).join('')||C.emptyState('Sin actividad registrada.','Las notas y seguimientos aparecerán aquí.');}
 function draw(){
   const rows=filtered(),ids=new Set(rows.map(r=>r.id));
-  if(view==='pipeline')C.$('hubBody').innerHTML=`<div class="staff-sales-pipeline">${stages.map(([v,l])=>`<div class="staff-sales-column"><header><b>${l}</b><span>${rows.filter(r=>r.stage===v).length}</span></header>${rows.filter(r=>r.stage===v).map(card).join('')||'<div class="staff-sales-empty">Sin leads</div>'}</div>`).join('')}</div>`;
+  if(view==='pipeline')C.$('hubBody').innerHTML=`<div class="crm-board-caption"><span>${rows.length} oportunidades · ${writable()?'Arrastra las tarjetas para cambiar de etapa':'Vista de oportunidades'}</span><span class="crm-board-status" role="status" aria-live="polite">${movingLeads.size?'Guardando cambio…':''}</span></div><div class="staff-sales-pipeline crm-fit-board">${stages.map(([v,l])=>`<section class="staff-sales-column crm-board-column" data-drop-stage="${v}" aria-label="Etapa ${l}"><header><b>${l}</b><span>${rows.filter(r=>r.stage===v).length}</span></header><div class="crm-stage-deals">${rows.filter(r=>r.stage===v).map(card).join('')||'<div class="staff-sales-empty">Sin oportunidades</div>'}</div></section>`).join('')}</div>`;
   else if(view==='leads')C.$('hubBody').innerHTML=`<div class="crm-hub-table"><table><thead><tr><th>Negocio / contacto</th><th>Correo / WhatsApp</th><th>Etapa</th><th>Responsable</th><th>Próxima acción</th><th>Tareas abiertas</th></tr></thead><tbody>${rows.map(r=>`<tr><td><button class="crm-hub-open" data-open-lead="${esc(r.id)}"><b>${esc(r.business_name)}</b><span>${esc(r.full_name)}</span></button></td><td>${esc(r.email||'—')}<br>${esc(r.phone||'—')}</td><td>${esc(stageName(r.stage))}</td><td>${esc(person(r.owner_user_id))}</td><td>${esc(date(r.next_action_at))}</td><td>${openTasks(r.id).length}</td></tr>`).join('')}</tbody></table>${rows.length?'':C.emptyState('No hay leads con estos filtros.','Agrega un lead o cambia los filtros.')}</div>`;
   else if(view==='tasks')C.$('hubBody').innerHTML=taskRows(tasks.filter(t=>ids.has(t.source_id)));
   else C.$('hubBody').innerHTML=activityRows(activities.filter(a=>ids.has(a.demo_request_id)).slice(0,100));
   bind(C.$('hubBody'));
+  bindBoard(C.$('hubBody'));
 }
 function bind(root){
   root.querySelectorAll('[data-open-lead]').forEach(b=>b.addEventListener('click',()=>editor(leads.find(r=>r.id===b.dataset.openLead))));
@@ -64,6 +71,54 @@ function bind(root){
     if(error||!data){C.showError(error?.message||'No se pudo actualizar la tarea.');s.value=t.status;s.disabled=false;return;}
     t.status=next;C.showToast('Tarea actualizada.');s.disabled=false;
   }));
+}
+async function moveLead(id,nextStage){
+  const lead=leads.find(r=>r.id===id);
+  if(!writable()||!lead||!stages.some(([v])=>v===nextStage)||lead.stage===nextStage||movingLeads.has(id))return;
+  const previous=lead.stage;movingLeads.add(id);draw();
+  try{
+    const {data,error}=await C.supabase.from('demo_requests').update({stage:nextStage,updated_at:new Date().toISOString()}).eq('id',id).eq('stage',previous).select('id').single();
+    if(error||!data)throw new Error(error?.message||'La oportunidad cambió o no tienes permiso. Actualiza el CRM e inténtalo de nuevo.');
+    lead.stage=nextStage;
+    const {error:logError}=await C.supabase.from('crm_activities').insert({demo_request_id:id,activity_type:'status_change',title:`Etapa: ${stageName(previous)} → ${stageName(nextStage)}`,created_by:C.state.session.user.id});
+    if(!logError)activities.unshift({demo_request_id:id,activity_type:'status_change',title:`Etapa: ${stageName(previous)} → ${stageName(nextStage)}`,created_at:new Date().toISOString()});
+    C.showToast(logError?'Etapa guardada. No se pudo registrar el historial.':`Oportunidad movida a ${stageName(nextStage)}.`);
+  }catch(error){C.showError(error.message||'No se pudo cambiar la etapa.');}
+  finally{movingLeads.delete(id);draw();}
+}
+function bindBoard(root){
+  if(!writable())return;
+  root.querySelectorAll('[data-move-lead]').forEach(select=>select.addEventListener('change',()=>moveLead(select.dataset.moveLead,select.value)));
+  let draggedId=null;
+  const clear=()=>{root.querySelectorAll('.crm-drop-active,.crm-deal-dragging').forEach(el=>el.classList.remove('crm-drop-active','crm-deal-dragging'));document.body.classList.remove('crm-board-dragging');draggedId=null;};
+  root.querySelectorAll('[data-deal-id]').forEach(card=>{
+    card.addEventListener('dragstart',event=>{
+      if(movingLeads.has(card.dataset.dealId)){event.preventDefault();return;}
+      draggedId=card.dataset.dealId;event.dataTransfer.setData('text/plain',draggedId);event.dataTransfer.effectAllowed='move';card.classList.add('crm-deal-dragging');document.body.classList.add('crm-board-dragging');
+    });card.addEventListener('dragend',clear);
+  });
+  root.querySelectorAll('[data-drop-stage]').forEach(column=>{
+    column.addEventListener('dragover',event=>{if(!draggedId)return;event.preventDefault();event.dataTransfer.dropEffect='move';root.querySelectorAll('.crm-drop-active').forEach(el=>el.classList.remove('crm-drop-active'));column.classList.add('crm-drop-active');});
+    column.addEventListener('dragleave',event=>{if(!column.contains(event.relatedTarget))column.classList.remove('crm-drop-active');});
+    column.addEventListener('drop',event=>{if(!draggedId)return;event.preventDefault();const id=draggedId;clear();moveLead(id,column.dataset.dropStage);});
+  });
+  // Pointer handle also supports touch and pen without relying on native HTML drag.
+  root.querySelectorAll('[data-drag-lead]').forEach(grip=>{
+    grip.addEventListener('dragstart',event=>event.preventDefault());
+    grip.addEventListener('pointerdown',event=>{
+      if(event.button!==0||movingLeads.has(grip.dataset.dragLead))return;
+      event.preventDefault();event.stopPropagation();
+      const id=grip.dataset.dragLead,card=grip.closest('[data-deal-id]'),board=root.querySelector('.crm-fit-board');
+      const ghost=card.cloneNode(true);ghost.classList.add('crm-drag-ghost');ghost.style.width=card.getBoundingClientRect().width+'px';ghost.setAttribute('aria-hidden','true');ghost.querySelectorAll('button,select').forEach(el=>el.tabIndex=-1);document.body.appendChild(ghost);
+      card.classList.add('crm-deal-dragging');document.body.classList.add('crm-board-dragging');grip.setPointerCapture(event.pointerId);
+      let target=null;
+      const track=e=>{ghost.style.left=(e.clientX+12)+'px';ghost.style.top=(e.clientY+12)+'px';const rect=board.getBoundingClientRect();if(e.clientX<rect.left+40)board.scrollLeft-=20;else if(e.clientX>rect.right-40)board.scrollLeft+=20;root.querySelectorAll('.crm-drop-active').forEach(el=>el.classList.remove('crm-drop-active'));target=document.elementFromPoint(e.clientX,e.clientY)?.closest('[data-drop-stage]');if(target&&root.contains(target))target.classList.add('crm-drop-active');else target=null;};
+      const cleanup=()=>{ghost.remove();clear();grip.removeEventListener('pointermove',track);grip.removeEventListener('pointerup',finish);grip.removeEventListener('pointercancel',cancel);document.removeEventListener('keydown',escape);if(grip.hasPointerCapture(event.pointerId))grip.releasePointerCapture(event.pointerId);};
+      const finish=e=>{track(e);const next=target?.dataset.dropStage;cleanup();if(next)moveLead(id,next);};const cancel=()=>cleanup();const escape=e=>{if(e.key==='Escape')cleanup();};
+      grip.addEventListener('pointermove',track);grip.addEventListener('pointerup',finish);grip.addEventListener('pointercancel',cancel);document.addEventListener('keydown',escape);track(event);
+    });
+    grip.addEventListener('click',()=>grip.closest('[data-deal-id]').querySelector('[data-move-lead]')?.focus());
+  });
 }
 function editor(lead){
   document.getElementById('salesCrmModal')?.remove();

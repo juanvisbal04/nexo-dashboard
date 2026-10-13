@@ -1,13 +1,13 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
 import { renderCrm, openProspectEditorFromGrowth, openNewProspectFromGrowth } from "./crm.js?v=20261013-finance1";
-import { renderTasks, openCustomer360, openContact360, closeDrawer } from "./workspace360.js?v=20261013-crm1";
+import { renderTasks, openCustomer360, openContact360, closeDrawer } from "./workspace360.js?v=20261013-crm2";
 import { renderDataQuality, openOnboarding, closeQualityDrawer } from "./qualityOnboarding.js?v=20261001-quality2";
 import { renderInternalTeam } from "./team.js?v=20261007-company2";
 import { renderStaffHome, renderStaffProjects, renderStaffAccounts, renderStaffPerformance } from "./staffWorkspace.js?v=20261007-company1";
-import { renderSalesWorkspace, renderImplementationWorkspace, renderOperationsWorkspace } from "./departmentWorkspaces.js?v=20261013-crm1";
-import { renderExecutiveTasks } from "./executiveTasks.js?v=20261013-crm1";
+import { renderSalesWorkspace, renderImplementationWorkspace, renderOperationsWorkspace } from "./departmentWorkspaces.js?v=20261013-crm2";
+import { renderExecutiveTasks } from "./executiveTasks.js?v=20261013-crm2";
 import { renderPeopleWorkspace } from "./peopleWorkspace.js?v=20261007-people2";
-import { renderFounderCommandCenter } from "./founderCommandCenter.js?v=20261013-crm1";
+import { renderFounderCommandCenter } from "./founderCommandCenter.js?v=20261013-crm2";
 
 const SUPABASE_URL = "https://ixewnbjndguchunwcuhf.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_vFnLRe9cmnOcyz2Fivprhw_8UjBaRGL";
@@ -3403,7 +3403,7 @@ function isUserEditing() {
   const chatOpen = chat && !chat.classList.contains("hidden");
   const crmOpen = !!(document.getElementById("crmModal")||document.getElementById("salesCrmModal"));
   const drawerOpen = !!document.querySelector(".nexo-drawer:not(.hidden)");
-  return Boolean(formFocused || chatOpen || crmOpen || drawerOpen);
+  return Boolean(formFocused || chatOpen || crmOpen || drawerOpen || document.body.classList.contains("crm-board-dragging"));
 }
 
 function pageUsesRealtimeTable(table) {
