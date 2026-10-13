@@ -1,4 +1,4 @@
-import { mountTaskContext } from "./taskContext.js?v=20261013-tasks1";
+import { mountTaskContext } from "./taskContext.js?v=20261013-work2";
 let C=null;
 
 const statusLabels={pending:"Pendiente",in_progress:"En progreso",completed:"Completada",cancelled:"Cancelada"};
@@ -15,11 +15,12 @@ async function assigneesForOrg(orgId){
   return data.assignees||[];
 }
 
-function modal(task,assignees,onSaved){
+function modal(task,assignees,onSaved,leads=[],projects=[]){
   document.getElementById("executiveTaskModal")?.remove();
   const root=document.createElement("div");
   root.id="executiveTaskModal";
   root.className="staff-work-modal";
+  const currentLink=task.project_id?"project:"+task.project_id:task.source_type==="crm_lead"&&task.source_id?"lead:"+task.source_id:"";
   const options=assignees.map((p)=>`<option value="${p.id}" ${task.assigned_to===p.id?"selected":""}>${esc(p.full_name||p.contact_email||"Usuario")} · ${esc(p.role||"")} ${p.department_name?"· "+esc(p.department_name):""}</option>`).join("");
   root.innerHTML=`
     <div class="staff-work-backdrop" data-close-exec-task></div>
@@ -35,6 +36,7 @@ function modal(task,assignees,onSaved){
           <label>Prioridad<select id="execEditPriority">${Object.entries(priorityLabels).map(([v,l])=>`<option value="${v}" ${task.priority===v?"selected":""}>${l}</option>`).join("")}</select></label>
           <label class="wide">Responsable<select id="execEditAssignee" required><option value="">Selecciona responsable</option>${options}</select></label>
           <label>Fecha límite<input id="execEditDue" type="datetime-local"></label>
+          <label class="wide">Vínculo<select id="execEditLink"><option value="">Sin vínculo</option>${leads.filter(row=>C.state.organizations.find(o=>o.id===task.organization_id)?.name==="NEXO Internal"||row.organization_id===task.organization_id).map(row=>`<option value="lead:${esc(row.id)}" ${task.source_type==="crm_lead"&&task.source_id===row.id?"selected":""}>Lead · ${esc(row.business_name||row.full_name)}</option>`).join("")}${projects.filter(row=>row.organization_id===task.organization_id).map(row=>`<option value="project:${esc(row.id)}" ${task.project_id===row.id?"selected":""}>Proyecto · ${esc(row.title)}</option>`).join("")}</select></label>
           <label class="wide">Notas / contexto<textarea id="execEditDescription" rows="5">${esc(task.description||"")}</textarea></label>
           <div class="staff-work-actions wide"><button class="btn primary" type="submit">Guardar cambios</button></div>
         </form>
@@ -42,6 +44,9 @@ function modal(task,assignees,onSaved){
     </section>`;
   document.body.appendChild(root);
   document.body.classList.add("modal-open");
+  const linkSelect=root.querySelector("#execEditLink");
+  if(currentLink&&!Array.from(linkSelect.options).some(o=>o.value===currentLink))linkSelect.add(new Option("Vínculo actual (registro no disponible)",currentLink));
+  linkSelect.value=currentLink;
   const due=root.querySelector("#execEditDue");
   if(task.due_at){
     const d=new Date(task.due_at);
@@ -57,7 +62,9 @@ function modal(task,assignees,onSaved){
     button.disabled=true;button.textContent="Guardando…";
     const nextStatus=root.querySelector("#execEditStatus").value;
     const dueValue=root.querySelector("#execEditDue").value;
+    const [linkType,linkId]=(root.querySelector("#execEditLink").value||"").split(":");
     const {error}=await C.supabase.from("work_tasks").update({
+      ...(root.querySelector("#execEditLink").value!==currentLink?{source_type:linkType==="lead"?"crm_lead":linkType==="project"?"project":"manual",source_id:linkType==="lead"?linkId:null,project_id:linkType==="project"?linkId:null}:{}),
       title:root.querySelector("#execEditTitle").value.trim(),
       description:root.querySelector("#execEditDescription").value.trim()||null,
       status:nextStatus,
@@ -204,11 +211,13 @@ export async function renderExecutiveTasks(context){
       const row=rows.find((r)=>r.id===button.dataset.taskId);if(!row)return;
       let assignees=companyAssignees;
       if(row.organization_id!==internalOrg.id){try{assignees=await assigneesForOrg(row.organization_id);}catch{}}
-      modal(row,assignees,()=>C.renderApp());
+      modal(row,assignees,()=>C.renderApp(),linkedLeads,linkedProjects);
     }));
   };
 
   ["execStatusFilter","execDepartmentFilter","execAssigneeFilter","execOrgFilter"].forEach((id)=>C.$(id)?.addEventListener("change",draw));
+  if(C.state.executiveTaskAssignee){C.$("execAssigneeFilter").value=C.state.executiveTaskAssignee;C.state.executiveTaskAssignee=null;}
+  if(C.state.taskOrgFilter){C.$("execOrgFilter").value=C.state.taskOrgFilter;C.state.taskOrgFilter=null;}
   draw();
 
   C.$("executiveTaskCreateForm").addEventListener("submit",async(event)=>{

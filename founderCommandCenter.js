@@ -36,7 +36,11 @@ function attentionItem(type,title,detail,meta,page,tone="warn"){
 
 function bindActions(){
   document.querySelectorAll("[data-founder-page]").forEach((button)=>{
-    button.addEventListener("click",()=>C.navigateToPage(button.dataset.founderPage,{historyMode:"push"}));
+    button.addEventListener("click",()=>{
+      if(button.dataset.founderFollowup)C.state.salesCrmView="attention";
+      if(button.dataset.founderAssignee)C.state.executiveTaskAssignee=button.dataset.founderAssignee;
+      return C.navigateToPage(button.dataset.founderPage,{historyMode:"push"});
+    });
   });
 }
 
@@ -276,7 +280,7 @@ export async function renderFounderCommandCenter(context){
         <div class="${projectReview.length?"risk":""}"><span>Proyectos en revisión / cambios</span><b>${projectReview.length}</b></div>
       </div>
       <div class="founder-command-actions">
-        <button class="btn small" data-founder-page="pipeline" type="button">Resolver seguimientos</button>
+        <button class="btn small" data-founder-page="pipeline" data-founder-followup="true" type="button">Resolver seguimientos</button>
         <button class="btn small" data-founder-page="tasks" type="button">Redistribuir trabajo</button>
         <button class="btn small" data-founder-page="clients" type="button">Ver entregas</button>
       </div>
@@ -284,7 +288,7 @@ export async function renderFounderCommandCenter(context){
     <section class="card nexo-ceo-workload">
       <div class="card-head"><div><span class="eyebrow">CARGA DEL EQUIPO</span><h2>Tareas pendientes por responsable</h2><p>Prioriza vencimientos y carga; estos datos no son una evaluación de desempeño.</p></div><button class="btn small" data-founder-page="tasks" type="button">Ver tareas</button></div>
       <div class="staff-performance-list">
-        ${teamTaskLoad.length?teamTaskLoad.slice(0,20).map(person=>`<div><span>${C.esc(person.name)}</span><b>${person.open} abiertas · ${person.overdue} vencidas · ${person.urgent} urgentes</b></div>`).join(""):'<p class="muted">No hay tareas abiertas asignadas.</p>'}
+        ${teamTaskLoad.length?teamTaskLoad.slice(0,20).map(person=>`<button type="button" data-founder-page="tasks" ${person.id!=="unassigned"?`data-founder-assignee="${C.esc(person.id)}"`:""}><span>${C.esc(person.name)}</span><b>${person.open} abiertas · ${person.overdue} vencidas · ${person.urgent} urgentes</b></button>`).join(""):'<p class="muted">No hay tareas abiertas asignadas.</p>'}
       </div>
     </section>
 

@@ -2,7 +2,24 @@
 // Access is enforced by Supabase RLS, never by this UI alone.
 const html=(C,value)=>C.esc(String(value??""));
 const taskBucket="nexo-task-files";
-const shortDate=value=>value?new Date(value).toLocaleString("es-CO"):"";
+const shortDate=value=>value?new Date(value).toLocaleString("es-CO",{timeZone:"America/Bogota"}):"";
+export function canEditTask(C,task){
+  if(C.state.isAdmin)return true;
+  if(C.state.isInternalStaff)return Boolean(C.hasPermission?.("tasks.team.write")||(task.assigned_to===C.state.session.user.id&&C.hasPermission?.("tasks.self.write")));
+  return ["owner","admin","operator","support"].includes(C.currentOrgRole?.());
+}
+export async function openTaskContext(C,task){
+  document.getElementById("taskContextModal")?.remove();
+  const root=document.createElement("div");root.id="taskContextModal";root.className="staff-work-modal";
+  root.innerHTML=`<div class="staff-work-backdrop" data-context-close></div><section class="staff-work-dialog" role="dialog" aria-modal="true" aria-label="Detalle de tarea"><header><div><span class="eyebrow">NEXO WORK</span><h2>${html(C,task.title)}</h2><p>${html(C,({pending:"Pendiente",in_progress:"En progreso",completed:"Completada",cancelled:"Cancelada"})[task.status]||task.status)} · ${html(C,task.due_at?C.dateTime(task.due_at):"Sin fecha límite")}</p></div><button type="button" data-context-close aria-label="Cerrar">×</button></header><div class="staff-work-body"><p class="muted">${html(C,(C.state.organizations||[]).find(org=>org.id===task.organization_id)?.name||"NEXO")}</p><p class="nexo-task-description">${html(C,task.description||"Sin notas adicionales.")}</p>${task.source_type==="crm_lead"&&task.source_id&&(C.state.isAdmin||C.hasPermission?.("crm.assigned.read")||C.hasPermission?.("crm.all.read"))?'<button class="btn small" type="button" data-context-lead>Ver lead en CRM</button>':""}</div></section>`;
+  const previous=document.activeElement;
+  const close=()=>{root.remove();document.removeEventListener("keydown",onKey);if(!document.querySelector(".staff-work-modal,.nexo-drawer:not(.hidden)"))document.body.classList.remove("modal-open");previous?.focus();};
+  const onKey=e=>{if(e.key==="Escape")close();};
+  root.querySelectorAll("[data-context-close]").forEach(b=>b.addEventListener("click",close));
+  root.querySelector("[data-context-lead]")?.addEventListener("click",()=>{C.state.crmLeadId=task.source_id;close();C.navigateToPage("pipeline",{historyMode:"push"});});
+  document.body.appendChild(root);document.body.classList.add("modal-open");document.addEventListener("keydown",onKey);root.querySelector("button[data-context-close]").focus();
+  await mountTaskContext(C,task,root.querySelector(".staff-work-body"));
+}
 export async function mountTaskContext(C,task,host){
   if(!task?.id||!host)return;
   host.querySelector(".nexo-task-context")?.remove();
@@ -10,6 +27,8 @@ export async function mountTaskContext(C,task,host){
   box.className="nexo-task-context";
   box.innerHTML='<h3>Colaboración de la tarea</h3><p class="muted">Checklist, comentarios e información adjunta. Solo los usuarios autorizados pueden acceder.</p><div class="nexo-context-columns"><div><h4>Checklist</h4><div data-list="checklist">Cargando…</div><form data-add="check"><input name="title" maxlength="250" placeholder="Nuevo paso" required aria-label="Nuevo paso"><button class="btn" type="submit">Añadir</button></form></div><div><h4>Comentarios</h4><div data-list="comments">Cargando…</div><form data-add="comment"><textarea name="body" maxlength="4000" rows="2" required placeholder="Escribe un comentario para el equipo" aria-label="Comentario"></textarea><button class="btn" type="submit">Publicar</button></form></div></div><div class="nexo-files"><h4>Archivos privados</h4><div data-list="files">Cargando…</div><label class="nexo-upload-label">Adjuntar archivo (máx. 10 MB)<input type="file" data-file accept=".pdf,.jpg,.jpeg,.png,.webp,.txt,.csv,.doc,.docx,.xls,.xlsx,.ppt,.pptx"></label></div>';
   host.appendChild(box);
+  const editable=canEditTask(C,task);
+  if(!editable)box.querySelectorAll("[data-add],.nexo-upload-label").forEach(el=>el.hidden=true);
   const output=(key)=>box.querySelector('[data-list="'+key+'"]');
   const err=error=>C.showError(error?.message||"No se pudo completar la acción.");
   const lock=(el,busy)=>{el.disabled=busy;};
@@ -19,6 +38,7 @@ export async function mountTaskContext(C,task,host){
     output("checklist").innerHTML=(data||[]).length?(data||[]).map(row=>
       '<div class="nexo-check-item"><label><input type="checkbox" data-check="'+html(C,row.id)+'" '+(row.is_done?'checked':'')+'><span class="'+(row.is_done?'done':'')+'">'+html(C,row.title)+'</span></label><button type="button" class="nexo-text-button" data-remove="'+html(C,row.id)+'" aria-label="Eliminar paso">×</button></div>'
     ).join(""):'<p class="muted">Sin pasos todavía.</p>';
+    if(!editable){output("checklist").querySelectorAll("input").forEach(el=>el.disabled=true);output("checklist").querySelectorAll("[data-remove]").forEach(el=>el.remove());}
     output("checklist").querySelectorAll("[data-check]").forEach(input=>input.addEventListener("change",async()=>{
       input.disabled=true;
       const {error}=await C.supabase.from("nexo_task_checklist").update({is_done:input.checked,completed_by:input.checked?C.state.session.user.id:null,updated_at:new Date().toISOString()}).eq("id",input.dataset.check).eq("task_id",task.id).select("id").single();
@@ -45,6 +65,7 @@ export async function mountTaskContext(C,task,host){
       const original=row.name.includes("__")?row.name.split("__").slice(1).join("__"):row.name;
       return '<div class="nexo-file-row"><button class="nexo-file-link" type="button" data-path="'+html(C,row.name)+'">'+html(C,original)+'</button><small>'+html(C,row.created_at?shortDate(row.created_at):"")+'</small><button type="button" class="nexo-text-button" data-file-remove="'+html(C,row.name)+'" aria-label="Eliminar archivo">×</button></div>';
     }).join(""):'<p class="muted">No hay archivos adjuntos.</p>';
+    if(!editable)output("files").querySelectorAll("[data-file-remove]").forEach(el=>el.remove());
     output("files").querySelectorAll("[data-path]").forEach(btn=>btn.addEventListener("click",async()=>{
       const popup=window.open("about:blank","_blank");
       const {data,error}=await C.supabase.storage.from(taskBucket).createSignedUrl(task.id+"/"+btn.dataset.path,120);

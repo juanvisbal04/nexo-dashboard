@@ -1,3 +1,7 @@
+import { openClientWorkspace } from "./clientWorkspace.js?v=20261013-work2";
+import { openTaskContext } from "./taskContext.js?v=20261013-work2";
+import { serviceLinesLabel } from "./serviceLines.js?v=20261013-lines2";
+import { bogotaDayStart } from "./workDates.js?v=20261013-work2";
 let C=null;
 
 const permissionLabels={
@@ -108,6 +112,7 @@ function navButton(page,label,orgId=null){
 }
 
 function bindStaffNavigation(){
+  document.querySelectorAll("[data-client-card]").forEach(button=>button.addEventListener("click",()=>openClientWorkspace(C,assignedClients().find(org=>org.id===button.dataset.clientCard))));
   document.querySelectorAll("[data-staff-page]").forEach((button)=>{
     button.addEventListener("click",async()=>{
       if(button.dataset.staffOrg)C.state.taskOrgFilter=button.dataset.staffOrg;
@@ -265,8 +270,8 @@ export async function renderStaffHome(context){
   const directOrgIds=new Set((ownAssignmentsResult.data||[]).map(row=>row.organization_id));
   const directlyAssigned=clients.filter(org=>directOrgIds.has(org.id));
   const stats=taskStats(tasks);
-  const todayStart=new Date();todayStart.setHours(0,0,0,0);
-  const tomorrow=new Date(todayStart);tomorrow.setDate(tomorrow.getDate()+1);
+  const todayStart=bogotaDayStart();
+  const tomorrow=new Date(todayStart.getTime()+86400000);
   const today=stats.open.filter((t)=>{
     if(!t.due_at)return false;
     const due=new Date(t.due_at);
@@ -305,7 +310,7 @@ export async function renderStaffHome(context){
         <article><span>Sin fecha</span><b>${myOpenTasks.filter(t=>!t.due_at).length}</b><small>Programar seguimiento</small></article>
       </div>
       <div class="staff-task-preview">
-        ${myOpenTasks.filter(t=>t.due_at&&new Date(t.due_at)<tomorrow).sort((a,b)=>new Date(a.due_at)-new Date(b.due_at)).slice(0,6).map(task=>`<article class="${dueState(task)}"><div><span class="staff-task-priority ${C.esc(task.priority||"medium")}">${C.esc(task.priority||"medium")}</span><b>${C.esc(task.title)}</b></div><small>${C.esc((C.state.organizations||[]).find(o=>o.id===task.organization_id)?.name||"NEXO")} · ${task.due_at?C.dateTime(task.due_at):"Sin fecha"}</small></article>`).join("")||'<p class="muted">Sin tareas con vencimiento de hoy o anterior.</p>'}
+        ${myOpenTasks.filter(t=>t.due_at&&new Date(t.due_at)<tomorrow).sort((a,b)=>new Date(a.due_at)-new Date(b.due_at)).slice(0,6).map(task=>`<article class="${dueState(task)}"><div><span class="staff-task-priority ${C.esc(task.priority||"medium")}">${C.esc(task.priority||"medium")}</span><button class="nexo-file-link" type="button" data-home-task="${task.id}">${C.esc(task.title)}</button></div><small>${C.esc((C.state.organizations||[]).find(o=>o.id===task.organization_id)?.name||"NEXO")} · ${task.due_at?C.dateTime(task.due_at):"Sin fecha"}</small></article>`).join("")||'<p class="muted">Sin tareas con vencimiento de hoy o anterior.</p>'}
       </div>
       <div class="staff-scope-note"><strong>Clientes asignados directamente: ${directlyAssigned.length}</strong><p>${directlyAssigned.map(org=>C.esc(org.name)).join(" · ")||"Puedes ver otras cuentas autorizadas de tu departamento, pero ninguna figura todavía como asignación directa."}</p></div>
     </section>
@@ -316,7 +321,7 @@ export async function renderStaffHome(context){
         <div class="staff-task-preview">
           ${[...today,...upcoming].slice(0,6).length?[...today,...upcoming].slice(0,6).map((task)=>`
             <article class="${dueState(task)}">
-              <div><span class="staff-task-priority ${C.esc(task.priority||"medium")}">${C.esc(task.priority||"medium")}</span><b>${C.esc(task.title)}</b></div>
+              <div><span class="staff-task-priority ${C.esc(task.priority||"medium")}">${C.esc(task.priority||"medium")}</span><button class="nexo-file-link" type="button" data-home-task="${task.id}">${C.esc(task.title)}</button></div>
               <small>${C.esc((C.state.organizations||[]).find((o)=>o.id===task.organization_id)?.name||"NEXO")} · ${task.due_at?C.dateTime(task.due_at):"Sin fecha límite"}</small>
             </article>
           `).join(""):C.emptyState("No hay tareas pendientes.","Puedes crear una desde Tareas.")}
@@ -324,11 +329,11 @@ export async function renderStaffHome(context){
       </section>
 
       <section class="card">
-        <div class="card-head"><div><h2>Tu alcance</h2><p>Permisos efectivos de ${C.esc(roleName())}</p></div></div>
-        <div class="staff-capability-list">
+        <div class="card-head"><div><h2>Mi acceso</h2><p>Permisos efectivos de ${C.esc(roleName())}</p></div></div>
+        <details class="nexo-access-details"><summary>Ver mis permisos</summary><div class="staff-capability-list">
           ${(C.state.teamPermissions||[]).filter((p)=>permissionLabels[p]).map((p)=>`<div><i>✓</i><span>${C.esc(permissionLabels[p])}</span></div>`).join("")}
         </div>
-        <div class="staff-scope-note"><strong>Least privilege</strong><p>Tu cargo solo abre datos de su departamento y clientes autorizados. Finanzas, equipo, auditoría y configuración global permanecen separados salvo permiso explícito.</p></div>
+        <div class="staff-scope-note"><strong>Acceso por responsabilidades</strong><p>Tu cargo solo abre datos de su departamento y clientes autorizados. Finanzas, equipo, auditoría y configuración global permanecen separados salvo permiso explícito.</p></div></details>
       </section>
     </div>
 
@@ -344,7 +349,7 @@ export async function renderStaffHome(context){
         ${clients.length?clients.slice(0,6).map((org)=>`
           <article>
             <span class="staff-client-avatar" style="--staff-color:${C.esc(org.color||"#316bff")}">${C.esc(org.initials||"NX")}</span>
-            <div><b>${C.esc(org.name)}</b><small>${C.esc(org.sector||"Cliente NEXO")}</small></div>
+            <div><b>${C.esc(org.name)}</b><small>${C.esc(serviceLinesLabel(org.service_lines))}</small><button class="nexo-file-link" data-client-card="${org.id}" type="button">Abrir ficha</button></div>
           </article>
         `).join(""):C.emptyState("Aún no hay clientes en tu scope.","El Founder o un Lead autorizado puede agregarlos.")}
       </div>
@@ -352,6 +357,7 @@ export async function renderStaffHome(context){
   `;
   bindStaffNavigation();
   bindProjectActions(projects);
+  document.querySelectorAll("[data-home-task]").forEach(button=>button.addEventListener("click",()=>openTaskContext(C,tasks.find(task=>task.id===button.dataset.homeTask))));
 }
 
 export async function renderStaffProjects(context){
@@ -374,7 +380,7 @@ export async function renderStaffProjects(context){
     <div class="staff-project-grid">
       ${projects.length?projects.map((project)=>{
         const org=orgMap.get(project.organization_id)||{name:"Cliente NEXO",sector:"",initials:"NX",color:"#316bff"};
-        const ownTasks=tasks.filter((t)=>t.organization_id===project.organization_id);
+        const ownTasks=tasks.filter((t)=>t.project_id===project.id);
         const stats=taskStats(ownTasks);
         return `
           <article class="card staff-project-card">
@@ -426,7 +432,7 @@ export async function renderStaffAccounts(context){
           <article class="card staff-account-card">
             <div class="staff-account-top">
               <span class="staff-client-avatar large" style="--staff-color:${C.esc(org.color||"#316bff")}">${C.esc(org.initials||"NX")}</span>
-              <div><h3>${C.esc(org.name)}</h3><p>${C.esc(org.sector||"Cliente NEXO")}</p></div>
+              <div><h3>${C.esc(org.name)}</h3><p>${C.esc(serviceLinesLabel(org.service_lines))}</p></div>
             </div>
             <div class="staff-account-scope">
               <span>Departamento</span>
@@ -434,7 +440,7 @@ export async function renderStaffAccounts(context){
               <p>${orgProjects.length} proyecto${orgProjects.length===1?"":"s"} visible${orgProjects.length===1?"":"s"} · acceso limitado por RBAC.</p>
             </div>
             <div class="staff-project-actions">
-              ${navButton("tasks","Ver tareas",org.id)}
+              <button class="btn small" data-client-card="${org.id}" type="button">Ficha del cliente</button>${navButton("tasks","Ver tareas",org.id)}
               ${canCreate?`<button class="btn small staff-create-project" data-org-id="${org.id}" type="button">+ Proyecto</button>`:""}
             </div>
           </article>
