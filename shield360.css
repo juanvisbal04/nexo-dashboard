@@ -1,0 +1,24 @@
+
+/* NEXO Shield 360 security surfaces */
+.nexo-shield-center{overflow:hidden;min-width:0}
+.nexo-shield-center .card-head{gap:12px;align-items:flex-start;flex-wrap:wrap}
+.nexo-shield-columns{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:18px}
+.nexo-shield-columns>section{min-width:0;border:1px solid rgba(134,152,181,.22);border-radius:12px;padding:14px}
+.nexo-shield-columns h3{font-size:15px;margin:0 0 12px}
+.nexo-shield-issues,.nexo-shield-audit{display:grid;gap:8px;max-height:390px;overflow:auto}
+.nexo-shield-issues article,.nexo-shield-audit article{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(134,152,181,.2);padding:8px 2px}
+.nexo-shield-issues article b,.nexo-shield-audit article b{overflow-wrap:anywhere;font-size:13px}
+.nexo-shield-issues small,.nexo-shield-audit small{font-size:11px;opacity:.65}
+.nexo-shield-issues select{padding:5px;border:1px solid #ccd5e5;border-radius:7px;max-width:180px;color:inherit;background:var(--card,#fff)}
+.nexo-shield-new{display:grid;gap:9px;margin-bottom:14px;padding:12px;border:1px solid #d2daea;border-radius:10px}
+.nexo-shield-new label{display:grid;gap:5px;font-size:12px}
+.nexo-shield-new input,.nexo-shield-new select,.nexo-shield-new textarea{width:100%;min-width:0;box-sizing:border-box;padding:9px;border:1px solid #cbd6e7;border-radius:7px;background:var(--card,#fff);color:inherit}
+.nexo-profile-security{margin-top:20px}
+.nexo-mfa-panel{display:grid;gap:14px}
+.nexo-mfa-panel h2{margin:0}.nexo-mfa-workspace{display:grid;gap:12px;min-width:0}
+.nexo-mfa-qr{background:white;object-fit:contain;border-radius:10px;padding:8px;width:200px;height:200px;max-width:100%}
+.nexo-mfa-secret{overflow-wrap:anywhere;font-size:12px}.nexo-mfa-secret code{user-select:all}
+.nexo-mfa-verify,.nexo-mfa-signin form{display:flex;align-items:center;flex-wrap:wrap;gap:10px}
+.nexo-mfa-verify input,.nexo-mfa-signin input{max-width:190px;min-width:150px;padding:10px;border:1px solid #cbd6e7;border-radius:9px;background:var(--card,#fff);color:inherit}
+.nexo-mfa-message.error{color:#a62b36}.nexo-mfa-signin{margin-top:16px;border-top:1px solid #e0e6f0;padding-top:15px}
+@media(max-width:800px){.nexo-shield-columns{grid-template-columns:1fr}.nexo-shield-columns>section{padding:10px}}
