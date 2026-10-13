@@ -1,3 +1,4 @@
+import { mountTaskContext } from "./taskContext.js?v=20261013-tasks1";
 let C=null;
 
 const taskStatusLabels={pending:"Pendiente",in_progress:"En progreso",completed:"Completada",cancelled:"Cancelada"};
@@ -150,6 +151,7 @@ async function openTaskEditor(task,assignees=[]){
   `);
   const root=ensureDrawer("taskEditModal");
   root.querySelector("[data-task-edit-close]")?.addEventListener("click",()=>closeDrawer("taskEditModal"));
+  mountTaskContext(C,task,root.querySelector(".nexo-drawer-content")||root).catch(error=>C.showError(error.message));
   root.querySelector("#taskCancelButton")?.addEventListener("click",async()=>{
     const button=root.querySelector("#taskCancelButton");
     button.disabled=true;button.textContent="Cancelando…";
