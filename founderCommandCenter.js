@@ -152,7 +152,7 @@ export async function renderFounderCommandCenter(context){
   overdueFollowups.slice(0,6).forEach((row)=>attention.push(attentionItem(
     "Seguimiento comercial",row.business_name||row.full_name||"Prospecto",
     `${row.full_name||"Contacto"} · ${row.stage||"prospecto"}`,
-    row.next_action_at?dueLabel(row.next_action_at):"","crm","warn"
+    row.next_action_at?dueLabel(row.next_action_at):"","pipeline","warn"
   )));
   overdueProjects.slice(0,6).forEach((row)=>attention.push(attentionItem(
     "Proyecto vencido",row.title,
@@ -172,7 +172,7 @@ export async function renderFounderCommandCenter(context){
 
   const deptStats=[
     {
-      key:"sales",name:"Sales",page:"crm",
+      key:"sales",name:"Sales",page:"pipeline",
       lead:"Pipeline comercial",
       primary:openProspects.length,
       primaryLabel:"oportunidades",
@@ -336,7 +336,7 @@ export async function renderFounderCommandCenter(context){
 
     <div class="founder-command-layout founder-lower-layout">
       <section class="card">
-        <div class="card-head"><div><span class="eyebrow">SALES</span><h2>Pipeline ejecutivo</h2><p>Valor, seguimiento y demos.</p></div><button class="btn small" data-founder-page="crm" type="button">Abrir CRM</button></div>
+        <div class="card-head"><div><span class="eyebrow">SALES</span><h2>Pipeline ejecutivo</h2><p>Valor, seguimiento y demos.</p></div><button class="btn small" data-founder-page="pipeline" type="button">Abrir CRM</button></div>
         <div class="founder-mini-metrics">
           <div><span>Prospectos abiertos</span><b>${openProspects.length}</b></div>
           <div><span>Pipeline MRR</span><b>${money(pipelineMrr)}</b></div>

@@ -746,13 +746,11 @@ export async function renderCrm(context) {
       <div><span>Vencidas</span><b>${overdueInvoices.length}</b></div>
     </div>
 
-    <nav class="crm-section-nav" aria-label="Secciones de Ventas y Finanzas">
+    <nav class="crm-section-nav" aria-label="Secciones de Finanzas">
       <span class="crm-section-nav-label">Ir a</span>
       <button type="button" data-crm-section="crmPlans"><b>01</b> Planes & costos</button>
       <button type="button" data-crm-section="crmBilling"><b>02</b> Cartera</button>
       <button type="button" data-crm-section="crmRevenue"><b>03</b> Ingresos</button>
-      <button type="button" data-crm-section="crmPipeline"><b>04</b> Pipeline</button>
-      <button type="button" data-crm-section="crmActions"><b>05</b> Actividad</button>
       <button type="button" data-crm-section="crmClients"><b>06</b> Clientes</button>
     </nav>
 
@@ -883,7 +881,7 @@ export async function renderCrm(context) {
       <div class="crm-revenue-legend"><span><i class="paid"></i>Cobrado</span><span><i class="pending"></i>Pendiente</span></div>
     </section>
 
-    <section id="crmPipeline" class="card crm-pipeline-card">
+    <section id="crmPipeline" class="hidden">
       <div class="card-head">
         <div><h2>Pipeline comercial</h2><p>Prospecto → Demo → Propuesta → Cliente → Implementación → Activo</p></div>
         <button id="crmNewProspectButton" class="btn primary small" type="button">+ Nuevo prospecto</button>
@@ -922,7 +920,7 @@ export async function renderCrm(context) {
       ` : ""}
     </section>
 
-    <div id="crmActions" class="crm-two-col">
+    <div id="crmActions" class="hidden">
       <section class="card">
         <div class="card-head">
           <div><h2>Próximas acciones</h2><p>Seguimientos comerciales ordenados por fecha</p></div>

@@ -1,13 +1,13 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
-import { renderCrm, openProspectEditorFromGrowth, openNewProspectFromGrowth } from "./crm.js?v=20261006-webfunnel1";
-import { renderTasks, openCustomer360, openContact360, closeDrawer } from "./workspace360.js?v=20261007-dept1";
+import { renderCrm, openProspectEditorFromGrowth, openNewProspectFromGrowth } from "./crm.js?v=20261013-finance1";
+import { renderTasks, openCustomer360, openContact360, closeDrawer } from "./workspace360.js?v=20261013-crm1";
 import { renderDataQuality, openOnboarding, closeQualityDrawer } from "./qualityOnboarding.js?v=20261001-quality2";
 import { renderInternalTeam } from "./team.js?v=20261007-company2";
 import { renderStaffHome, renderStaffProjects, renderStaffAccounts, renderStaffPerformance } from "./staffWorkspace.js?v=20261007-company1";
-import { renderSalesWorkspace, renderImplementationWorkspace, renderOperationsWorkspace } from "./departmentWorkspaces.js?v=20261007-dept2";
-import { renderExecutiveTasks } from "./executiveTasks.js?v=20261007-exec2";
+import { renderSalesWorkspace, renderImplementationWorkspace, renderOperationsWorkspace } from "./departmentWorkspaces.js?v=20261013-crm1";
+import { renderExecutiveTasks } from "./executiveTasks.js?v=20261013-crm1";
 import { renderPeopleWorkspace } from "./peopleWorkspace.js?v=20261007-people2";
-import { renderFounderCommandCenter } from "./founderCommandCenter.js?v=20261007-founder2";
+import { renderFounderCommandCenter } from "./founderCommandCenter.js?v=20261013-crm1";
 
 const SUPABASE_URL = "https://ixewnbjndguchunwcuhf.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_vFnLRe9cmnOcyz2Fivprhw_8UjBaRGL";
@@ -91,8 +91,8 @@ function canAccessPage(page) {
     return allowed.has(page);
   }
 
-  if (["admin","crm","growth","clients","operations","quality","audit","people"].includes(page) && !state.isAdmin) return false;
-  if (["crm","growth","clients","operations","quality","audit","people"].includes(page) && !adminInternalView()) return false;
+  if (["admin","crm","pipeline","growth","clients","operations","quality","audit","people"].includes(page) && !state.isAdmin) return false;
+  if (["crm","pipeline","growth","clients","operations","quality","audit","people"].includes(page) && !adminInternalView()) return false;
   if (page === "team" && !canManageCurrentOrgUsers()) return false;
   return true;
 }
@@ -136,7 +136,7 @@ const pageMeta = {
   metrics: ["Métricas", "NEXO ANALYTICS", "Entiende tus resultados.", "Vista analítica avanzada de la operación."],
   billing: ["Facturación", "NEXO BILLING", "Tus cobros y pagos, claros.", "Cuentas de cobro, vencimientos, pagos y documentos."],
   team: ["Usuarios", "CONTROL DE ACCESO", "Tu equipo, con el acceso correcto.", "Invita y administra usuarios de este dashboard."],
-  crm: ["Ventas & Finanzas", "NEXO CRM", "Pipeline, ingresos y rentabilidad.", "Del prospecto al cliente activo y su economía en un solo módulo."],
+  crm: ["Finanzas", "DIRECCIÓN · CEO", "Ingresos y rentabilidad.", "Facturación, costos y economía de NEXO."],
   growth: ["Growth", "NEXO GROWTH", "Cómo está creciendo NEXO.", "Prospectos, demos, propuestas, cierres, MRR potencial y fuentes de adquisición."],
   clients: ["Clientes", "NEXO CRM", "Tu cartera de clientes, organizada.", "Empresas, planes, accesos e implementación sin métricas repetidas."],
   operations: ["Operaciones", "NEXO OPERATIONS", "La plataforma, bajo control.", "Integraciones, asistentes, handoffs y salud operativa de NEXO."],
@@ -145,7 +145,7 @@ const pageMeta = {
   projects: ["Mis proyectos", "NEXO MARKETING", "Tus proyectos asignados.", "Clientes, trabajo pendiente y próximos entregables en un solo lugar."],
   accounts: ["Clientes asignados", "NEXO SCOPE", "Tu cartera autorizada.", "Solo los clientes en los que tienes permiso para trabajar."],
   performance: ["Mi rendimiento", "NEXO WORK", "Tu ejecución, en perspectiva.", "Seguimiento personal de tareas, cumplimiento y carga de trabajo."],
-  pipeline: ["Mi pipeline", "NEXO SALES", "Tu pipeline comercial.", "Oportunidades, próximas acciones y actividad comercial sin finanzas internas."],
+  pipeline: ["CRM", "NEXO COMERCIAL", "Leads y ventas.", "Contactos, pipeline, responsables y tareas comerciales."],
   delivery: ["Implementación", "NEXO DELIVERY", "Onboarding y éxito del cliente.", "Configuración, readiness y seguimiento dentro de tu scope."],
   departmentOps: ["Centro operativo", "NEXO OPERATIONS", "Operación bajo control.", "Asistentes, conversaciones, alertas y agenda de clientes asignados."],
   people: ["Talento Humano", "NEXO PEOPLE & CULTURE", "Las personas también son operación.", "Reclutamiento, onboarding interno y directorio del equipo."],
@@ -3401,7 +3401,7 @@ function isUserEditing() {
   const formFocused = active && ["INPUT","TEXTAREA","SELECT"].includes(active.tagName);
   const chat = document.getElementById("chatModal");
   const chatOpen = chat && !chat.classList.contains("hidden");
-  const crmOpen = !!document.getElementById("crmModal");
+  const crmOpen = !!(document.getElementById("crmModal")||document.getElementById("salesCrmModal"));
   const drawerOpen = !!document.querySelector(".nexo-drawer:not(.hidden)");
   return Boolean(formFocused || chatOpen || crmOpen || drawerOpen);
 }
@@ -3415,7 +3415,7 @@ function pageUsesRealtimeTable(table) {
     invoice_payments: ["crm","billing"],
     demo_requests: ["overview","crm","growth","admin","pipeline"],
     crm_activities: ["crm","pipeline"],
-    work_tasks: ["overview","tasks","clients","operations","projects","accounts","performance"],
+    work_tasks: ["overview","tasks","pipeline","clients","operations","projects","accounts","performance"],
     nexo_projects: ["overview","projects","accounts","performance"],
     organization_onboarding: ["overview","delivery"],
     nexo_people_candidates: ["overview","people"],
@@ -3562,7 +3562,7 @@ async function buildSearchIndex() {
   }
 
   const results=await Promise.all(jobs);
-  const pages={conversation:"conversations",lead:"leads",appointment:"appointments",invoice:"billing",contact:"conversations",task:"tasks",prospect:"crm"};
+  const pages={conversation:"conversations",lead:"leads",appointment:"appointments",invoice:"billing",contact:"conversations",task:"tasks",prospect:"pipeline"};
   const index=[];
 
   results.forEach((result,i)=>{
@@ -3833,7 +3833,7 @@ function qualityContext() {
 function staffWorkspaceContext() {
   return {
     supabase,state,$,esc,dateTime,shortDate,emptyState,showError,showToast,navigateToPage,
-    hasPermission,loadOrganizations,renderApp:render,persistUiState
+    hasPermission,loadOrganizations,renderApp:render,persistUiState,money,metricCard,clientOrganizations,downloadInvoicePdf
   };
 }
 
@@ -3866,7 +3866,7 @@ async function render() {
     tasks:[staffTeamTasks?"Tareas del departamento":"Mis tareas","NEXO WORK",staffTeamTasks?"Trabajo del equipo, bajo control.":"Tu trabajo, bajo control.",staffTeamTasks?"Coordina responsables, prioridades y vencimientos dentro de tu departamento.":"Crea, prioriza y completa tus propias tareas."],
     accounts:["Clientes",`NEXO · ${staffDepartment.toUpperCase()}`,"Clientes en tu scope.","Solo negocios autorizados para ti o para tu departamento."],
     performance:[staffTeamTasks?"Rendimiento del departamento":"Mi rendimiento","NEXO WORK",staffTeamTasks?"Ejecución del equipo, en perspectiva.":"Tu ejecución, en perspectiva.","Seguimiento operativo sin exponer información fuera de tu scope."],
-    pipeline:[hasPermission("crm.all.read")?"Pipeline del equipo":"Mi pipeline","NEXO SALES","Ventas en movimiento.","Oportunidades y próximas acciones sin exponer finanzas internas."],
+    pipeline:["CRM","NEXO COMERCIAL","Leads y ventas.","Contactos, pipeline, responsables y tareas comerciales."],
     delivery:["Implementación","NEXO DELIVERY","Onboarding y éxito del cliente.","Configuración, readiness y seguimiento dentro de tu scope."],
     departmentOps:["Centro operativo","NEXO OPERATIONS","Operación bajo control.","Asistentes, conversaciones, alertas y agenda."],
     people:["Talento Humano","NEXO PEOPLE & CULTURE","Personas, procesos y crecimiento.","Reclutamiento, onboarding y directorio interno."],
@@ -3910,7 +3910,7 @@ async function render() {
     else if (state.isInternalStaff && state.page === "projects") await renderStaffProjects(staffWorkspaceContext());
     else if (state.isInternalStaff && state.page === "accounts") await renderStaffAccounts(staffWorkspaceContext());
     else if (state.isInternalStaff && state.page === "performance") await renderStaffPerformance(staffWorkspaceContext());
-    else if (state.isInternalStaff && state.page === "pipeline") await renderSalesWorkspace(staffWorkspaceContext());
+    else if ((state.isInternalStaff || state.isAdmin && isInternalOrg()) && state.page === "pipeline") await renderSalesWorkspace(staffWorkspaceContext());
     else if (state.isInternalStaff && state.page === "delivery") await renderImplementationWorkspace(staffWorkspaceContext());
     else if (state.isInternalStaff && state.page === "departmentOps") await renderOperationsWorkspace(staffWorkspaceContext());
     else if ((state.isAdmin && isInternalOrg() || state.isInternalStaff) && state.page === "people") await renderPeopleWorkspace(staffWorkspaceContext());
@@ -3920,7 +3920,7 @@ async function render() {
     else if (state.page === "billing") await renderBillingPortal();
     else if (state.page === "team") await renderTeam();
     else if (state.page === "crm") await renderCrm({ supabase, state, $, esc, money, dateTime, shortDate, metricCard, emptyState, showError, showToast, clientOrganizations, loadOrganizations, renderApp: render, persistUiState, downloadInvoicePdf });
-    else if (state.page === "growth") await renderGrowth();
+    else if (state.page === "growth") { state.page="pipeline"; persistUiState(); await renderSalesWorkspace(staffWorkspaceContext()); }
     else if (state.page === "clients" || state.page === "admin") await renderClients();
     else if (state.page === "operations") await renderOperations();
     else if (state.page === "tasks" && state.isAdmin && isInternalOrg()) await renderExecutiveTasks(staffWorkspaceContext());
@@ -4274,7 +4274,7 @@ $("orgSelect").addEventListener("change", async () => {
   const internal=adminInternalView();
   if (state.isInternalStaff && !canAccessPage(state.page)) state.page="overview";
   if (!state.isInternalStaff) {
-    if (internal && !["overview","crm","clients","operations","conversations","tasks","quality","settings","audit","profile","growth","team","people"].includes(state.page)) state.page="overview";
+    if (internal && !["overview","crm","pipeline","clients","operations","conversations","tasks","quality","settings","audit","profile","growth","team","people"].includes(state.page)) state.page="overview";
     if (!internal && ["crm","growth","clients","operations","quality","audit","admin","people"].includes(state.page)) state.page="overview";
     if (state.page === "team" && !canManageCurrentOrgUsers()) state.page = "overview";
   }
@@ -4321,7 +4321,7 @@ $("menuButton").addEventListener("click", () => document.body.classList.toggle("
 function repairUiLocks() {
   const chat = document.getElementById("chatModal");
   const chatOpen = chat && !chat.classList.contains("hidden");
-  const crmOpen = !!document.getElementById("crmModal");
+  const crmOpen = !!(document.getElementById("crmModal")||document.getElementById("salesCrmModal"));
   const drawerOpen = !!document.querySelector(".nexo-drawer:not(.hidden)");
   if (!chatOpen && !crmOpen && !drawerOpen) document.body.classList.remove("modal-open");
 }

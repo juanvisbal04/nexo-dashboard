@@ -160,6 +160,7 @@ export async function renderExecutiveTasks(context){
         <div class="task-row-main">
           <div class="task-row-top"><span class="task-priority ${esc(row.priority||"medium")}">${esc(priorityLabels[row.priority]||row.priority||"Media")}</span><span>${esc(orgName(row.organization_id))}</span></div>
           <b>${esc(row.title)}</b>
+          ${row.source_type==="crm_lead"&&row.source_id?`<button class="btn small crm-task-lead" data-lead-id="${esc(row.source_id)}" type="button">Ver lead en CRM</button>`:""}
           <p>${esc(row.description||"Sin nota adicional")}</p>
           <div class="task-row-meta"><span>${esc(person?.full_name||"Sin responsable")} · ${esc(person?.department_name||"Sin departamento")}</span><span>${isOverdue?"Vencida · ":""}${dt(row.due_at)}</span></div>
         </div>
@@ -170,6 +171,7 @@ export async function renderExecutiveTasks(context){
       </article>`;
     }).join(""):C.emptyState("No hay tareas con este filtro.","Cambia los filtros o asigna una nueva tarea.");
 
+    document.querySelectorAll(".crm-task-lead").forEach((button)=>button.addEventListener("click",async()=>{C.state.crmLeadId=button.dataset.leadId;await C.navigateToPage("pipeline",{historyMode:"push"});}));
     document.querySelectorAll(".execTaskStatus").forEach((select)=>select.addEventListener("change",async()=>{
       const row=rows.find((r)=>r.id===select.dataset.taskId); if(!row)return;
       const next=select.value;select.disabled=true;
