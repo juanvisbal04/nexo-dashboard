@@ -1,0 +1,13 @@
+/* NEXO account recovery - extends the established login design without touching other workspaces. */
+.forgot-password-row { display:flex; justify-content:flex-end; margin:10px 0 2px; }
+.forgot-password-link { background:none; border:0; padding:7px 0; font:600 13px/1.5 "DM Sans",Arial,sans-serif; color:#316bff; cursor:pointer; text-decoration:underline; text-underline-offset:3px; }
+.forgot-password-link:hover { color:#174cc6; }
+.forgot-password-link:disabled { opacity:.55; cursor:wait; }
+.forgot-password-link:focus-visible { outline:2px solid #316bff; outline-offset:4px; border-radius:3px; }
+.recovery-actions { margin-top:22px; display:flex; justify-content:space-between; gap:12px; align-items:center; }
+.recovery-actions a { color:#316bff; font-weight:600; font-size:13px; text-decoration:none; }
+.recovery-actions a:hover { text-decoration:underline; }
+.recovery-hint { color:#5f6f85; font-size:13px; line-height:1.6; margin:0 0 20px; }
+.recovery-form label { display:block; margin-top:16px; }
+.recovery-form input { display:block; width:100%; box-sizing:border-box; }
+.recovery-form button { width:100%; margin-top:24px; }
