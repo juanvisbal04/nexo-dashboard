@@ -1,8 +1,9 @@
+import { SERVICE_LINES, serviceLinesField, serviceLinesLabel, selectedServiceLines, needsAssistant, bindServiceLines, openServiceLineEditor } from "./serviceLines.js?v=20261013-lines1";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
 import { renderCrm, openProspectEditorFromGrowth, openNewProspectFromGrowth } from "./crm.js?v=20261013-finance1";
 import { renderTasks, openCustomer360, openContact360, closeDrawer } from "./workspace360.js?v=20261013-crm2";
 import { renderDataQuality, openOnboarding, closeQualityDrawer } from "./qualityOnboarding.js?v=20261001-quality2";
-import { renderInternalTeam } from "./team.js?v=20261007-company2";
+import { renderInternalTeam } from "./team.js?v=20261013-lines1";
 import { renderStaffHome, renderStaffProjects, renderStaffAccounts, renderStaffPerformance } from "./staffWorkspace.js?v=20261007-company1";
 import { renderSalesWorkspace, renderImplementationWorkspace, renderOperationsWorkspace } from "./departmentWorkspaces.js?v=20261013-crm2";
 import { renderExecutiveTasks } from "./executiveTasks.js?v=20261013-crm2";
@@ -2092,7 +2093,7 @@ async function renderClients() {
   state.currentRows=clients.map((org)=>{
     const commercial=commercialMap.get(org.id)||{};
     const onb=onboardingMap.get(org.id)||{};
-    return {organization:org.name,sector:org.sector,assistant:org.assistant,stage:commercial.lifecycle_stage,plan:commercial.plan_name,billing:commercial.billing_status,integrations:commercial.integration_status,onboarding:onb.overall_status||"not_started",onboarding_progress:onboardingProgress(onb),users:userCounts[org.id]||0};
+    return {organization:org.name,service_lines:serviceLinesLabel(org.service_lines),sector:org.sector,assistant:org.assistant,stage:commercial.lifecycle_stage,plan:commercial.plan_name,billing:commercial.billing_status,integrations:commercial.integration_status,onboarding:onb.overall_status||"not_started",onboarding_progress:onboardingProgress(onb),users:userCounts[org.id]||0};
   });
 
   $("content").innerHTML=`
@@ -2106,7 +2107,7 @@ async function renderClients() {
     <section class="card client-directory-card">
       <div class="card-head">
         <div><h2>Directorio de clientes</h2><p>Configuración, plan, accesos y estado operativo. Sin repetir Analytics.</p></div>
-        <span class="count">${clients.length} clientes</span>
+        <select id="clientServiceLineFilter" class="control" aria-label="Filtrar por línea NEXO"><option value="">Todas las líneas NEXO</option>${SERVICE_LINES.map(([v,l])=>`<option value="${v}">${l}</option>`).join("")}<option value="unclassified">Sin clasificar</option></select><span class="count">${clients.length} clientes</span>
       </div>
       <div class="table-wrap">
         <table>
@@ -2117,9 +2118,9 @@ async function renderClients() {
             const setting=settingsMap.get(org.id)||{};
             const onb=onboardingMap.get(org.id)||{};
             const onbProgress=onboardingProgress(onb);
-            return `<tr>
-              <td><b>${esc(org.name)}</b><br><span class="muted">${esc(org.sector||"Sin sector")}</span></td>
-              <td><div class="client-assistant-cell">${assistantAvatarHtml(assistantForOrg(org.id),org,"assistant-mini")}<span><b>${esc(org.assistant||"—")}</b><small>${esc(assistantForOrg(org.id)?.status==="active"?"Activo":assistantForOrg(org.id)?.status||"—")}</small></span></div></td>
+            return `<tr data-client-lines="${esc((org.service_lines||[]).join(","))}">
+              <td><b>${esc(org.name)}</b><br><span class="pill">${esc(serviceLinesLabel(org.service_lines))}</span><br><span class="muted">${esc(org.sector||"Sin sector")}</span></td>
+              <td>${!needsAssistant(org.service_lines)?'<span class="muted">No aplica</span>':`<div class="client-assistant-cell">${assistantAvatarHtml(assistantForOrg(org.id),org,"assistant-mini")}<span><b>${esc(org.assistant||"—")}</b><small>${esc(assistantForOrg(org.id)?.status==="active"?"Activo":assistantForOrg(org.id)?.status||"—")}</small></span></div>`}</td>
               <td>${esc(commercial.plan_name||"Por definir")}</td>
               <td>${pill(commercial.lifecycle_stage||org.status||"—")}</td>
               <td>${esc(commercial.implementation_status||"—")}</td>
@@ -2131,6 +2132,7 @@ async function renderClients() {
               <td><div class="row-actions">
                 <button class="btn small primary customer-360-button" data-id="${org.id}" type="button">Customer 360</button>
                 <button class="btn small onboarding-button" data-id="${org.id}" type="button">Onboarding</button>
+                <button class="btn small client-line-button" data-id="${org.id}" type="button">Editar línea NEXO</button>
                 <button class="btn small client-configure-button" data-id="${org.id}" type="button">Configurar</button>
               </div></td>
             </tr>`;
@@ -2142,11 +2144,11 @@ async function renderClients() {
 
     <div class="admin-action-accordion">
       <details class="card admin-action-drawer">
-        <summary><div><b>+ Crear nuevo negocio</b><span>Alta de organización y asistente NEXO</span></div><em>+</em></summary>
+        <summary><div><b>+ Crear nuevo negocio</b><span>Cliente y líneas de negocio contratadas</span></div><em>+</em></summary>
         <form id="newBusinessForm" class="admin-form compact-admin-form">
           <label>Nombre del negocio<input id="businessName" type="text" required /></label>
           <label>Sector<input id="businessSector" type="text" /></label>
-          <label>Nombre del asistente<input id="assistantName" type="text" required /></label>
+          ${serviceLinesField("newClientServiceLines",["assistants"])}<label id="newClientAssistantField">Nombre del asistente<input id="assistantName" type="text" required /></label>
           <label>Iniciales<input id="businessInitials" type="text" maxlength="3" /></label>
           <label>Color de marca<input id="businessColor" type="color" value="#316bff" /></label>
           <button id="createBusiness" class="btn primary" type="submit">Crear negocio</button>
@@ -2168,6 +2170,7 @@ async function renderClients() {
     </div>
   `;
 
+  $("clientServiceLineFilter")?.addEventListener("change",event=>{document.querySelectorAll("[data-client-lines]").forEach(row=>{const lines=row.dataset.clientLines.split(",").filter(Boolean);row.hidden=event.target.value==="unclassified"?lines.length>0:Boolean(event.target.value&&!lines.includes(event.target.value));});});
   document.querySelectorAll(".customer-360-button").forEach((button)=>{
     button.addEventListener("click",()=>openCustomer360(workspace360Context(),button.dataset.id));
   });
@@ -2184,6 +2187,7 @@ async function renderClients() {
       await render();
     });
   });
+  document.querySelectorAll(".client-line-button").forEach(button=>button.addEventListener("click",()=>{const org=clients.find(o=>o.id===button.dataset.id);if(org)openServiceLineEditor({supabase,state,esc,showError,showToast,onSaved:async()=>{await loadOrganizations();await renderClients();}},org);}));
   document.querySelectorAll(".client-configure-button").forEach((button)=>{
     button.addEventListener("click",async()=>{
       state.settingsOrgId=button.dataset.id;
@@ -2193,14 +2197,15 @@ async function renderClients() {
     });
   });
 
+  bindServiceLines(document,"newClientServiceLines",(lines)=>{const needed=needsAssistant(lines);$("newClientAssistantField")?.classList.toggle("hidden",!needed);if($("assistantName"))$("assistantName").required=needed;});
   $("newBusinessForm")?.addEventListener("submit",async(event)=>{
     event.preventDefault();
     const button=$("createBusiness");
     button.disabled=true; button.textContent="Creando…";
     try{
       const {data,error}=await supabase.functions.invoke("admin-create-organization",{body:{
-        name:$("businessName").value.trim(),sector:$("businessSector").value.trim(),
-        assistant:$("assistantName").value.trim(),initials:$("businessInitials").value.trim(),color:$("businessColor").value
+        name:$("businessName").value.trim(),sector:$("businessSector").value.trim(),service_lines:selectedServiceLines(document,"newClientServiceLines"),
+        assistant:needsAssistant(selectedServiceLines(document,"newClientServiceLines"))?$("assistantName").value.trim():"",initials:$("businessInitials").value.trim(),color:$("businessColor").value
       }});
       if(error)throw error;if(!data?.ok)throw new Error(data?.error||"No pudimos crear el negocio.");
       showToast("Negocio creado.");
@@ -2334,6 +2339,7 @@ async function renderSettings() {
   }
   state.settingsOrgId=targetId;
   const targetOrg=state.organizations.find((org)=>org.id===targetId);
+  let selectedLines=targetOrg?.service_lines||[];
   const canEdit=state.isAdmin || ["owner","admin"].includes(state.orgRoles[targetId]);
   const adminMode=state.isAdmin;
 
@@ -2362,10 +2368,10 @@ async function renderSettings() {
       <section class="card settings-profile-card">
         <div class="settings-brand-preview">
           <span class="settings-brand-avatar" style="--brand:${esc(targetOrg?.color||"#316bff")}">${esc(targetOrg?.initials||"NX")}</span>
-          <div><span>EMPRESA</span><h2>${esc(targetOrg?.name||"Cliente NEXO")}</h2><p>${esc(targetOrg?.sector||"Sin sector")} · Asistente ${esc(targetOrg?.assistant||"NEXO")}</p></div>
+          <div><span>EMPRESA</span><h2>${esc(targetOrg?.name||"Cliente NEXO")}</h2><p>${esc(targetOrg?.sector||"Sin sector")} · ${esc(serviceLinesLabel(targetOrg?.service_lines))}</p></div>
         </div>
         <div class="settings-status-grid">
-          <div><span>Asistente</span><b>${esc(assistants[0]?.status||targetOrg?.status||"active")}</b></div>
+          <div><span>Línea NEXO</span><b>${esc(serviceLinesLabel(selectedLines))}</b></div>
           <div><span>Zona horaria</span><b>${esc(targetOrg?.timezone||"America/Bogota")}</b></div>
           ${adminMode?`<div><span>Plan</span><b>${esc(commercial.plan_name||"Por definir")}</b></div><div><span>Facturación</span><b>${esc(commercial.billing_status||"—")}</b></div>`:""}
         </div>
@@ -2377,14 +2383,14 @@ async function renderSettings() {
           <div class="settings-grid">
             <label>Nombre del negocio<input id="settingName" value="${esc(targetOrg?.name||"")}" ${adminMode?"":"disabled"}></label>
             <label>Sector<input id="settingSector" value="${esc(targetOrg?.sector||"")}" ${adminMode?"":"disabled"}></label>
-            <label>Asistente asignado<input value="${esc(targetOrg?.assistant||"")}" disabled></label>
+            ${serviceLinesField("settingServiceLines",selectedLines,!adminMode)}<label data-assistant-config>Asistente asignado<input value="${esc(targetOrg?.assistant||"")}" disabled></label>
             <label>Iniciales<input id="settingInitials" maxlength="3" value="${esc(targetOrg?.initials||"NX")}" ${adminMode?"":"disabled"}></label>
             <label>Color de marca<input id="settingColor" type="color" value="${esc(targetOrg?.color||"#316bff")}" ${adminMode?"":"disabled"}></label>
             <label>Zona horaria<input id="settingTimezone" value="${esc(targetOrg?.timezone||"America/Bogota")}" ${adminMode?"":"disabled"}></label>
           </div>
         </section>
 
-        <section class="card settings-section assistant-settings-section">
+        <section class="card settings-section assistant-settings-section" data-assistant-config>
           <div class="card-head"><div><h2>Asistente virtual</h2><p>Identidad, contexto y capacidades visibles de ${esc(assistant?.name||targetOrg?.assistant||"tu asistente")}</p></div><span class="pill ${assistant?.status==="active"?"green":""}">${assistant?.status==="active"?"Activo":esc(assistant?.status||"—")}</span></div>
           <div class="assistant-editor">
             <div class="assistant-editor-photo">
@@ -2421,9 +2427,9 @@ async function renderSettings() {
         </section>
 
         <section class="card settings-section">
-          <div class="card-head"><div><h2>Handoff y portal</h2><p>Reglas operativas del negocio cuando interviene una persona</p></div></div>
+          <div class="card-head"><div><h2>Portal y notificaciones</h2><p>Información y avisos del cliente</p></div></div>
           <div class="settings-grid">
-            <label>Teléfono para handoff<input id="settingHandoff" value="${esc(setting.handoff_phone||"")}" ${canEdit?"":"disabled"}></label>
+            <label data-assistant-config>Teléfono para handoff<input id="settingHandoff" value="${esc(setting.handoff_phone||"")}" ${canEdit?"":"disabled"}></label>
             <label class="wide">Mensaje de bienvenida del portal<textarea id="settingWelcome" rows="3" ${canEdit?"":"disabled"}>${esc(setting.portal_welcome_message||"")}</textarea></label>
             <label class="settings-toggle"><input id="settingNotifications" type="checkbox" ${setting.allow_email_notifications!==false?"checked":""} ${canEdit?"":"disabled"}><span>Recibir notificaciones operativas por correo</span></label>
             <label class="settings-toggle"><input id="settingBillingEmails" type="checkbox" ${setting.allow_billing_emails!==false?"checked":""} ${canEdit?"":"disabled"}><span>Recibir correos de facturación</span></label>
@@ -2452,6 +2458,7 @@ async function renderSettings() {
     </div>
   `;
 
+  bindServiceLines(document,"settingServiceLines",lines=>{selectedLines=lines;document.querySelectorAll("[data-assistant-config]").forEach(section=>section.classList.toggle("hidden",!needsAssistant(lines)));});
   let pendingAssistantAvatar=null;
   $("assistantPhotoInput")?.addEventListener("change",(event)=>{
     const file=event.target.files?.[0];
@@ -2480,8 +2487,8 @@ async function renderSettings() {
         address:$("settingAddress").value.trim()||null,
         city:$("settingCity").value.trim()||null,
         country:setting.country||"Colombia",
-        handoff_phone:$("settingHandoff").value.trim()||null,
-        assistant_tone:$("assistantTone").value.trim()||null,
+        handoff_phone:needsAssistant(selectedLines)?($("settingHandoff").value.trim()||null):(setting.handoff_phone||null),
+        assistant_tone:needsAssistant(selectedLines)?($("assistantTone").value.trim()||null):(setting.assistant_tone||null),
         portal_welcome_message:$("settingWelcome").value.trim()||null,
         allow_email_notifications:$("settingNotifications").checked,
         allow_billing_emails:$("settingBillingEmails").checked,
@@ -2491,7 +2498,7 @@ async function renderSettings() {
       const {error:settingsError}=await supabase.from("organization_settings").upsert(settingsPayload,{onConflict:"organization_id"});
       if(settingsError)throw settingsError;
 
-      if(assistant){
+      if(assistant&&needsAssistant(selectedLines)){
         let assistantAvatarUrl=assistant.avatar_url||null;
         if(pendingAssistantAvatar) assistantAvatarUrl=await uploadMediaImage(pendingAssistantAvatar,"assistants",targetId);
         const capabilities=$("assistantCapabilities").value
@@ -2514,8 +2521,8 @@ async function renderSettings() {
 
       if(adminMode){
         const {error:orgError}=await supabase.from("organizations").update({
-          name:$("settingName").value.trim(),sector:$("settingSector").value.trim(),
-          assistant:$("assistantNameProfile").value.trim(),initials:$("settingInitials").value.trim().toUpperCase()||"NX",
+          name:$("settingName").value.trim(),sector:$("settingSector").value.trim(),service_lines:selectedLines,
+          assistant:needsAssistant(selectedLines)?$("assistantNameProfile").value.trim():(targetOrg?.assistant||""),initials:$("settingInitials").value.trim().toUpperCase()||"NX",
           color:$("settingColor").value,timezone:$("settingTimezone").value.trim()||"America/Bogota",updated_at:new Date().toISOString()
         }).eq("id",targetId);
         if(orgError)throw orgError;
@@ -2877,8 +2884,7 @@ async function renderAdmin() {
           <input id="businessName" type="text" placeholder="Ej. Hotel Central Medellín" required />
           <label>Sector</label>
           <input id="businessSector" type="text" placeholder="Ej. Hotel, restaurante, estética" />
-          <label>Nombre del asistente</label>
-          <input id="assistantName" type="text" placeholder="Ej. Luna" required />
+          ${serviceLinesField("newClientServiceLines",["assistants"])}<label id="newClientAssistantField">Nombre del asistente<input id="assistantName" type="text" placeholder="Ej. Luna" required /></label>
           <label>Iniciales</label>
           <input id="businessInitials" type="text" maxlength="3" placeholder="Ej. HC" />
           <label>Color de marca</label>
@@ -2941,6 +2947,7 @@ async function renderAdmin() {
     }
   });
 
+  bindServiceLines(document,"newClientServiceLines",(lines)=>{const needed=needsAssistant(lines);$("newClientAssistantField")?.classList.toggle("hidden",!needed);if($("assistantName"))$("assistantName").required=needed;});
   $("newBusinessForm")?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const button = $("createBusiness");
@@ -2953,7 +2960,8 @@ async function renderAdmin() {
         body: {
           name: $("businessName").value.trim(),
           sector: $("businessSector").value.trim(),
-          assistant: $("assistantName").value.trim(),
+          service_lines: selectedServiceLines(document,"newClientServiceLines"),
+          assistant: needsAssistant(selectedServiceLines(document,"newClientServiceLines"))?$("assistantName").value.trim():"",
           initials: $("businessInitials").value.trim(),
           color: $("businessColor").value,
         },

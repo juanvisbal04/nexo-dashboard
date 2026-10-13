@@ -2321,3 +2321,5 @@ table{min-width:max-content}
   .founder-kpi-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
   .founder-department-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
+
+.nexo-service-lines{grid-column:1/-1;border:1px solid #dfe6f1;border-radius:12px;padding:14px;display:flex;flex-wrap:wrap;gap:12px}.nexo-service-lines legend{font-size:13px;font-weight:700;color:#34445f;padding:0 5px}.nexo-service-lines p{width:100%;margin:0;font-size:12px;color:#718096}.nexo-service-lines label{display:flex!important;flex-direction:row!important;align-items:center;gap:8px;font-size:13px!important;padding:9px 12px;background:#f6f8fc;border-radius:8px}.nexo-service-lines input{width:16px!important;height:16px!important;margin:0!important;accent-color:#316bff}.client-directory-card tr[hidden]{display:none}

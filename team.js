@@ -1,3 +1,4 @@
+import { serviceLinesLabel } from "./serviceLines.js?v=20261013-lines1";
 export async function renderInternalTeam(ctx) {
   const { supabase, $, esc, shortDate, dateTime, showToast, showError } = ctx;
 
@@ -244,7 +245,7 @@ export async function renderInternalTeam(ctx) {
                 <label class="team-client-option">
                   <input type="checkbox" name="internalTeamClient" value="${esc(org.id)}" />
                   <span class="team-client-dot" style="--client-color:${esc(org.color || "#316bff")}">${esc(org.initials || "NX")}</span>
-                  <span><b>${esc(org.name)}</b><small>${esc(org.sector || "Cliente NEXO")}</small></span>
+                  <span><b>${esc(org.name)}</b><small>${esc(serviceLinesLabel(org.service_lines))} · ${esc(org.sector || "Cliente NEXO")}</small></span>
                 </label>
               `).join("") : '<div class="team-empty compact"><span>No hay clientes para asignar todavía.</span></div>'}
             </div>
