@@ -2,7 +2,8 @@
 
 **Proyecto:** NEXO Platform — `ixewnbjndguchunwcuhf`.  
 **Dashboard:** https://dashboard.nexobyjv.online  
-**Remitente solicitado:** NEXO by Juan Visbal <nexobyjuanvisbal@gmail.com>
+**Remitente oficial:** NEXO by Juan Visbal <equipo@nexobyjv.online>  
+**Responder a:** nexobyjuanvisbal@gmail.com (en correos enviados mediante las plantillas transaccionales de Resend)
 
 ## Estado
 - Las plantillas están versionadas aquí, pero **subirlas a GitHub no las activa en Supabase**.
@@ -33,7 +34,7 @@ Sin necesidad de Gmail, Google App Passwords ni contratar otro proveedor.
 Esto usa el mismo proveedor que NEXO ya posee. Sujeto a las cuotas del plan gratuito. Como Supabase carece de credenciales de Resend y el conector de Supabase no permite modificar Auth SMTP, el paso del panel debe realizarlo un administrador.
 
 ## Activar plantillas en Supabase
-En https://supabase.com/dashboard/project/ixewnbjndguchunwcuhf/auth/templates copiar el HTML y asunto correspondiente:
+En https://supabase.com/dashboard/project/ixewnbjndguchunwcuhf/auth/templates abrir cada plantilla de Supabase Auth, reemplazar su asunto y HTML por el archivo correspondiente de este directorio y guardar cada una. No confundir el editor de plantillas de Supabase con el editor de Resend. La plantilla de bienvenida es exclusiva del flujo transaccional de Resend y no figura en Supabase Auth.
 | Supabase Auth | Archivo | Asunto sugerido |
 |---|---|---|
 | Confirm signup | `confirm-signup.html` | Confirma tu correo · NEXO |
