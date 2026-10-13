@@ -76,13 +76,18 @@ export async function renderExecutiveTasks(context){
   const internalOrg=C.state.organizations.find((o)=>o.name==="NEXO Internal");
   if(!internalOrg){C.$("content").innerHTML=C.emptyState("NEXO Internal no está configurado.","");return;}
 
-  const [{data:tasks,error:taskError},companyAssignees]=await Promise.all([
+  const [{data:tasks,error:taskError},companyAssignees,leadResult,projectResult]=await Promise.all([
     C.supabase.from("work_tasks").select("*").order("created_at",{ascending:false}).limit(2000),
     assigneesForOrg(internalOrg.id),
+    C.supabase.from("demo_requests").select("id,business_name,full_name,organization_id").is("archived_at",null).order("created_at",{ascending:false}).limit(300),
+    C.supabase.from("nexo_projects").select("id,title,organization_id").order("created_at",{ascending:false}).limit(300)
   ]);
   if(taskError)throw taskError;
 
   const peopleMap=new Map(companyAssignees.map((p)=>[p.id,p]));
+  const linkedLeads=leadResult?.data||[];
+  const linkedProjects=projectResult?.data||[];
+  const projectsMap=new Map(linkedProjects.map(row=>[row.id,row]));
   const rows=tasks||[];
   const open=rows.filter((r)=>["pending","in_progress"].includes(r.status));
   const overdue=open.filter((r)=>r.due_at&&new Date(r.due_at).getTime()<Date.now());
@@ -112,6 +117,7 @@ export async function renderExecutiveTasks(context){
         <select id="execTaskPriority"><option value="medium">Prioridad media</option><option value="high">Alta</option><option value="urgent">Urgente</option><option value="low">Baja</option></select>
         <input id="execTaskDue" type="datetime-local">
         <input id="execTaskDescription" placeholder="Notas / contexto">
+        <select id="execTaskLink" aria-label="Vincular a un lead o proyecto"><option value="">Vincular a lead o proyecto (opcional)</option></select>
         <button class="btn primary" type="submit">Asignar tarea</button>
       </form>
     </section>
@@ -130,6 +136,18 @@ export async function renderExecutiveTasks(context){
     </section>`;
 
   let currentCreateAssignees=companyAssignees;
+  const populateLink=()=>{
+    const orgId=C.$("execTaskOrg")?.value;
+    const select=C.$("execTaskLink");if(!select)return;
+    const previous=select.value;
+    const availableLeads=linkedLeads.filter(row=>orgId===internalOrg.id||row.organization_id===orgId);
+    const availableProjects=linkedProjects.filter(row=>row.organization_id===orgId);
+    select.innerHTML='<option value="">Vincular a lead o proyecto (opcional)</option>'+
+      availableLeads.map(row=>'<option value="lead:'+esc(row.id)+'">Lead · '+esc(row.business_name||row.full_name||"Prospecto")+'</option>').join("")+
+      availableProjects.map(row=>'<option value="project:'+esc(row.id)+'">Proyecto · '+esc(row.title)+'</option>').join("");
+    if([...select.options].some(option=>option.value===previous))select.value=previous;
+  };
+  populateLink();
   const populateCreate=async()=>{
     const orgId=C.$("execTaskOrg").value;
     const dept=C.$("execTaskDepartment").value;
@@ -138,7 +156,7 @@ export async function renderExecutiveTasks(context){
     const visible=currentCreateAssignees.filter((p)=>!dept||p.department_key===dept);
     C.$("execTaskAssignee").innerHTML='<option value="">Selecciona responsable</option>'+visible.map((p)=>`<option value="${p.id}">${esc(p.full_name||p.contact_email||"Usuario")} · ${esc(p.role||"")} ${p.department_name?"· "+esc(p.department_name):""}</option>`).join("");
   };
-  C.$("execTaskOrg").addEventListener("change",populateCreate);
+  C.$("execTaskOrg").addEventListener("change",()=>{populateCreate();populateLink();});
   C.$("execTaskDepartment").addEventListener("change",populateCreate);
   await populateCreate();
 
@@ -163,6 +181,7 @@ export async function renderExecutiveTasks(context){
           <div class="task-row-top"><span class="task-priority ${esc(row.priority||"medium")}">${esc(priorityLabels[row.priority]||row.priority||"Media")}</span><span>${esc(orgName(row.organization_id))}</span></div>
           <b>${esc(row.title)}</b>
           ${row.source_type==="crm_lead"&&row.source_id?`<button class="btn small crm-task-lead" data-lead-id="${esc(row.source_id)}" type="button">Ver lead en CRM</button>`:""}
+          ${row.project_id&&projectsMap.get(row.project_id)?`<div class="muted">Proyecto: ${esc(projectsMap.get(row.project_id).title)}</div>`:""}
           <p>${esc(row.description||"Sin nota adicional")}</p>
           <div class="task-row-meta"><span>${esc(person?.full_name||"Sin responsable")} · ${esc(person?.department_name||"Sin departamento")}</span><span>${isOverdue?"Vencida · ":""}${dt(row.due_at)}</span></div>
         </div>
@@ -197,8 +216,12 @@ export async function renderExecutiveTasks(context){
     const button=event.currentTarget.querySelector('button[type="submit"]');
     button.disabled=true;button.textContent="Asignando…";
     const due=C.$("execTaskDue").value;
+    const link=C.$("execTaskLink").value;
+    const [linkType,linkId]=link?link.split(":"):[null,null];
     const {error}=await C.supabase.from("work_tasks").insert({
       organization_id:C.$("execTaskOrg").value,
+      source_id:linkType==="lead"?linkId:null,
+      project_id:linkType==="project"?linkId:null,
       title:C.$("execTaskTitle").value.trim(),
       description:C.$("execTaskDescription").value.trim()||null,
       priority:C.$("execTaskPriority").value,
@@ -206,7 +229,7 @@ export async function renderExecutiveTasks(context){
       assigned_to:C.$("execTaskAssignee").value,
       created_by:C.state.session.user.id,
       status:"pending",
-      source_type:"manual",
+      source_type:linkType==="lead"?"crm_lead":"manual",
     });
     if(error){C.showError(error.message);button.disabled=false;button.textContent="Asignar tarea";return;}
     C.showToast("Tarea asignada.");await C.renderApp();
