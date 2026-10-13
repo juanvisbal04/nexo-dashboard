@@ -259,6 +259,11 @@ export async function renderStaffHome(context){
   C=context;
   const [tasks,projects]=await Promise.all([visibleTasks(),visibleProjects()]);
   const clients=assignedClients();
+  const myOpenTasks=tasks.filter(t=>t.assigned_to===C.state.session.user.id&&["pending","in_progress"].includes(t.status));
+  const myOverdue=myOpenTasks.filter(t=>t.due_at&&new Date(t.due_at)<new Date());
+  const ownAssignmentsResult=await C.supabase.from("nexo_client_assignments").select("organization_id").eq("user_id",C.state.session.user.id);
+  const directOrgIds=new Set((ownAssignmentsResult.data||[]).map(row=>row.organization_id));
+  const directlyAssigned=clients.filter(org=>directOrgIds.has(org.id));
   const stats=taskStats(tasks);
   const todayStart=new Date();todayStart.setHours(0,0,0,0);
   const tomorrow=new Date(todayStart);tomorrow.setDate(tomorrow.getDate()+1);
@@ -290,6 +295,20 @@ export async function renderStaffHome(context){
       <article><span>Clientes en scope</span><b>${clients.length}</b><small>Asignados a ti o a tu equipo</small></article>
       <article><span>Proyectos</span><b>${projects.length}</b><small>Proyectos autorizados</small></article>
     </div>
+
+    <section class="card nexo-my-work">
+      <div class="card-head"><div><h2>Mi agenda personal</h2><p>Solo tus tareas asignadas, aunque tu cargo también te permita ver el trabajo de tu equipo.</p></div>${navButton("tasks","Abrir tareas")}</div>
+      <div class="staff-kpi-grid">
+        <article><span>Mis abiertas</span><b>${myOpenTasks.length}</b><small>Trabajo bajo tu responsabilidad</small></article>
+        <article class="${myOverdue.length?"risk":""}"><span>Mis vencidas</span><b>${myOverdue.length}</b><small>Atender primero</small></article>
+        <article><span>Vencen hoy</span><b>${myOpenTasks.filter(t=>t.due_at&&new Date(t.due_at)>=todayStart&&new Date(t.due_at)<tomorrow).length}</b><small>Prioridades de hoy</small></article>
+        <article><span>Sin fecha</span><b>${myOpenTasks.filter(t=>!t.due_at).length}</b><small>Programar seguimiento</small></article>
+      </div>
+      <div class="staff-task-preview">
+        ${myOpenTasks.filter(t=>t.due_at&&new Date(t.due_at)<tomorrow).sort((a,b)=>new Date(a.due_at)-new Date(b.due_at)).slice(0,6).map(task=>`<article class="${dueState(task)}"><div><span class="staff-task-priority ${C.esc(task.priority||"medium")}">${C.esc(task.priority||"medium")}</span><b>${C.esc(task.title)}</b></div><small>${C.esc((C.state.organizations||[]).find(o=>o.id===task.organization_id)?.name||"NEXO")} · ${task.due_at?C.dateTime(task.due_at):"Sin fecha"}</small></article>`).join("")||'<p class="muted">Sin tareas con vencimiento de hoy o anterior.</p>'}
+      </div>
+      <div class="staff-scope-note"><strong>Clientes asignados directamente: ${directlyAssigned.length}</strong><p>${directlyAssigned.map(org=>C.esc(org.name)).join(" · ")||"Puedes ver otras cuentas autorizadas de tu departamento, pero ninguna figura todavía como asignación directa."}</p></div>
+    </section>
 
     <div class="grid-two staff-home-grid">
       <section class="card">
