@@ -1,3 +1,4 @@
+import { mountTaskContext } from "./taskContext.js?v=20261013-tasks1";
 let C=null;
 
 const statusLabels={pending:"Pendiente",in_progress:"En progreso",completed:"Completada",cancelled:"Cancelada"};
@@ -49,6 +50,7 @@ function modal(task,assignees,onSaved){
   }
   const close=()=>{root.remove();document.body.classList.remove("modal-open");};
   root.querySelectorAll("[data-close-exec-task]").forEach((el)=>el.addEventListener("click",close));
+  mountTaskContext(C,task,root.querySelector(".staff-work-body")||root).catch(error=>C.showError(error.message));
   root.querySelector("#executiveTaskEditForm")?.addEventListener("submit",async(event)=>{
     event.preventDefault();
     const button=event.currentTarget.querySelector('button[type="submit"]');
