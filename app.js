@@ -1,4 +1,5 @@
 import { notificationFingerprint, loadNotificationReads, markNotificationReads } from "./notificationReads.js?v=20261013-read1";
+import { mountMfaProfile, promptForEnrolledMfa } from "./mfaShield.js?v=20261013-shield1";
 import { SERVICE_LINES, serviceLinesField, serviceLinesLabel, selectedServiceLines, needsAssistant, bindServiceLines, openServiceLineEditor } from "./serviceLines.js?v=20261013-lines2";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
 import { renderCrm, openProspectEditorFromGrowth, openNewProspectFromGrowth } from "./crm.js?v=20261013-finance1";
@@ -1097,6 +1098,11 @@ async function renderProfile() {
       </form>
     </div>
   `;
+
+  const mfaHost=document.createElement("div");
+  mfaHost.className="nexo-profile-security";
+  $("content").appendChild(mfaHost);
+  mountMfaProfile(supabase,mfaHost,(message,isError)=>isError?showError(message):showToast(message)).catch(error=>showError(error.message||"Error en autenticación multifactor."));
 
   let pendingAvatar=null;
   $("profilePhotoInput")?.addEventListener("change",(event)=>{
@@ -4121,6 +4127,10 @@ async function enterApp(session, { allowRecovery = true } = {}) {
     };
 
     try {
+      // Enrolled users verify the second factor before the dashboard is mounted.
+      // Enforcement of privileged PostgREST operations at AAL2 is a separate security step.
+      await promptForEnrolledMfa(supabase,$("loginView"),hideBootView);
+      showBootView("Cargando tu espacio NEXO…");
       try {
         await hydrate();
       } catch (error) {
