@@ -1,3 +1,4 @@
+import { mountShieldCenter } from "./shield360.js?v=20261013-shield1";
 let C=null;
 
 const money=(value)=>new Intl.NumberFormat("es-CO",{style:"currency",currency:"COP",maximumFractionDigits:0}).format(Number(value||0));
@@ -254,6 +255,8 @@ export async function renderFounderCommandCenter(context){
       </div>
     </section>
 
+    <section class="card nexo-shield-center" id="nexoShieldCenter"><p>Preparando NEXO Shield 360…</p></section>
+
     <div class="founder-kpi-grid">
       <article><span>Clientes activos</span><b>${activeClients}</b><small>${orgs.length} organizaciones cliente</small></article>
       <article><span>MRR NEXO</span><b>${money(mrr)}</b><small>Ingreso recurrente mensual</small></article>
@@ -393,4 +396,5 @@ export async function renderFounderCommandCenter(context){
   `;
 
   bindActions();
+  mountShieldCenter(C).catch(error=>C.showError(error.message||"No se pudo cargar Shield 360."));
 }
