@@ -55,7 +55,9 @@ Deno.serve(async(req:Request)=>{
         .eq("role_id",activeRole.role_id)
         .in("permission_key",["tasks.team.read","tasks.team.write"]);
       if(error) throw error;
-      canManageTeam=Boolean((perms||[]).length);
+      const {data:extra,error:extraError}=await service.from("nexo_user_permissions").select("permission_key").eq("user_id",user.id).in("permission_key",["tasks.team.read","tasks.team.write"]);
+      if(extraError)throw extraError;
+      canManageTeam=Boolean((perms||[]).length||(extra||[]).length);
     }
 
     if(!isAdmin&&!membership&&!canManageTeam) return json({error:"Forbidden"},403);

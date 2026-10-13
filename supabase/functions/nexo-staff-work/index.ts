@@ -69,7 +69,9 @@ Deno.serve(async(req:Request)=>{
       .select("permission_key")
       .eq("role_id",role.id);
     if(permError) throw permError;
-    const perms=new Set((permRows||[]).map((row:any)=>row.permission_key));
+    const {data:extraRows,error:extraError}=await service.from("nexo_user_permissions").select("permission_key").eq("user_id",requester.id);
+    if(extraError)throw extraError;
+    const perms=new Set([...(permRows||[]),...(extraRows||[])].map((row:any)=>row.permission_key));
     const can=(permission:string)=>perms.has(permission);
 
     const body=await req.json().catch(()=>({}));

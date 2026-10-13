@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
 import { renderCrm, openProspectEditorFromGrowth, openNewProspectFromGrowth } from "./crm.js?v=20261013-finance1";
 import { renderTasks, openCustomer360, openContact360, closeDrawer } from "./workspace360.js?v=20261013-crm2";
 import { renderDataQuality, openOnboarding, closeQualityDrawer } from "./qualityOnboarding.js?v=20261001-quality2";
-import { renderInternalTeam } from "./team.js?v=20261013-lines1";
+import { renderInternalTeam } from "./team.js?v=20261013-access1";
 import { renderStaffHome, renderStaffProjects, renderStaffAccounts, renderStaffPerformance } from "./staffWorkspace.js?v=20261007-company1";
 import { renderSalesWorkspace, renderImplementationWorkspace, renderOperationsWorkspace } from "./departmentWorkspaces.js?v=20261013-crm2";
 import { renderExecutiveTasks } from "./executiveTasks.js?v=20261013-crm2";
@@ -86,8 +86,8 @@ function canAccessPage(page) {
     if (hasPermission("projects.department.read")) allowed.add("projects");
     if (hasPermission("clients.assigned.read") || hasPermission("clients.department.assign")) allowed.add("accounts");
     if (hasPermission("crm.assigned.read") || hasPermission("crm.all.read")) allowed.add("pipeline");
-    if (state.internalDepartmentKey === "implementation_cs") allowed.add("delivery");
-    if (state.internalDepartmentKey === "operations") allowed.add("departmentOps");
+    if (state.internalDepartmentKey === "implementation_cs" || hasPermission("assistants.assigned.read") || hasPermission("assistants.assigned.write")) allowed.add("delivery");
+    if (state.internalDepartmentKey === "operations" || hasPermission("operations.assigned.write")) allowed.add("departmentOps");
     if (state.internalDepartmentKey === "people_culture" || hasPermission("people.directory.read") || hasPermission("people.recruiting.read") || hasPermission("people.onboarding.read")) allowed.add("people");
     return allowed.has(page);
   }
@@ -923,8 +923,8 @@ function updateNavigationAccess() {
     document.querySelectorAll(".staff-projects-nav").forEach((item)=>item.classList.toggle("hidden",!canProjects));
     document.querySelectorAll(".staff-accounts-nav").forEach((item)=>item.classList.toggle("hidden",!canAccounts));
     const canPipeline=hasPermission("crm.assigned.read")||hasPermission("crm.all.read");
-    const canDelivery=state.internalDepartmentKey==="implementation_cs";
-    const canOps=state.internalDepartmentKey==="operations";
+    const canDelivery=state.internalDepartmentKey==="implementation_cs"||hasPermission("assistants.assigned.read")||hasPermission("assistants.assigned.write");
+    const canOps=state.internalDepartmentKey==="operations"||hasPermission("operations.assigned.write");
     document.querySelectorAll(".staff-pipeline-nav").forEach((item)=>item.classList.toggle("hidden",!canPipeline));
     document.querySelectorAll(".staff-delivery-nav").forEach((item)=>item.classList.toggle("hidden",!canDelivery));
     document.querySelectorAll(".staff-ops-nav").forEach((item)=>item.classList.toggle("hidden",!canOps));
@@ -3409,7 +3409,7 @@ function isUserEditing() {
   const formFocused = active && ["INPUT","TEXTAREA","SELECT"].includes(active.tagName);
   const chat = document.getElementById("chatModal");
   const chatOpen = chat && !chat.classList.contains("hidden");
-  const crmOpen = !!(document.getElementById("crmModal")||document.getElementById("salesCrmModal"));
+  const crmOpen = !!(document.getElementById("crmModal")||document.getElementById("salesCrmModal")||document.getElementById("userPermissionsModal"));
   const drawerOpen = !!document.querySelector(".nexo-drawer:not(.hidden)");
   return Boolean(formFocused || chatOpen || crmOpen || drawerOpen || document.body.classList.contains("crm-board-dragging"));
 }
@@ -4329,7 +4329,7 @@ $("menuButton").addEventListener("click", () => document.body.classList.toggle("
 function repairUiLocks() {
   const chat = document.getElementById("chatModal");
   const chatOpen = chat && !chat.classList.contains("hidden");
-  const crmOpen = !!(document.getElementById("crmModal")||document.getElementById("salesCrmModal"));
+  const crmOpen = !!(document.getElementById("crmModal")||document.getElementById("salesCrmModal")||document.getElementById("userPermissionsModal"));
   const drawerOpen = !!document.querySelector(".nexo-drawer:not(.hidden)");
   if (!chatOpen && !crmOpen && !drawerOpen) document.body.classList.remove("modal-open");
 }
