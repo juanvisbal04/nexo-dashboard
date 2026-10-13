@@ -4218,7 +4218,7 @@ $("forgotPasswordButton")?.addEventListener("click", async () => {
   const button = $("forgotPasswordButton");
   box.className = "message hidden";
 
-  if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     box.textContent = "Escribe un correo válido para recuperar tu contraseña.";
     box.className = "message error";
     box.setAttribute("role", "alert");
