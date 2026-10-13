@@ -263,6 +263,7 @@ export async function renderFounderCommandCenter(context){
       <article class="${attentionConversations.length?"risk":""}"><span>Atención operativa</span><b>${attentionConversations.length}</b><small>${conv30.length} chats monitoreados · 30d</small></article>
     </div>
 
+    <div class="founder-command-layout founder-lower-layout">
     <section class="card nexo-ceo-priorities">
       <div class="card-head"><div><span class="eyebrow">DECISIONES DEL CEO</span><h2>Ventas, entregables y capacidad de ejecución</h2><p>Indicadores para decidir dónde intervenir hoy, sin sustituir los módulos operativos.</p></div></div>
       <div class="founder-mini-metrics">
@@ -283,6 +284,8 @@ export async function renderFounderCommandCenter(context){
         ${teamTaskLoad.length?teamTaskLoad.slice(0,20).map(person=>`<div><span>${C.esc(person.name)}</span><b>${person.open} abiertas · ${person.overdue} vencidas · ${person.urgent} urgentes</b></div>`).join(""):'<p class="muted">No hay tareas abiertas asignadas.</p>'}
       </div>
     </section>
+
+    </div>
 
     <div class="founder-command-layout">
       <section class="card founder-attention-panel">
