@@ -3497,7 +3497,7 @@ function startRealtime() {
   [
     "conversations","messages","leads","appointments","followups",
     "client_invoices","invoice_payments","demo_requests","crm_activities","work_tasks","contact_notes",
-    "conversation_reads","assistants","organization_onboarding","nexo_projects","nexo_people_candidates","nexo_people_onboarding","organization_commercials","crm_integrations","audit_log","nexo_user_roles","nexo_client_assignments"
+    "conversation_reads","assistants","organization_onboarding","nexo_projects","nexo_people_candidates","nexo_people_onboarding","organization_commercials","crm_integrations","audit_log","nexo_user_roles","nexo_client_assignments","nexo_lead_assignment_notices"
   ].forEach((table) => {
     realtimeChannel.on("postgres_changes", { event: "*", schema: "public", table }, () => {
       scheduleRealtimeRefresh(table);
@@ -3704,9 +3704,14 @@ async function refreshNotifications() {
       .select("id,recipient_user_id,organization_id,assignment_type,created_at")
       .eq("recipient_user_id", notificationUserId)
       .order("created_at",{ascending:false}).limit(25),
+    supabase.from("nexo_lead_assignment_notices")
+      .select("id,lead_id,recipient_user_id,lead_name,created_at")
+      .eq("recipient_user_id", notificationUserId)
+      .order("created_at",{ascending:false}).limit(35),
   ];
 
-  const [conversationResult, appointmentResult, invoiceResult, workTaskResult, assignmentNoticeResult] = await Promise.all(tasks);
+  const [conversationResult, appointmentResult, invoiceResult, workTaskResult, assignmentNoticeResult, leadAssignmentResult] = await Promise.all(tasks);
+  if (leadAssignmentResult.error) console.warn("NEXO_LEAD_ASSIGNMENT_NOTICES", leadAssignmentResult.error);
 
   (conversationResult.data || []).forEach((row) => items.push({
     key:`conversation:${row.id}`,tone:"risk", priority:100, page:"conversations", orgId:row.organization_id,
@@ -3748,6 +3753,16 @@ async function refreshNotifications() {
       date:row.due_at,
     });
   });
+
+  // A lead assignment is its own durable notification. Subsequent lead edits
+  // do not retrigger it; reassignment creates a new event for the new owner.
+  (leadAssignmentResult.data || []).forEach((row) => items.push({
+    key:`lead-assignment:${row.id}`,tone:"info",priority:92,
+    page:"pipeline",orgId:null,leadId:row.lead_id,
+    title:"Nuevo lead asignado",
+    detail:row.lead_name+" · Revisa tu oportunidad en el CRM",
+    date:row.created_at,
+  }));
 
   // Recipient-only, durable account assignment notifications. Read status is
   // stored by notification_reads, like every other item in the NEXO bell.
@@ -3832,6 +3847,7 @@ function renderNotificationList(){
     const item=state.notifications[Number(button.dataset.notificationIndex)];if(!item)return;
     await acknowledgeNotifications([item]);
     if(item.orgId&&state.organizations.some(org=>org.id===item.orgId))$("orgSelect").value=item.orgId;
+    if(item.leadId) state.crmLeadId=item.leadId;
     let page=item.page||"overview";
     if(!canAccessPage(page))page=canAccessPage("departmentOps")?"departmentOps":canAccessPage("delivery")?"delivery":"overview";
     toggleNotificationPanel(false);await navigateToPage(page,{historyMode:"push"});
