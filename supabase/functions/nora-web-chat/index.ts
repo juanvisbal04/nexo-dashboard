@@ -24,12 +24,18 @@ const norm=(value:unknown)=>clean(value,1200).toLowerCase()
   .normalize("NFD").replace(/[\u0300-\u036f]/g,"");
 const emailRe=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const phoneRe=/\+?[0-9][0-9\s().-]{6,24}/;
+const PRIVACY_POLICY_VERSION="2026-10-06";
+const consentButtons:Quick[]=[
+  {id:"consent_accept",label:"Sí, autorizo"},
+  {id:"consent_decline",label:"No, gracias"}
+];
+const consentPrompt="Para continuar y pedir tus datos de contacto: ¿autorizas que NEXO trate tu nombre y contacto para responder tu solicitud y darle seguimiento? Puedes consultar la Política de Privacidad: https://nexobyjv.online/privacidad.html. La autorización es opcional; puedes seguir explorando sin dejar tus datos.";
 
 type Quick={id:string,label:string};
 type SessionRow={
   id:string; visitor_id:string; status:string; stage:string; product_interest:string|null;
   goal:string|null; full_name:string|null; business_name:string|null; email:string|null;
-  phone:string|null; industry:string|null; privacy_consent:boolean; source_path:string|null;
+  phone:string|null; industry:string|null; privacy_consent:boolean; privacy_consent_at:string|null; privacy_policy_version:string|null; source_path:string|null;
   landing_path:string|null; utm_source:string|null; utm_medium:string|null; utm_campaign:string|null;
   lead_id:string|null; message_count:number;
 };
@@ -101,8 +107,9 @@ function nextPrompt(session:SessionRow){
   }
   if(session.stage==="ask_business") return {reply:"Perfecto. ¿Cómo se llama tu negocio o proyecto?",quick_replies:[]};
   if(session.stage==="ask_industry") return {reply:"¿A qué se dedica tu negocio? Con una frase corta está bien.",quick_replies:[]};
+  if(session.stage==="ask_consent") return {reply:consentPrompt,quick_replies:consentButtons};
   if(session.stage==="ask_name") return {reply:"¿Cómo te llamas?",quick_replies:[]};
-  if(session.stage==="ask_contact") return {reply:"¿Dónde prefieres que te contactemos? Puedes dejarme tu correo o WhatsApp. Al compartirlo aceptas nuestra Política de Privacidad para que el equipo de NEXO te contacte.",quick_replies:[]};
+  if(session.stage==="ask_contact") return {reply:"¿Dónde prefieres que te contactemos? Puedes dejarme tu correo o WhatsApp.",quick_replies:[]};
   return {reply:"¿En qué más te puedo ayudar?",quick_replies:productButtons};
 }
 async function addMessage(sessionId:string,role:"user"|"assistant"|"system",content:string,metadata:Record<string,unknown>={}){
@@ -134,6 +141,9 @@ async function findOwner(product:string|null){
 }
 async function createLead(session:SessionRow){
   if(session.lead_id) return session.lead_id;
+  if(session.privacy_consent!==true || !session.privacy_consent_at || session.privacy_policy_version!==PRIVACY_POLICY_VERSION){
+    throw new Error("No explicit contact consent on Nora session");
+  }
   const owner=await findOwner(session.product_interest);
   const product=productName(session.product_interest);
   const source=`nora_web_${session.product_interest||"general"}`;
@@ -163,13 +173,13 @@ async function createLead(session:SessionRow){
     expected_setup_fee:null,
     owner_user_id:owner,
     privacy_consent:true,
-    privacy_consent_at:new Date().toISOString(),
-    privacy_policy_version:"2026-10-08"
+    privacy_consent_at:session.privacy_consent_at,
+    privacy_policy_version:session.privacy_policy_version
   }).select("id").single();
   if(insert.error) throw insert.error;
 
   await service.from("nora_web_sessions").update({
-    lead_id:insert.data.id,status:"lead_created",stage:"lead_created",privacy_consent:true
+    lead_id:insert.data.id,status:"lead_created",stage:"lead_created"
   }).eq("id",session.id);
 
   await service.from("web_funnel_events").insert({
@@ -240,6 +250,14 @@ Deno.serve(async(req:Request)=>{
     let session=loaded.data as SessionRow;
     if(session.message_count>=80) return json({error:"Esta conversación alcanzó su límite. Escríbenos por WhatsApp para continuar."},429);
     if(!message&&!quick) return json({error:"Escribe un mensaje"},400);
+    // Migration safety: older sessions may have reached ask_contact without explicit consent.
+    // Never store a contact message or create a lead until the visitor opts in.
+    if((session.stage==="ask_name" || session.stage==="ask_contact") && (!session.privacy_consent || !session.privacy_consent_at)){
+      const reset=await service.from("nora_web_sessions").update({stage:"ask_consent"}).eq("id",session.id);
+      if(reset.error) throw reset.error;
+      await addMessage(session.id,"assistant",consentPrompt,{stage:"ask_consent",reason:"legacy_session"});
+      return json({ok:true,session_id:session.id,mode:"guided",reply:consentPrompt,quick_replies:consentButtons});
+    }
 
     const displayMessage=message||quick;
     await addMessage(session.id,"user",displayMessage,{quick_reply:quick||null,stage:session.stage});
@@ -248,6 +266,35 @@ Deno.serve(async(req:Request)=>{
     }).eq("id",session.id);
 
     const lower=norm(displayMessage);
+    if(session.stage==="ask_consent"){
+      if(quick==="consent_decline"){
+        const cleared=await service.from("nora_web_sessions").update({
+          stage:"welcome",status:"active",privacy_consent:false,
+          privacy_consent_at:null,privacy_policy_version:null,
+          full_name:null,email:null,phone:null
+        }).eq("id",session.id);
+        if(cleared.error) throw cleared.error;
+        const reply="Entendido. No registraré una solicitud de contacto. Puedes seguir explorando Assistants, Marketing o Solutions sin dejar datos personales.";
+        await addMessage(session.id,"assistant",reply,{stage:"welcome",consent:"declined"});
+        return json({ok:true,session_id:session.id,mode:"guided",reply,quick_replies:productButtons});
+      }
+      if(quick==="consent_accept"){
+        const when=new Date().toISOString();
+        const stage=session.full_name?"ask_contact":"ask_name";
+        const updated=await service.from("nora_web_sessions").update({
+          privacy_consent:true,privacy_consent_at:when,
+          privacy_policy_version:PRIVACY_POLICY_VERSION,stage
+        }).eq("id",session.id).eq("stage","ask_consent").select("*").single();
+        if(updated.error) throw updated.error;
+        session=updated.data as SessionRow;
+        const prompt=nextPrompt(session);
+        await addMessage(session.id,"assistant",prompt.reply,{stage,consent:"accepted",privacy_policy_version:PRIVACY_POLICY_VERSION,consent_at:when});
+        return json({ok:true,session_id:session.id,mode:"guided",reply:prompt.reply,quick_replies:prompt.quick_replies});
+      }
+      const reply="Para respetar tu decisión, selecciona «Sí, autorizo» o «No, gracias». Puedes consultar nuestra política de privacidad antes de decidir.";
+      await addMessage(session.id,"assistant",reply,{stage:"ask_consent",consent:"pending"});
+      return json({ok:true,session_id:session.id,mode:"guided",reply,quick_replies:consentButtons});
+    }
     if(/precio|cuanto|costo|valor|tarifa|plan/.test(lower)){
       const answer=pricingAnswer(session.product_interest);
       const prompt=nextPrompt(session);
@@ -256,11 +303,13 @@ Deno.serve(async(req:Request)=>{
       return json({ok:true,session_id:session.id,mode:"guided",reply,quick_replies:prompt.quick_replies});
     }
 
-    if(/humano|persona|asesor|juan|hablar con alguien|contactar/.test(lower)&&session.stage!=="ask_contact"){
-      await service.from("nora_web_sessions").update({stage:"ask_contact"}).eq("id",session.id);
-      const reply="Claro. Puedo dejar tu solicitud lista para una persona del equipo. ¿Me compartes tu correo o WhatsApp? Al compartirlo aceptas nuestra Política de Privacidad para que NEXO te contacte.";
-      await addMessage(session.id,"assistant",reply,{intent:"handoff"});
-      return json({ok:true,session_id:session.id,mode:"guided",reply,quick_replies:[]});
+    if(/humano|persona|asesor|juan|hablar con alguien|contactar/.test(lower)&&session.stage!=="ask_contact"&&session.stage!=="lead_created"){
+      const stage=session.privacy_consent&&session.privacy_consent_at?"ask_contact":"ask_consent";
+      await service.from("nora_web_sessions").update({stage}).eq("id",session.id);
+      const prompt=nextPrompt({...session,stage});
+      const reply="Claro. Puedo dejar tu solicitud lista para una persona del equipo. "+prompt.reply;
+      await addMessage(session.id,"assistant",reply,{intent:"handoff",stage});
+      return json({ok:true,session_id:session.id,mode:"guided",reply,quick_replies:prompt.quick_replies});
     }
 
     if(session.stage==="welcome"){
@@ -305,15 +354,14 @@ Deno.serve(async(req:Request)=>{
     }
 
     if(session.stage==="ask_industry"){
-      await service.from("nora_web_sessions").update({industry:clean(displayMessage,120),stage:"ask_name"}).eq("id",session.id);
-      const reply="Perfecto. ¿Cómo te llamas?";
-      await addMessage(session.id,"assistant",reply,{stage:"ask_name"});
-      return json({ok:true,session_id:session.id,mode:"guided",reply,quick_replies:[]});
+      await service.from("nora_web_sessions").update({industry:clean(displayMessage,120),stage:"ask_consent"}).eq("id",session.id);
+      await addMessage(session.id,"assistant",consentPrompt,{stage:"ask_consent"});
+      return json({ok:true,session_id:session.id,mode:"guided",reply:consentPrompt,quick_replies:consentButtons});
     }
 
     if(session.stage==="ask_name"){
       await service.from("nora_web_sessions").update({full_name:clean(displayMessage,120),stage:"ask_contact"}).eq("id",session.id);
-      const reply="Gracias. ¿Dónde prefieres que te contactemos? Puedes dejarme tu correo o WhatsApp. Al compartirlo aceptas nuestra Política de Privacidad para que el equipo de NEXO te contacte.";
+      const reply="Gracias. ¿Dónde prefieres que te contactemos? Puedes dejarme tu correo o WhatsApp.";
       await addMessage(session.id,"assistant",reply,{stage:"ask_contact"});
       return json({ok:true,session_id:session.id,mode:"guided",reply,quick_replies:[]});
     }
@@ -328,7 +376,7 @@ Deno.serve(async(req:Request)=>{
         await addMessage(session.id,"assistant",reply,{stage:"ask_contact",validation:"invalid_contact"});
         return json({ok:true,session_id:session.id,mode:"guided",reply,quick_replies:[]});
       }
-      const update:Record<string,unknown>={privacy_consent:true,status:"qualified"};
+      const update:Record<string,unknown>={status:"qualified"};
       if(email) update.email=email;
       if(phone) update.phone=phone;
       const updated=await service.from("nora_web_sessions").update(update).eq("id",session.id).select("*").single();
