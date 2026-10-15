@@ -804,6 +804,19 @@ export async function renderCrm(context) {
       </section>
     </div>
 
+    <div class="billing-manage-panel" role="group" aria-label="Administrar facturas de prueba">
+  <div class="billing-manage-heading"><span class="eyebrow">SUPER ADMIN · FACTURACIÓN</span><h3>Eliminar o retirar facturas de prueba</h3><p>Las facturas sin movimientos pueden eliminarse. Las cerradas pueden archivarse para que no afecten las cifras.</p></div>
+  <div class="billing-manage-fields">
+    <label for="crmManageInvoiceSelect">Selecciona la factura</label>
+    <div class="billing-manage-controls">
+      <select id="crmManageInvoiceSelect" class="control" aria-label="Seleccionar factura para gestionar">
+        ${(invoices||[]).map((invoice)=>`<option value="${invoice.id}">${esc(invoice.invoice_number||"Sin número")} · ${money(invoice.amount_cop)} · ${invoice.archived_at?"Archivada":esc(invoice.status)}</option>`).join("")}
+      </select>
+      <button id="crmManageInvoiceButton" class="btn billing-manage-action" type="button" ${(invoices||[]).length?"":"disabled"}>Eliminar / archivar</button>
+    </div>
+    <p id="crmManageInvoiceHint" class="billing-manage-hint" role="status"></p>
+  </div>
+</div>
     <section id="crmBilling" class="card crm-billing-card">
       <div class="card-head">
         <div><h2>Facturación y cartera</h2><p>Mensualidades, setup, vencimientos y pagos de clientes</p></div>
@@ -1061,6 +1074,44 @@ export async function renderCrm(context) {
       openCommercialEditor(org, commercialMap.get(org.id) || null, integrationsByOrg.get(org.id) || [], planRows);
     });
   });
+
+  const manageInvoiceSelect=$("crmManageInvoiceSelect");
+  const manageInvoiceButton=$("crmManageInvoiceButton");
+  const updateManageInvoice=()=>{
+    const invoice=(invoices||[]).find((row)=>row.id===manageInvoiceSelect?.value);
+    if(!manageInvoiceButton)return;
+    if(!invoice){manageInvoiceButton.disabled=true;return;}
+    manageInvoiceButton.disabled=false;
+    const clean=["pending","overdue","cancelled"].includes(invoice.status) && !invoice.paid_at && invoice.payment_status==="not_requested" && !invoice.payment_url && !invoice.payment_transaction_id && invoice.email_status!=="sent" && !invoice.email_sent_at;
+    if(invoice.archived_at){
+      manageInvoiceButton.textContent="Restaurar factura";
+      $("crmManageInvoiceHint").textContent="Prueba archivada: puedes restaurarla sin perder su historial.";
+    }else if(clean){
+      manageInvoiceButton.textContent="Eliminar factura de prueba";
+      $("crmManageInvoiceHint").textContent="Sin pagos ni correos enviados: puedes eliminarla con confirmación. La base de datos verifica también los intentos de pago.";
+    }else if(["paid","cancelled","waived"].includes(invoice.status)&&invoice.payment_status!=="pending"){
+      manageInvoiceButton.textContent="Retirar factura de prueba";
+      $("crmManageInvoiceHint").textContent="Se archivará y desaparecerá de las vistas financieras; sus registros de pago y auditoría permanecerán intactos.";
+    }else{
+      manageInvoiceButton.textContent="Consultar restricción";
+      $("crmManageInvoiceHint").textContent="Esta cuenta tiene un enlace o pago Wompi pendiente y está protegida frente a eliminación.";
+    }
+  };
+  manageInvoiceSelect?.addEventListener("change",updateManageInvoice);
+  manageInvoiceButton?.addEventListener("click",async()=>{
+    const invoice=(invoices||[]).find((row)=>row.id===manageInvoiceSelect?.value);
+    if(!invoice)return;
+    if(invoice.archived_at)return C.restoreArchivedInvoice(invoice,manageInvoiceButton);
+    const clean=["pending","overdue","cancelled"].includes(invoice.status) && !invoice.paid_at && invoice.payment_status==="not_requested" && !invoice.payment_url && !invoice.payment_transaction_id && invoice.email_status!=="sent" && !invoice.email_sent_at;
+    if(clean)return C.deleteTestInvoice(invoice,manageInvoiceButton);
+    if(["paid","cancelled","waived"].includes(invoice.status)&&invoice.payment_status!=="pending")return C.archiveTestInvoice(invoice,manageInvoiceButton);
+    C.showError("Esta factura tiene un enlace Wompi o pago en proceso. Por seguridad, no se puede borrar ni ocultar mientras esté activo.");
+  });
+  if(manageInvoiceSelect){
+    const preferred=(invoices||[]).find((row)=>row.status==="paid"&&!row.archived_at) || (invoices||[])[0];
+    if(preferred)manageInvoiceSelect.value=preferred.id;
+    updateManageInvoice();
+  }
 
   $("crmArchivedToggle")?.addEventListener("click",async()=>{
     C.state.billingShowArchived=!C.state.billingShowArchived;

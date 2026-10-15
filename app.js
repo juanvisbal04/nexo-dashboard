@@ -2,7 +2,7 @@ import { notificationFingerprint, loadNotificationReads, markNotificationReads }
 import { mountMfaProfile, promptForEnrolledMfa } from "./mfaShield.js?v=20261013-shield1";
 import { SERVICE_LINES, serviceLinesField, serviceLinesLabel, selectedServiceLines, needsAssistant, bindServiceLines, openServiceLineEditor } from "./serviceLines.js?v=20261013-lines2";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
-import { renderCrm, openProspectEditorFromGrowth, openNewProspectFromGrowth } from "./crm.js?v=20261015-billing4";
+import { renderCrm, openProspectEditorFromGrowth, openNewProspectFromGrowth } from "./crm.js?v=20261015-billing6";
 import { renderTasks, openCustomer360, openContact360, closeDrawer } from "./workspace360.js?v=20261013-work2";
 import { renderDataQuality, openOnboarding, closeQualityDrawer } from "./qualityOnboarding.js?v=20261001-quality2";
 import { renderInternalTeam } from "./team.js?v=20261013-team2";
@@ -3306,6 +3306,15 @@ async function renderBillingPortal() {
       ${metricCard("Wompi", activeRows.filter((row)=>row.payment_provider==="wompi"||row.payment_url).length, `${paymentAttempts.filter((row)=>row.status==="approved" && activeRows.some((invoice)=>invoice.id===row.invoice_id)).length} pago${paymentAttempts.filter((row)=>row.status==="approved" && activeRows.some((invoice)=>invoice.id===row.invoice_id)).length===1?"":"s"} aprobado${paymentAttempts.filter((row)=>row.status==="approved" && activeRows.some((invoice)=>invoice.id===row.invoice_id)).length===1?"":"s"}`)}
     </div>
 
+    ${internalAggregate ? `<section class="billing-manage-panel" role="group" aria-label="Administrar facturas de prueba">
+      <div class="billing-manage-heading"><span class="eyebrow">SUPER ADMIN · FACTURACIÓN</span><h3>Eliminar o retirar facturas de prueba</h3><p>Selecciona un cobro. Puedes eliminar borradores sin movimientos, o archivar pruebas cerradas sin borrar su historial.</p></div>
+      <div class="billing-manage-fields"><label for="billingManageInvoiceSelect">Selecciona la factura</label>
+        <div class="billing-manage-controls"><select id="billingManageInvoiceSelect" class="control" aria-label="Seleccionar factura para gestionar">
+          ${allRows.map((row)=>`<option value="${row.id}">${esc(row.invoice_number||"Sin número")} · ${esc(orgName(row.organization_id))} · ${money(row.amount_cop)} · ${row.archived_at?"Archivada":esc(row.status)}</option>`).join("")}
+        </select><button type="button" id="billingManageInvoiceButton" class="btn billing-manage-action" ${allRows.length?"":"disabled"}>Eliminar / archivar</button></div>
+        <p class="billing-manage-hint" id="billingManageInvoiceHint" role="status"></p>
+      </div></section>` : ""}
+
     <section class="card billing-portal-card">
       <div class="card-head">
         <div><h2>${internalAggregate ? "Facturación de clientes" : "Mis cuentas de cobro"}</h2><p>Historial de cobros, vencimientos y pagos registrados en NEXO</p></div>
@@ -3374,6 +3383,53 @@ async function renderBillingPortal() {
       </div>
     </section>
   `;
+
+  if(internalAggregate){
+    const manageSelect=$("billingManageInvoiceSelect");
+    const manageButton=$("billingManageInvoiceButton");
+    const manageHint=$("billingManageInvoiceHint");
+    const updateManagement=()=>{
+      const invoice=allRows.find((row)=>row.id===manageSelect?.value);
+      if(!invoice||!manageButton)return;
+      const clean=["pending","overdue","cancelled"].includes(invoice.status) &&
+        !invoice.paid_at && invoice.payment_status==="not_requested" &&
+        !invoice.payment_url && !invoice.payment_transaction_id &&
+        invoice.email_status!=="sent" && !invoice.email_sent_at;
+      if(invoice.archived_at){
+        manageButton.textContent="Restaurar factura";
+        manageHint.textContent="Cuenta archivada; restaurar conserva el registro de auditoría.";
+      }else if(clean){
+        manageButton.textContent="Eliminar factura de prueba";
+        manageHint.textContent="Solo borradores sin pagos ni correos enviados. La base de datos verifica también los intentos de pago.";
+      }else if(["paid","cancelled","waived"].includes(invoice.status)&&invoice.payment_status!=="pending"){
+        manageButton.textContent="Retirar factura de prueba";
+        manageHint.textContent="Se archivará y desaparecerá de los informes habituales, conservando el historial financiero.";
+      }else{
+        manageButton.textContent="Consultar restricción";
+        manageHint.textContent="Factura con enlace Wompi o pago pendiente: está protegida contra eliminación.";
+      }
+    };
+    manageSelect?.addEventListener("change",updateManagement);
+    manageButton?.addEventListener("click",()=>{
+      const invoice=allRows.find((row)=>row.id===manageSelect?.value);
+      if(!invoice)return;
+      if(invoice.archived_at)return restoreArchivedInvoice(invoice,manageButton);
+      const clean=["pending","overdue","cancelled"].includes(invoice.status) &&
+        !invoice.paid_at && invoice.payment_status==="not_requested" &&
+        !invoice.payment_url && !invoice.payment_transaction_id &&
+        invoice.email_status!=="sent" && !invoice.email_sent_at;
+      if(clean)return deleteTestInvoice(invoice,manageButton);
+      if(["paid","cancelled","waived"].includes(invoice.status)&&invoice.payment_status!=="pending"){
+        return archiveTestInvoice(invoice,manageButton);
+      }
+      showError("Esta factura tiene un pago o checkout Wompi activo. No es seguro eliminarla ni ocultarla hasta que se cierre.");
+    });
+    if(manageSelect){
+      const preferred=allRows.find((row)=>row.status==="paid"&&!row.archived_at) || allRows[0];
+      if(preferred)manageSelect.value=preferred.id;
+      updateManagement();
+    }
+  }
 
   const byId=new Map(rows.map((row)=>[row.id,row]));
   document.querySelectorAll(".billing-pay-button").forEach((button)=>{
