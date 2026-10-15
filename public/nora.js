@@ -68,6 +68,8 @@
     launcher.type="button";
     launcher.className="nora-launcher";
     launcher.setAttribute("aria-label","Abrir conversación con Nora, asistente de NEXO");
+    launcher.setAttribute("aria-expanded","false");
+    launcher.setAttribute("aria-controls","nora-panel");
     launcher.innerHTML='<span class="nora-launcher-avatar">N</span><span class="nora-launcher-copy"><b>Nora</b><span>Asistente de NEXO</span></span><span class="nora-launcher-dot"></span>';
 
     const teaser=document.createElement("div");
@@ -76,6 +78,7 @@
 
     const panel=document.createElement("section");
     panel.className="nora-panel";
+    panel.id="nora-panel";
     panel.setAttribute("role","dialog");
     panel.setAttribute("aria-label","Nora, asistente de NEXO");
     panel.innerHTML=`
@@ -114,6 +117,10 @@
 
   injectAssets();
   const ui=createUi();
+  // Hidden chat controls must never be reachable by Tab or screen readers.
+  ui.panel.inert=true;
+  ui.panel.setAttribute("aria-hidden","true");
+  ui.teaser.inert=true;
 
   function addMessage(role,content,{store=true}={}){
     const row=document.createElement("div");
@@ -290,8 +297,11 @@
 
   function openPanel(){
     state.open=true;
+    ui.panel.inert=false;
+    ui.panel.setAttribute("aria-hidden","false");
     ui.panel.classList.add("open");
     ui.teaser.classList.remove("show");
+    ui.teaser.inert=true;
     ui.launcher.setAttribute("aria-expanded","true");
     if(!state.started||!state.sessionId) startConversation();
     else {restoreMessages();renderQuick(state.quickReplies);}
@@ -300,7 +310,10 @@
   function closePanel(){
     state.open=false;
     ui.panel.classList.remove("open");
+    ui.panel.inert=true;
+    ui.panel.setAttribute("aria-hidden","true");
     ui.launcher.setAttribute("aria-expanded","false");
+    ui.launcher.focus({preventScroll:true});
   }
 
   ui.launcher.addEventListener("click",()=>state.open?closePanel():openPanel());
@@ -317,6 +330,7 @@
   });
   ui.teaserClose.addEventListener("click",()=>{
     ui.teaser.classList.remove("show");
+    ui.teaser.inert=true;
     localStorage.setItem(TEASER_KEY,String(Date.now()));
   });
 
@@ -348,9 +362,10 @@
   if(Date.now()-lastTeaser>24*60*60*1000){
     setTimeout(()=>{
       if(!state.open){
+        ui.teaser.inert=false;
         ui.teaser.classList.add("show");
         localStorage.setItem(TEASER_KEY,String(Date.now()));
-        setTimeout(()=>ui.teaser.classList.remove("show"),9000);
+        setTimeout(()=>{ui.teaser.classList.remove("show");ui.teaser.inert=true;},9000);
       }
     },4200);
   }
