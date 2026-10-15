@@ -57,7 +57,7 @@
     if(!document.querySelector('link[data-nora-css]')){
       const link=document.createElement("link");
       link.rel="stylesheet";
-      link.href="./nora.css?v=20261015-consent1";
+      link.href="./nora.css?v=20261015-a11y2";
       link.dataset.noraCss="1";
       document.head.appendChild(link);
     }
