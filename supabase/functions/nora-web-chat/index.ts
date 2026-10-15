@@ -252,8 +252,9 @@ Deno.serve(async(req:Request)=>{
     if(!message&&!quick) return json({error:"Escribe un mensaje"},400);
     // Migration safety: older sessions may have reached ask_contact without explicit consent.
     // Never store a contact message or create a lead until the visitor opts in.
-    if(session.stage==="ask_contact" && (!session.privacy_consent || !session.privacy_consent_at)){
-      await service.from("nora_web_sessions").update({stage:"ask_consent"}).eq("id",session.id);
+    if((session.stage==="ask_name" || session.stage==="ask_contact") && (!session.privacy_consent || !session.privacy_consent_at)){
+      const reset=await service.from("nora_web_sessions").update({stage:"ask_consent"}).eq("id",session.id);
+      if(reset.error) throw reset.error;
       await addMessage(session.id,"assistant",consentPrompt,{stage:"ask_consent",reason:"legacy_session"});
       return json({ok:true,session_id:session.id,mode:"guided",reply:consentPrompt,quick_replies:consentButtons});
     }
