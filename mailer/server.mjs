@@ -306,7 +306,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === "GET" && req.url === "/health") {
-    return json(res, 200, { ok: true, service: "nexo-mailer" }, origin);
+    return json(res, 200, { ok: true, service: "nexo-mailer", billing_email_endpoint: true, version: "2026-10-15-invoice" }, origin);
   }
 
   if (req.method !== "POST" || !["/v1/team-invite", "/v1/invoice-email"].includes(req.url)) {
