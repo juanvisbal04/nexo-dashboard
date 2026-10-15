@@ -532,7 +532,7 @@ if(floatingWhatsapp&&contactSection&&"IntersectionObserver" in window){
 (()=>{
   if(document.querySelector('script[data-nora-loader]')) return;
   const script=document.createElement("script");
-  script.src="./nora.js?v=20261008-nora1";
+  script.src="./nora.js?v=20261015-consent1";
   script.defer=true;
   script.dataset.noraLoader="1";
   document.head.appendChild(script);
