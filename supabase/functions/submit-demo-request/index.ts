@@ -55,6 +55,20 @@ Deno.serve(async(req:Request)=>{
     if(!email&&!phone) return json(req,{error:"Comparte un correo o WhatsApp para poder contactarte"},400);
     if(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json(req,{error:"Correo inválido"},400);
 
+    // Rate-limit valid submissions atomically, without storing visitor IP addresses.
+    const ip=clean(req.headers.get("cf-connecting-ip")||req.headers.get("x-forwarded-for")?.split(",")[0]||"unknown",100);
+    const period=15*60*1000;
+    const start=new Date(Math.floor(Date.now()/period)*period).toISOString();
+    const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode("demo:v1:"+ip+":"+start));
+    const rateKey=Array.from(new Uint8Array(digest)).map(v=>v.toString(16).padStart(2,"0")).join("");
+    const rate=await service.rpc("nexo_public_rate_limit",{p_rate_key:rateKey,p_window_start:start,p_limit:6});
+    if(rate.error){
+      console.error("DEMO_RATE_LIMIT_ERROR",rate.error);
+      return json(req,{error:"El formulario no está disponible por el momento. Escríbenos por WhatsApp."},503);
+    }
+    if(rate.data!==true) return json(req,{error:"Demasiadas solicitudes. Intenta nuevamente más tarde."},429);
+
+
     let expectedMrr:null|number=null;
     let expectedSetup:null|number=null;
     if(planInterest){
