@@ -873,7 +873,7 @@ export async function renderCrm(context) {
                     ? `<button class="crm-invoice-email btn small" data-id="${row.id}" type="button">${row.email_status==="sent"?"Reenviar":"Enviar correo"}</button>` : ""}
                   ${row.archived_at
                     ? `<button class="crm-invoice-restore-test btn small" data-id="${row.id}" type="button">Restaurar</button>`
-                    : ["pending","overdue","cancelled"].includes(row.status) && !row.paid_at && row.payment_status==="not_requested" && !row.payment_url && !row.payment_transaction_id && !["sent","disabled"].includes(row.email_status)
+                    : ["pending","overdue","cancelled"].includes(row.status) && !row.paid_at && row.payment_status==="not_requested" && !row.payment_url && !row.payment_transaction_id && row.email_status!=="sent"
                       ? `<button class="crm-invoice-delete-test btn small billing-delete-test" data-id="${row.id}" type="button">Eliminar prueba</button>`
                       : ["paid","cancelled","waived"].includes(row.status) && row.payment_status!=="pending"
                         ? `<button class="crm-invoice-archive-test btn small" data-id="${row.id}" type="button">Archivar prueba</button>` : ""}

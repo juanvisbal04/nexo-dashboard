@@ -2,7 +2,7 @@ import { notificationFingerprint, loadNotificationReads, markNotificationReads }
 import { mountMfaProfile, promptForEnrolledMfa } from "./mfaShield.js?v=20261013-shield1";
 import { SERVICE_LINES, serviceLinesField, serviceLinesLabel, selectedServiceLines, needsAssistant, bindServiceLines, openServiceLineEditor } from "./serviceLines.js?v=20261013-lines2";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
-import { renderCrm, openProspectEditorFromGrowth, openNewProspectFromGrowth } from "./crm.js?v=20261015-billing3";
+import { renderCrm, openProspectEditorFromGrowth, openNewProspectFromGrowth } from "./crm.js?v=20261015-billing4";
 import { renderTasks, openCustomer360, openContact360, closeDrawer } from "./workspace360.js?v=20261013-work2";
 import { renderDataQuality, openOnboarding, closeQualityDrawer } from "./qualityOnboarding.js?v=20261001-quality2";
 import { renderInternalTeam } from "./team.js?v=20261013-team2";
@@ -3356,7 +3356,7 @@ async function renderBillingPortal() {
                     : (
                        ["pending","overdue","cancelled"].includes(row.status) &&
                        !row.paid_at && row.payment_status==="not_requested" && !row.payment_url &&
-                       !row.payment_transaction_id && !["sent","disabled"].includes(row.email_status) &&
+                       !row.payment_transaction_id && row.email_status!=="sent" &&
                        !(attemptsByInvoice.get(row.id)||[]).length
                       ) ? `<button class="btn small billing-delete-test" data-invoice-id="${row.id}" type="button">Eliminar prueba</button>`
                     : ["paid","cancelled","waived"].includes(row.status) && row.payment_status!=="pending"
