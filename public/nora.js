@@ -34,6 +34,7 @@
     open:false,
     loading:false,
     messages:Array.isArray(saved?.messages)?saved.messages.slice(-MAX_STORED_MESSAGES):[],
+    quickReplies:Array.isArray(saved?.quick_replies)?saved.quick_replies.filter(item=>item && typeof item.id==="string" && typeof item.label==="string").slice(0,8):[],
   };
 
   function persist(){
@@ -42,11 +43,12 @@
       session_id:state.sessionId,
       product:state.product,
       messages:state.messages.slice(-MAX_STORED_MESSAGES),
+      quick_replies:state.quickReplies.slice(0,8),
       saved_at:Date.now()
     }));
   }
   function clearConversation(){
-    state.sessionId=null;state.product=null;state.started=false;state.messages=[];
+    state.sessionId=null;state.product=null;state.started=false;state.messages=[];state.quickReplies=[];
     localStorage.removeItem(SESSION_KEY);
     localStorage.removeItem(STATE_KEY);
   }
@@ -55,7 +57,7 @@
     if(!document.querySelector('link[data-nora-css]')){
       const link=document.createElement("link");
       link.rel="stylesheet";
-      link.href="./nora.css?v=20261008-nora1";
+      link.href="./nora.css?v=20261015-consent1";
       link.dataset.noraCss="1";
       document.head.appendChild(link);
     }
@@ -92,7 +94,7 @@
           <textarea rows="1" maxlength="1200" placeholder="Escríbele a Nora…" aria-label="Mensaje para Nora"></textarea>
           <button class="nora-send" type="submit" aria-label="Enviar mensaje">→</button>
         </form>
-        <div class="nora-foot">Nora puede ayudarte a orientarte y registrar tu solicitud. <a href="./privacidad.html">Privacidad</a></div>
+        <div class="nora-foot">Para contactarte, Nora pedirá tu autorización. <a href="./privacidad.html">Privacidad</a></div>
       </div>
     `;
 
@@ -159,9 +161,11 @@
 
   function renderQuick(items=[]){
     ui.quick.innerHTML="";
-    if(!items.length){ui.quick.style.display="none";return;}
+    state.quickReplies=Array.isArray(items)?items.filter(item=>item && typeof item.id==="string" && typeof item.label==="string").slice(0,8):[];
+    persist();
+    if(!state.quickReplies.length){ui.quick.style.display="none";return;}
     ui.quick.style.display="flex";
-    items.forEach((item)=>{
+    state.quickReplies.forEach((item)=>{
       const button=document.createElement("button");
       button.type="button";
       button.textContent=item.label;
@@ -169,6 +173,15 @@
       button.addEventListener("click",()=>handleQuick(item));
       ui.quick.appendChild(button);
     });
+    if(state.quickReplies.some(item=>item.id==="consent_accept")){
+      const policy=document.createElement("a");
+      policy.className="nora-consent-policy";
+      policy.href="./privacidad.html";
+      policy.target="_blank";
+      policy.rel="noopener noreferrer";
+      policy.textContent="Leer política de privacidad";
+      ui.quick.appendChild(policy);
+    }
   }
 
   function productFromQuick(id){
@@ -210,7 +223,7 @@
       if(!state.messages.length){
         clearConversation();
       }else{
-        renderQuick([]);
+        renderQuick(state.quickReplies);
         return;
       }
     }
@@ -281,7 +294,7 @@
     ui.teaser.classList.remove("show");
     ui.launcher.setAttribute("aria-expanded","true");
     if(!state.started||!state.sessionId) startConversation();
-    else restoreMessages();
+    else {restoreMessages();renderQuick(state.quickReplies);}
     setTimeout(()=>ui.input.focus({preventScroll:true}),180);
   }
   function closePanel(){
