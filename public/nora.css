@@ -142,3 +142,27 @@
 .nora-quick button[data-quick="consent_accept"]{border-color:#315de6;background:#315de6;color:#fff}
 .nora-quick button[data-quick="consent_decline"]{background:#fff;border-color:#c4cbd4;color:#526171}
 .nora-quick button:focus-visible,.nora-consent-policy:focus-visible{outline:3px solid #0a77e8;outline-offset:2px}
+
+
+/* Accessible tap targets, legible supporting copy and reduced-motion support. */
+.nora-head-actions button{min-width:44px;min-height:44px}
+.nora-quick button{min-height:44px;font-size:12px;padding:10px 14px}
+.nora-quick .nora-consent-policy{
+  display:inline-flex;align-items:center;min-height:44px;
+  font-size:12px;line-height:1.5
+}
+.nora-teaser-close{min-width:44px;min-height:44px;right:3px;top:3px;color:#39516b}
+.nora-foot{font-size:11px;color:#526982;line-height:1.5}
+.nora-foot a{color:#225eb5}
+.nora-panel:not(.open){visibility:hidden}
+.nora-teaser:not(.show){visibility:hidden}
+@media(max-width:700px){
+  .nora-quick button{font-size:13px;min-height:44px}
+  .nora-head-actions button{width:44px;height:44px}
+  .nora-foot{font-size:12px}
+}
+@media(prefers-reduced-motion:reduce){
+  .nora-launcher,.nora-teaser,.nora-panel{transition:none}
+  .nora-typing i{animation:none}
+  .nora-messages{scroll-behavior:auto}
+}
