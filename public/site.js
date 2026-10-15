@@ -1,12 +1,29 @@
 const menu=document.getElementById("menu");
 const nav=document.getElementById("navLinks");
 
-function closeMobileNav(){
+// A discoverable skip link and explicit navigation relationship across all public pages.
+const pageMain=document.querySelector("main");
+if(pageMain){
+  if(!pageMain.id) pageMain.id="contenido";
+  if(!document.querySelector(".nexo-skip-link")){
+    const skip=document.createElement("a");
+    skip.className="nexo-skip-link";
+    skip.href="#contenido";
+    skip.textContent="Saltar al contenido principal";
+    document.body.insertBefore(skip,document.body.firstChild);
+  }
+}
+menu?.setAttribute("aria-controls","navLinks");
+nav?.setAttribute("aria-label","Navegación principal");
+
+function closeMobileNav(restoreFocus=false){
+  const wasOpen=nav?.classList.contains("open");
   nav?.classList.remove("open");
   document.body.classList.remove("nav-open");
   menu?.setAttribute("aria-expanded","false");
   menu?.setAttribute("aria-label","Abrir menú");
   if(menu) menu.textContent="☰";
+  if(restoreFocus && wasOpen) menu?.focus({preventScroll:true});
 }
 
 menu?.addEventListener("click",(event)=>{
@@ -21,7 +38,7 @@ menu?.addEventListener("click",(event)=>{
 document.querySelectorAll("#navLinks a").forEach(a=>a.addEventListener("click",closeMobileNav));
 
 document.addEventListener("keydown",(event)=>{
-  if(event.key==="Escape") closeMobileNav();
+  if(event.key==="Escape" && nav?.classList.contains("open")) closeMobileNav(true);
 });
 
 document.addEventListener("click",(event)=>{
@@ -31,7 +48,7 @@ document.addEventListener("click",(event)=>{
 });
 
 window.addEventListener("resize",()=>{
-  if(window.innerWidth>820) closeMobileNav();
+  if(window.innerWidth>1220) closeMobileNav();
 },{passive:true});
 
 const revealEls=document.querySelectorAll(".reveal");
