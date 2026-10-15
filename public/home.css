@@ -1200,3 +1200,246 @@
   .nx-product-card p{font-size:14px}
   .nx-product-card .nx-text-link{left:24px;bottom:24px}
 }
+
+
+/* NEXO Lía testimonial · 2026-10-15
+   Faithful, accessible web presentation of the approved Lía + Isabel design. */
+.nx-case .nx-case-grid{
+  display:grid;
+  grid-template-columns:minmax(0,.84fr) minmax(0,1.16fr);
+  gap:clamp(38px,5vw,86px);
+  align-items:center;
+}
+.nx-case .nx-case-copy{
+  padding-bottom:0;
+}
+.nx-case .nx-case-copy h2{
+  font-size:clamp(34px,3.7vw,56px);
+}
+.nx-case-showcase{
+  min-width:0;
+  align-self:stretch;
+  display:flex;
+  align-items:center;
+}
+.nx-case-showcase-inner{
+  isolation:isolate;
+  position:relative;
+  width:100%;
+  display:grid;
+  grid-template-columns:minmax(0,.74fr) minmax(0,1.26fr);
+  align-items:center;
+  gap:0;
+  padding:clamp(22px,3.2vw,44px) clamp(18px,2.6vw,36px);
+  border:1px solid #e5d9f3;
+  border-radius:30px;
+  background:linear-gradient(140deg,#f8f2ff 0%,#fff 53%,#f4edff 100%);
+  box-shadow:0 24px 65px rgba(63,39,100,.075);
+  overflow:hidden;
+}
+.nx-case-showcase-inner:before{
+  content:"";
+  position:absolute;
+  z-index:-1;
+  top:-80px;
+  left:-100px;
+  width:340px;
+  height:340px;
+  border:1px solid rgba(186,141,222,.24);
+  background:radial-gradient(circle,#efe0ff 0%,rgba(239,224,255,0) 70%);
+  border-radius:50%;
+}
+.nx-case-showcase .nx-case-figure{
+  align-self:end;
+  position:relative;
+  z-index:1;
+  margin:0 -12% -30px -16%;
+  min-height:300px;
+  display:flex;
+  align-items:flex-end;
+}
+.nx-case-showcase .nx-case-figure-halo{
+  bottom:11%;
+  width:100%;
+  background:radial-gradient(circle,rgba(188,141,227,.32),transparent 69%);
+}
+.nx-case-showcase .nx-case-figure img{
+  position:relative;
+  display:block;
+  width:100%;
+  max-width:none;
+  height:auto;
+  object-fit:contain;
+  filter:drop-shadow(0 14px 22px rgba(37,25,61,.09));
+}
+.nx-case-testimonial{
+  position:relative;
+  z-index:2;
+  min-width:0;
+}
+.nx-case-testimonial-heading{
+  margin:0 0 18px;
+  font-size:clamp(21px,2.3vw,32px);
+  font-weight:700;
+  line-height:1.13;
+  letter-spacing:-.04em;
+  color:#102447;
+}
+.nx-case-testimonial-heading span{
+  display:block;
+  color:#ae79d5;
+  font-size:1.48em;
+  font-weight:600;
+}
+.nx-case-testimonial-card{
+  position:relative;
+  min-width:0;
+  padding:clamp(22px,2.3vw,32px);
+  border-radius:24px;
+  border:1px solid rgba(226,211,242,.83);
+  background:rgba(255,255,255,.94);
+  box-shadow:0 18px 48px rgba(74,41,113,.08);
+}
+.nx-case-testimonial-stars{
+  display:block;
+  color:#a67bd2;
+  font-size:20px;
+  letter-spacing:3px;
+  line-height:1;
+}
+.nx-case-testimonial-mark{
+  position:absolute;
+  right:19px;
+  top:5px;
+  font-size:72px;
+  line-height:1;
+  font-weight:800;
+  color:#ead9f7;
+}
+.nx-case-testimonial-card blockquote{
+  position:relative;
+  margin:22px 0 23px;
+  color:#233451;
+  font-size:clamp(13px,1.18vw,17px);
+  font-weight:500;
+  line-height:1.75;
+}
+.nx-case-testimonial-author{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding-top:19px;
+  border-top:1px solid #eee4f6;
+}
+.nx-case-testimonial-heart{
+  display:grid;
+  place-items:center;
+  flex:0 0 40px;
+  width:40px;
+  height:40px;
+  border-radius:50%;
+  background:#f2e5ff;
+  color:#a46bd2;
+  font-size:25px;
+  font-weight:500;
+}
+.nx-case-testimonial-author strong,
+.nx-case-testimonial-author small{
+  display:block;
+}
+.nx-case-testimonial-author strong{
+  color:#102447;
+  font-size:13px;
+}
+.nx-case-testimonial-author small{
+  margin-top:4px;
+  color:#61728f;
+  font-size:10px;
+  line-height:1.5;
+}
+.nx-case .nx-case-results{
+  margin-top:52px;
+  padding:32px 0 72px;
+  border-top:1px solid #e4e9f0;
+}
+.nx-case .nx-case-metrics{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:clamp(24px,4vw,76px);
+  border-top:0;
+}
+.nx-case .nx-case-metrics>div{
+  display:flex;
+  align-items:baseline;
+  flex-wrap:wrap;
+  padding:14px 0;
+}
+@media(max-width:1150px){
+  .nx-case .nx-case-grid{
+    grid-template-columns:1fr;
+    gap:36px;
+  }
+  .nx-case .nx-case-copy{
+    max-width:850px;
+  }
+  .nx-case-showcase-inner{
+    max-width:850px;
+    margin-inline:auto;
+    grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);
+  }
+  .nx-case-showcase .nx-case-figure{
+    margin-left:-7%;
+    margin-right:-6%;
+  }
+}
+@media(max-width:700px){
+  .nx-case-showcase-inner{
+    grid-template-columns:1fr;
+    padding:22px;
+    border-radius:24px;
+  }
+  .nx-case-showcase .nx-case-figure{
+    grid-column:1;
+    width:min(75%,270px);
+    min-height:0;
+    margin:0 auto -12px;
+  }
+  .nx-case-testimonial-heading{
+    text-align:center;
+    font-size:24px;
+    margin:12px 0 18px;
+  }
+  .nx-case-testimonial-heading span{
+    font-size:1.25em;
+  }
+  .nx-case-testimonial-card{
+    padding:22px;
+  }
+  .nx-case-testimonial-card blockquote{
+    font-size:14px;
+  }
+  .nx-case .nx-case-results{
+    margin-top:30px;
+    padding-bottom:65px;
+  }
+  .nx-case .nx-case-metrics{
+    grid-template-columns:1fr;
+    gap:0;
+    border-top:1px solid #dbe4ec;
+  }
+  .nx-case .nx-case-metrics>div{
+    align-items:center;
+    flex-direction:row;
+    justify-content:space-between;
+    border-bottom:1px solid #dbe4ec;
+  }
+  .nx-case .nx-case-metrics span{
+    max-width:170px;
+    text-align:right;
+  }
+}
+@media(max-width:380px){
+  .nx-case-showcase-inner{padding:14px}
+  .nx-case-testimonial-card{padding:18px}
+  .nx-case-testimonial-stars{font-size:17px}
+}
