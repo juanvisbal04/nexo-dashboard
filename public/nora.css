@@ -135,3 +135,10 @@
   .nora-head-copy span{font-size:11px}
   .nora-foot{font-size:10px}
 }
+
+/* Nora: visible opt-in choices and policy link on both desktop and mobile. */
+.nora-quick:has(.nora-consent-policy){flex-wrap:wrap;overflow-x:visible;align-items:center}
+.nora-quick .nora-consent-policy{flex:1 1 100%;font:600 10px/1.45 Montserrat,sans-serif;color:#225eb5;text-decoration:underline;padding:4px 2px}
+.nora-quick button[data-quick="consent_accept"]{border-color:#315de6;background:#315de6;color:#fff}
+.nora-quick button[data-quick="consent_decline"]{background:#fff;border-color:#c4cbd4;color:#526171}
+.nora-quick button:focus-visible,.nora-consent-policy:focus-visible{outline:3px solid #0a77e8;outline-offset:2px}
