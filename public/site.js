@@ -537,3 +537,15 @@ if(floatingWhatsapp&&contactSection&&"IntersectionObserver" in window){
   script.dataset.noraLoader="1";
   document.head.appendChild(script);
 })();
+
+
+// Add the terms link to every commercial footer without duplicating static links.
+(function ensureTermsFooterLink(){
+  const footer=document.querySelector("footer.site-footer");
+  const privacy=footer?.querySelector('a[href="./privacidad.html"]');
+  if(!privacy || footer.querySelector('a[href="./terminos.html"]'))return;
+  const terms=document.createElement("a");
+  terms.href="./terminos.html";
+  terms.textContent="Términos y condiciones";
+  privacy.after(terms);
+})();
