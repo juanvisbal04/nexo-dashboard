@@ -253,3 +253,18 @@ body{
     font-size:clamp(30px,9vw,38px)!important;
   }
 }
+
+
+/* Site-wide keyboard access — does not change the NEXO visual design. */
+.nexo-skip-link{
+  position:fixed;top:10px;left:10px;z-index:20000;
+  max-width:calc(100vw - 20px);padding:12px 16px;
+  color:#fff;background:#0b1f3b;border:2px solid #8dc9ff;
+  border-radius:10px;font:700 14px/1.4 Montserrat,system-ui,sans-serif;
+  text-decoration:none;transform:translateY(-180%);
+}
+.nexo-skip-link:focus,.nexo-skip-link:focus-visible{
+  transform:none;outline:3px solid #2d9cff;outline-offset:2px;
+}
+main[id="contenido"]{scroll-margin-top:80px}
+@media(prefers-reduced-motion:reduce){.nexo-skip-link{transition:none}}
