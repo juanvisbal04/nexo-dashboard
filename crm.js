@@ -579,6 +579,16 @@ async function deliverInvoiceEmail(invoiceId, resend=false) {
   return result;
 }
 
+function isSafeWompiCheckoutUrl(value) {
+  if (!value) return false;
+  try {
+    const url = new URL(String(value));
+    return url.protocol === "https:" && url.hostname === "checkout.wompi.co";
+  } catch {
+    return false;
+  }
+}
+
 export async function renderCrm(context) {
   C = context;
   if (!C.state.isAdmin) {
@@ -872,7 +882,7 @@ export async function renderCrm(context) {
                 <td>
                   ${row.archived_at ? '<small class="muted">Archivada</small>' :
                   row.payment_status==="approved" ? '<span class="pill green">Aprobado</span>' :
-                  C.isWompiCheckoutUrl(row.payment_url) && row.payment_status==="pending"
+                  isSafeWompiCheckoutUrl(row.payment_url) && row.payment_status==="pending"
                     ? `<a class="btn small primary billing-direct-link" href="${esc(row.payment_url)}" target="_blank" rel="noopener noreferrer">Abrir Wompi ↗</a>`
                     : ["pending","overdue"].includes(derived)
                       ? `<button type="button" class="btn small crm-invoice-pay" data-id="${row.id}">Generar link Wompi</button>`
