@@ -3100,37 +3100,104 @@ function downloadInvoicePdf(invoice, organizationName = "Cliente NEXO") {
   doc.save("NEXO_Cuenta_de_Cobro_" + number.replace(/[^A-Za-z0-9_-]/g,"_") + ".pdf");
 }
 
+function isWompiCheckoutUrl(value) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && url.hostname === "checkout.wompi.co";
+  } catch { return false; }
+}
+
 async function startInvoicePayment(invoiceId, button = null) {
-  const original = button?.textContent || "Pagar ahora";
-  if (button) {
-    button.disabled = true;
-    button.textContent = "Preparando pago…";
+  const original = button?.textContent || "Generar link";
+  // The empty tab must open in the original click event; opening after await is blocked by many browsers.
+  const popup = window.open("about:blank", "_blank");
+  if (popup) {
+    try {
+      popup.document.title = "Abriendo Wompi…";
+      popup.document.body.innerHTML = '<p style="font-family:sans-serif;padding:30px">Preparando tu pago seguro en Wompi…</p>';
+    } catch {}
   }
+  if (button) { button.disabled = true; button.textContent = "Preparando pago…"; }
   try {
     const { data, error } = await supabase.functions.invoke("create-invoice-payment", {
       body: { invoice_id: invoiceId },
     });
-    if (error) throw error;
+    if (error) {
+      if (data?.error) throw new Error(data.error);
+      throw error;
+    }
     if (!data?.ok) {
       if (data?.code === "WOMPI_NOT_CONFIGURED" || data?.setup_required) {
-        throw new Error("El pago en línea está preparado, pero Wompi aún no está activado por NEXO.");
+        throw new Error("Falta completar las credenciales de Wompi en la configuración de NEXO.");
       }
       throw new Error(data?.error || "No pudimos iniciar el pago.");
     }
-    if (!data.url) throw new Error("No recibimos un enlace de pago.");
-    window.open(data.url, "_blank", "noopener,noreferrer");
-    showToast("Pago abierto en Wompi.");
-    setTimeout(() => render(), 1200);
+    if (!isWompiCheckoutUrl(data.url)) throw new Error("La respuesta no contiene un enlace válido de checkout Wompi.");
+    if (popup && !popup.closed) {
+      popup.location.replace(data.url);
+    } else {
+      window.location.assign(data.url);
+      return;
+    }
+    showToast("Wompi abierto en una nueva pestaña.");
+    setTimeout(() => render(), 900);
   } catch (error) {
+    if (popup && !popup.closed) popup.close();
     showError(error.message || "No pudimos iniciar el pago.");
   } finally {
-    if (button) {
-      button.disabled = false;
-      button.textContent = original;
-    }
+    if (button) { button.disabled = false; button.textContent = original; }
   }
 }
 
+async function sendInvoiceEmail(invoice, button) {
+  if (!state.isAdmin || !isInternalOrg()) return showError("Esta acción está reservada para el Super Admin.");
+  const resend = invoice.email_status === "sent";
+  if (resend && !confirm("Esta cuenta ya fue enviada. ¿Quieres reenviarla por correo?")) return;
+  const original = button.textContent;
+  button.disabled = true;
+  button.textContent = "Enviando…";
+  try {
+    const response = await fetch("https://nexo-mailer.onrender.com/v1/invoice-email", {
+      method: "POST",
+      headers: {
+        authorization: "Bearer " + state.session.access_token,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ invoice_id: invoice.id, resend }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.ok) throw new Error(result.error || "No pudimos enviar esta cuenta de cobro.");
+    showToast(result.already_sent ? "Este documento ya había sido enviado." : "Cuenta de cobro y PDF enviados por email.");
+    await renderBillingPortal();
+  } catch (error) {
+    showError(error.message || "No pudimos enviar la cuenta de cobro por email.");
+    button.disabled = false;
+    button.textContent = original;
+  }
+}
+
+async function deleteTestInvoice(invoice, button) {
+  if (!state.isAdmin || !isInternalOrg()) return showError("Solo el Super Admin puede eliminar pruebas.");
+  const expected = invoice.invoice_number || invoice.id;
+  const answer = prompt("ELIMINAR PRUEBA · Esta operación no se puede deshacer.\n\nSolo elimina una cuenta sin pagos, sin links de Wompi y sin correos enviados.\n\nEscribe exactamente " + expected + " para confirmar:");
+  if (answer === null) return;
+  if (answer.trim() !== expected) return showError("La confirmación no coincide. No se eliminó ningún documento.");
+  button.disabled = true;
+  button.textContent = "Eliminando…";
+  try {
+    const { data, error } = await supabase.rpc("delete_test_invoice", {
+      p_invoice_id: invoice.id, p_confirmation: answer.trim(),
+    });
+    if (error) throw error;
+    if (!data?.ok) throw new Error("No se pudo eliminar esta prueba.");
+    showToast("Cuenta de prueba eliminada y registrada en auditoría.");
+    await renderBillingPortal();
+  } catch (error) {
+    showError(error.message || "No pudimos eliminar esta prueba.");
+    button.disabled = false;
+    button.textContent = "Eliminar prueba";
+  }
+}
 async function renderBillingPortal() {
   const internalAggregate = state.isAdmin && isInternalOrg();
   const orgIds = internalAggregate
@@ -3187,10 +3254,11 @@ async function renderBillingPortal() {
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr>${internalAggregate?"<th>Cliente</th>":""}<th>Número</th><th>Concepto</th><th>Valor</th><th>Vence</th><th>Estado</th><th>Pago</th><th>Pago online</th><th>Documento</th></tr></thead>
+          <thead><tr>${internalAggregate?"<th>Cliente</th>":""}<th>Número</th><th>Concepto</th><th>Valor</th><th>Vence</th><th>Estado</th><th>Pago</th><th>Pago online</th><th>Documento</th><th>Correo</th>${internalAggregate?"<th>Admin</th>":""}</tr></thead>
           <tbody>
             ${rows.length ? rows.map((row)=>{
               const status=derivedInvoiceStatus(row);
+              const directWompiLink=isWompiCheckoutUrl(row.payment_url)&&row.payment_status==="pending";
               return `<tr>
                 ${internalAggregate?`<td><b>${esc(orgName(row.organization_id))}</b></td>`:""}
                 <td><b>${esc(row.invoice_number || "—")}</b></td>
@@ -3202,7 +3270,9 @@ async function renderBillingPortal() {
                 <td>
                   ${["pending","overdue"].includes(status)
                     ? `<div class="billing-online-actions">
-                        <button class="btn primary small billing-pay-button" data-invoice-id="${row.id}" type="button">${row.payment_url&&row.payment_status==="pending"?"Abrir Wompi":"Generar link"}</button>
+                        ${directWompiLink
+                          ? `<a class="btn primary small billing-direct-link" href="${esc(row.payment_url)}" target="_blank" rel="noopener noreferrer">Abrir Wompi ↗</a>`
+                          : `<button class="btn primary small billing-pay-button" data-invoice-id="${row.id}" type="button">Generar link</button>`}
                         ${row.payment_url?`<button class="btn small billing-copy-link" data-payment-url="${esc(row.payment_url)}" type="button">Copiar link</button>`:""}
                         <span class="billing-payment-state">${row.payment_status === "pending" ? "Pendiente en Wompi" : row.payment_status === "declined" ? "Pago rechazado" : row.payment_status === "error" ? "Error de pago" : row.payment_status === "expired" ? "Link vencido" : ""}</span>
                         ${(attemptsByInvoice.get(row.id)||[]).length?`<small>${(attemptsByInvoice.get(row.id)||[]).length} intento${(attemptsByInvoice.get(row.id)||[]).length===1?"":"s"} registrado${(attemptsByInvoice.get(row.id)||[]).length===1?"":"s"}</small>`:""}
@@ -3210,8 +3280,22 @@ async function renderBillingPortal() {
                     : row.payment_status === "approved" ? `<span class="pill green">Pago confirmado</span>${row.payment_method_type?`<small class="billing-method">${esc(row.payment_method_type)}</small>`:""}` : "—"}
                 </td>
                 <td><button class="btn small billing-pdf-button" data-invoice-id="${row.id}" type="button">Descargar PDF</button></td>
+                <td>
+                  <div class="billing-email-actions">
+                    <span class="billing-email-status">${row.email_status==="sent"?"Enviado "+dateTime(row.email_sent_at):row.email_status==="failed"?"Error en envío":row.email_status==="disabled"?"Desactivado":"Pendiente"}</span>
+                    ${internalAggregate&&row.email_status!=="disabled"&& !["cancelled","waived"].includes(row.status)
+                      ? `<button class="btn small billing-send-email" data-invoice-id="${row.id}" type="button">${row.email_status==="sent"?"Reenviar":"Enviar email"}</button>` : ""}
+                  </div>
+                </td>
+                ${internalAggregate ? `<td>${(
+                    ["pending","overdue","cancelled"].includes(row.status) &&
+                    !row.paid_at && row.payment_status==="not_requested" && !row.payment_url &&
+                    !row.payment_transaction_id && !["sent","disabled"].includes(row.email_status) &&
+                    !(attemptsByInvoice.get(row.id)||[]).length
+                  ) ? `<button class="btn small billing-delete-test" data-invoice-id="${row.id}" type="button" title="Solo cuentas sin pagos ni correos enviados">Eliminar prueba</button>` :
+                  '<small class="muted">Protegida</small>'}</td>` : ""}
               </tr>`;
-            }).join("") : `<tr><td colspan="${internalAggregate?9:8}">${emptyState("Todavía no hay cuentas de cobro.", "Cuando exista un cobro aparecerá aquí automáticamente.")}</td></tr>`}
+            }).join("") : `<tr><td colspan="${internalAggregate?11:9}">${emptyState("Todavía no hay cuentas de cobro.", "Cuando exista un cobro aparecerá aquí automáticamente.")}</td></tr>`}
           </tbody>
         </table>
       </div>
@@ -3233,6 +3317,20 @@ async function renderBillingPortal() {
         await navigator.clipboard.writeText(button.dataset.paymentUrl||"");
         showToast("Link de Wompi copiado.");
       }catch(error){showError("No pudimos copiar el link de pago.");}
+    });
+  });
+
+  document.querySelectorAll(".billing-send-email").forEach((button)=>{
+    button.addEventListener("click",()=> {
+      const invoice=byId.get(button.dataset.invoiceId);
+      if (invoice) sendInvoiceEmail(invoice,button);
+    });
+  });
+
+  document.querySelectorAll(".billing-delete-test").forEach((button)=>{
+    button.addEventListener("click",()=> {
+      const invoice=byId.get(button.dataset.invoiceId);
+      if (invoice) deleteTestInvoice(invoice,button);
     });
   });
 
