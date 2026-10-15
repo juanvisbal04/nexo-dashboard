@@ -565,6 +565,20 @@ export async function openNewProspectFromGrowth(context, plans = []) {
 }
 
 
+async function deliverInvoiceEmail(invoiceId, resend=false) {
+  const response = await fetch("https://nexo-mailer.onrender.com/v1/invoice-email", {
+    method: "POST",
+    headers: {
+      authorization: "Bearer " + C.state.session.access_token,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ invoice_id: invoiceId, resend }),
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || !result.ok) throw new Error(result.error || "No pudimos enviar el documento por correo.");
+  return result;
+}
+
 export async function renderCrm(context) {
   C = context;
   if (!C.state.isAdmin) {
@@ -610,7 +624,9 @@ export async function renderCrm(context) {
   const activityRows = activities || [];
   const planRows = plans || [];
   const expenseRows = expenses || [];
-  const invoiceRows = invoices || [];
+  const invoiceRows = (invoices || []).filter((row)=>!row.archived_at);
+  const archivedInvoiceCount = (invoices || []).filter((row)=>row.archived_at).length;
+  const displayInvoiceRows = C.state.billingShowArchived ? (invoices || []) : invoiceRows;
 
   const commercialMap = new Map(commercialRows.map((row) => [row.organization_id, row]));
   const integrationsByOrg = new Map();
@@ -791,7 +807,10 @@ export async function renderCrm(context) {
     <section id="crmBilling" class="card crm-billing-card">
       <div class="card-head">
         <div><h2>Facturación y cartera</h2><p>Mensualidades, setup, vencimientos y pagos de clientes</p></div>
-        <span class="count">${invoiceRows.length} movimientos</span>
+        <div class="billing-admin-summary">
+          <span class="count">${displayInvoiceRows.length} movimientos</span>
+          <button id="crmArchivedToggle" class="btn small" type="button">${C.state.billingShowArchived?"Ocultar archivadas":"Ver archivadas"} (${archivedInvoiceCount})</button>
+        </div>
       </div>
       <div class="crm-billing-kpis">
         <div><span>Cobrado este mes</span><b>${money(paidThisMonth)}</b></div>
@@ -816,7 +835,7 @@ export async function renderCrm(context) {
         <table>
           <thead><tr><th>Número</th><th>Cliente</th><th>Tipo</th><th>Valor</th><th>Vence</th><th>Estado</th><th>Correo</th><th>Pago</th><th>Online</th><th>Referencia</th><th></th></tr></thead>
           <tbody>
-            ${invoiceRows.length ? invoiceRows.slice(0,30).map((row)=>{
+            ${displayInvoiceRows.length ? displayInvoiceRows.slice(0,30).map((row)=>{
               const org=clients.find((item)=>item.id===row.organization_id);
               const derived = row.status === "pending" && new Date(row.due_date + "T23:59:59").getTime() < Date.now() ? "overdue" : row.status;
               const commercial = commercialMap.get(row.organization_id);
@@ -834,15 +853,30 @@ export async function renderCrm(context) {
                 <td>${esc(row.invoice_type)}</td>
                 <td><b>${money(row.amount_cop)}</b></td>
                 <td>${shortDate(row.due_date)}</td>
-                <td><span class="pill ${derived==="paid"?"green":derived==="overdue"?"orange":""}">${esc(derived)}</span></td>
+                <td><span class="pill ${row.archived_at?"amber":derived==="paid"?"green":derived==="overdue"?"orange":""}">${row.archived_at?"Archivada":esc(derived)}</span></td>
                 <td><span class="pill ${row.email_status==="sent"?"green":row.email_status==="failed"?"orange":""}">${esc(emailLabel)}</span>${row.email_sent_at ? `<br><span class="muted">${dateTime(row.email_sent_at)}</span>` : ""}</td>
                 <td>${row.paid_at ? dateTime(row.paid_at) : "—"}</td>
-                <td>${row.payment_status === "approved" ? '<span class="pill green">Aprobado</span>' : row.payment_status === "pending" ? '<span class="pill amber">Link activo</span>' : row.payment_status === "declined" ? '<span class="pill orange">Rechazado</span>' : "—"}</td>
+                <td>
+                  ${row.archived_at ? '<small class="muted">Archivada</small>' :
+                  row.payment_status==="approved" ? '<span class="pill green">Aprobado</span>' :
+                  C.isWompiCheckoutUrl(row.payment_url) && row.payment_status==="pending"
+                    ? `<a class="btn small primary billing-direct-link" href="${esc(row.payment_url)}" target="_blank" rel="noopener noreferrer">Abrir Wompi ↗</a>`
+                    : ["pending","overdue"].includes(derived)
+                      ? `<button type="button" class="btn small crm-invoice-pay" data-id="${row.id}">Generar link Wompi</button>`
+                      : "—"}
+                </td>
                 <td>${esc(row.reference || "—")}</td>
                 <td class="crm-invoice-actions">
-                  ${derived==="pending"||derived==="overdue" ? `<button class="crm-invoice-paid btn small" data-id="${row.id}" type="button">Marcar pagado</button>` : ""}
+                  ${!row.archived_at && (derived==="pending"||derived==="overdue") ? `<button class="crm-invoice-paid btn small" data-id="${row.id}" type="button">Marcar pagado</button>` : ""}
                   ${C.downloadInvoicePdf ? `<button class="crm-invoice-pdf btn small" data-id="${row.id}" type="button">PDF</button>` : ""}
-                  ${billingEmail ? `<button class="crm-invoice-email btn small" data-id="${row.id}" type="button">${row.email_status==="sent"?"Reenviar":"Enviar correo"}</button>` : ""}
+                  ${!row.archived_at && billingEmail && row.email_status!=="disabled" && !["cancelled","waived"].includes(row.status)
+                    ? `<button class="crm-invoice-email btn small" data-id="${row.id}" type="button">${row.email_status==="sent"?"Reenviar":"Enviar correo"}</button>` : ""}
+                  ${row.archived_at
+                    ? `<button class="crm-invoice-restore-test btn small" data-id="${row.id}" type="button">Restaurar</button>`
+                    : ["pending","overdue","cancelled"].includes(row.status) && !row.paid_at && row.payment_status==="not_requested" && !row.payment_url && !row.payment_transaction_id && !["sent","disabled"].includes(row.email_status)
+                      ? `<button class="crm-invoice-delete-test btn small billing-delete-test" data-id="${row.id}" type="button">Eliminar prueba</button>`
+                      : ["paid","cancelled","waived"].includes(row.status) && row.payment_status!=="pending"
+                        ? `<button class="crm-invoice-archive-test btn small" data-id="${row.id}" type="button">Archivar prueba</button>` : ""}
                 </td>
               </tr>`;
             }).join("") : `<tr><td colspan="11">${C.emptyState("Sin cobros todavía.", "Crea el primer cobro cuando corresponda.")}</td></tr>`}
@@ -1028,6 +1062,11 @@ export async function renderCrm(context) {
     });
   });
 
+  $("crmArchivedToggle")?.addEventListener("click",async()=>{
+    C.state.billingShowArchived=!C.state.billingShowArchived;
+    await refreshCrmView();
+  });
+
   $("crmInvoiceForm")?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const form = event.currentTarget;
@@ -1035,17 +1074,36 @@ export async function renderCrm(context) {
     button.disabled = true;
     button.textContent = "Creando…";
     try {
-      const { error } = await C.supabase.from("client_invoices").insert({
+      const emailRequested = $("crmInvoiceSendEmail").checked;
+      const { data: created, error } = await C.supabase.from("client_invoices").insert({
         organization_id: $("crmInvoiceOrg").value,
         invoice_type: $("crmInvoiceType").value,
         amount_cop: nullableNumber($("crmInvoiceAmount").value) || 0,
         due_date: $("crmInvoiceDue").value,
         reference: $("crmInvoiceReference").value.trim() || null,
         status: "pending",
-        email_status: $("crmInvoiceSendEmail").checked ? "pending" : "disabled",
-      });
+        email_status: emailRequested ? "pending" : "disabled",
+      }).select("id").single();
       if (error) throw error;
-      C.showToast("Cobro creado y puesto en cola de correo.");
+
+      if (emailRequested) {
+        let paymentWarning="";
+        try {
+          const payment = await C.supabase.functions.invoke("create-invoice-payment",{body:{invoice_id:created.id}});
+          if(payment.error || !payment.data?.ok) {
+            paymentWarning = " No se pudo generar el link Wompi.";
+          }
+        } catch { paymentWarning = " No se pudo generar el link Wompi."; }
+
+        try {
+          await deliverInvoiceEmail(created.id);
+          C.showToast("Cuenta creada y enviada por email con PDF." + paymentWarning);
+        } catch (mailError) {
+          C.showError("Cobro creado, pero no se envió el correo: " + (mailError.message||"Revisa el correo de facturación."));
+        }
+      } else {
+        C.showToast("Cobro creado sin envío de correo.");
+      }
       form.reset();
       await refreshCrmView();
     } catch (error) {
@@ -1063,24 +1121,43 @@ export async function renderCrm(context) {
     });
   });
 
+  document.querySelectorAll(".crm-invoice-pay").forEach((button)=>{
+    button.addEventListener("click",()=>C.startInvoicePayment(button.dataset.id,button));
+  });
+  document.querySelectorAll(".crm-invoice-delete-test").forEach((button)=>{
+    button.addEventListener("click",()=>{
+      const row=displayInvoiceRows.find((inv)=>inv.id===button.dataset.id);
+      if(row)C.deleteTestInvoice(row,button);
+    });
+  });
+  document.querySelectorAll(".crm-invoice-archive-test").forEach((button)=>{
+    button.addEventListener("click",()=>{
+      const row=displayInvoiceRows.find((inv)=>inv.id===button.dataset.id);
+      if(row)C.archiveTestInvoice(row,button);
+    });
+  });
+  document.querySelectorAll(".crm-invoice-restore-test").forEach((button)=>{
+    button.addEventListener("click",()=>{
+      const row=displayInvoiceRows.find((inv)=>inv.id===button.dataset.id);
+      if(row)C.restoreArchivedInvoice(row,button);
+    });
+  });
   document.querySelectorAll(".crm-invoice-email").forEach((button) => {
     button.addEventListener("click", async () => {
-      button.disabled = true;
-      button.textContent = "En cola…";
-      try {
-        const { error } = await C.supabase.from("client_invoices").update({
-          email_status: "pending",
-          email_sent_at: null,
-          email_error: null,
-          updated_at: new Date().toISOString(),
-        }).eq("id", button.dataset.id);
-        if (error) throw error;
-        C.showToast("Cuenta de cobro puesta en cola de envío.");
+      const invoice=displayInvoiceRows.find((row)=>row.id===button.dataset.id);
+      if (!invoice) return;
+      const resend=invoice.email_status==="sent";
+      if(resend && !confirm("La cuenta ya fue enviada. ¿Quieres reenviarla por correo?"))return;
+      button.disabled=true;
+      button.textContent="Enviando…";
+      try{
+        await deliverInvoiceEmail(invoice.id,resend);
+        C.showToast("Cuenta de cobro enviada con PDF.");
         await refreshCrmView();
-      } catch (error) {
-        button.disabled = false;
-        button.textContent = "Enviar correo";
-        C.showError(error.message || "No pudimos poner el correo en cola.");
+      }catch(error){
+        C.showError(error.message||"No pudimos enviar la cuenta por email.");
+        button.disabled=false;
+        button.textContent=resend?"Reenviar":"Enviar correo";
       }
     });
   });

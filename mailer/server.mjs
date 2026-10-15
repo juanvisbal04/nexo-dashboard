@@ -211,6 +211,7 @@ async function sendInvoiceEmail(token, payload) {
   }
   const invoice = await billingRow(token, "client_invoices", { id: "eq." + invoiceId }, "*");
   if (!invoice) return { status: 404, body: { error: "Cuenta de cobro no encontrada." } };
+  if (invoice.archived_at) return { status: 409, body: { error: "No se puede enviar por email una prueba archivada." } };
   if (["cancelled", "waived"].includes(invoice.status)) {
     return { status: 409, body: { error: "No se envia una cuenta anulada o exonerada." } };
   }

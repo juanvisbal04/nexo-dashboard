@@ -2,7 +2,7 @@ import { notificationFingerprint, loadNotificationReads, markNotificationReads }
 import { mountMfaProfile, promptForEnrolledMfa } from "./mfaShield.js?v=20261013-shield1";
 import { SERVICE_LINES, serviceLinesField, serviceLinesLabel, selectedServiceLines, needsAssistant, bindServiceLines, openServiceLineEditor } from "./serviceLines.js?v=20261013-lines2";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
-import { renderCrm, openProspectEditorFromGrowth, openNewProspectFromGrowth } from "./crm.js?v=20261013-finance1";
+import { renderCrm, openProspectEditorFromGrowth, openNewProspectFromGrowth } from "./crm.js?v=20261015-billing3";
 import { renderTasks, openCustomer360, openContact360, closeDrawer } from "./workspace360.js?v=20261013-work2";
 import { renderDataQuality, openOnboarding, closeQualityDrawer } from "./qualityOnboarding.js?v=20261001-quality2";
 import { renderInternalTeam } from "./team.js?v=20261013-team2";
@@ -1177,7 +1177,7 @@ async function renderOverview() {
     const clientName = (id) => clients.find((org) => org.id === id)?.name || "Cliente NEXO";
     const [{data:commandProspects},{data:commandInvoices},{data:commandCommercials},{data:manualTasks}] = await Promise.all([
       supabase.from("demo_requests").select("*").in("stage",["prospecto","demo","propuesta"]).order("created_at",{ascending:false}).limit(50),
-      supabase.from("client_invoices").select("*").in("status",["pending","overdue"]).order("due_date",{ascending:true}).limit(50),
+      supabase.from("client_invoices").select("*").is("archived_at",null).in("status",["pending","overdue"]).order("due_date",{ascending:true}).limit(50),
       supabase.from("organization_commercials").select("*"),
       supabase.from("work_tasks").select("*").eq("assigned_to",state.session.user.id).in("status",["pending","in_progress"]).order("due_at",{ascending:true,nullsFirst:false}).limit(100),
     ]);
@@ -2595,7 +2595,7 @@ async function renderGrowth(){
   const lostReasons=Object.entries(lost.reduce((map,row)=>{const key=row.lost_reason||"Sin motivo registrado";map[key]=(map[key]||0)+1;return map;},{})).sort((a,b)=>b[1]-a[1]);
   const stages=["prospecto","demo","propuesta","cliente","implementacion","activo","perdido"].map((stage)=>[stage,rows.filter((row)=>row.stage===stage).length]);
   const stageLabel=(stage)=>({prospecto:"Prospecto",demo:"Demo",propuesta:"Propuesta",cliente:"Cliente",implementacion:"Implementación",activo:"Activo",perdido:"Perdido"}[stage]||stage||"Prospecto");
-  const crmContext={ supabase, state, $, esc, money, dateTime, shortDate, metricCard, emptyState, showError, showToast, clientOrganizations, loadOrganizations, renderApp: render, persistUiState, downloadInvoicePdf };
+  const crmContext={ supabase, state, $, esc, money, dateTime, shortDate, metricCard, emptyState, showError, showToast, clientOrganizations, loadOrganizations, renderApp: render, persistUiState, downloadInvoicePdf, startInvoicePayment, deleteTestInvoice, archiveTestInvoice, restoreArchivedInvoice, isWompiCheckoutUrl };
 
   state.currentRows=rows;
   $("content").innerHTML=`
@@ -3168,7 +3168,7 @@ async function sendInvoiceEmail(invoice, button) {
     const result = await response.json().catch(() => ({}));
     if (!response.ok || !result.ok) throw new Error(result.error || "No pudimos enviar esta cuenta de cobro.");
     showToast(result.already_sent ? "Este documento ya había sido enviado." : "Cuenta de cobro y PDF enviados por email.");
-    await renderBillingPortal();
+    await render();
   } catch (error) {
     showError(error.message || "No pudimos enviar la cuenta de cobro por email.");
     button.disabled = false;
@@ -3191,13 +3191,67 @@ async function deleteTestInvoice(invoice, button) {
     if (error) throw error;
     if (!data?.ok) throw new Error("No se pudo eliminar esta prueba.");
     showToast("Cuenta de prueba eliminada y registrada en auditoría.");
-    await renderBillingPortal();
+    await render();
   } catch (error) {
     showError(error.message || "No pudimos eliminar esta prueba.");
     button.disabled = false;
     button.textContent = "Eliminar prueba";
   }
 }
+async function archiveTestInvoice(invoice, button) {
+  if (!state.isAdmin || !isInternalOrg()) return showError("Acción reservada para el Super Admin.");
+  const number = invoice.invoice_number || invoice.id;
+  const confirmation = prompt("ARCHIVAR PRUEBA: conserva el historial de pagos y auditoría, pero la excluye del listado de facturación habitual.\\n\\nEscribe exactamente " + number + " para continuar:");
+  if (confirmation === null) return;
+  if (confirmation.trim() !== number) return showError("El número de confirmación no coincide.");
+  const reason = prompt("Indica por qué este documento debe archivarse como prueba (mínimo ocho caracteres):", "Documento generado para pruebas internas");
+  if (reason === null) return;
+  if (reason.trim().length < 8) return showError("Indica un motivo de al menos ocho caracteres.");
+  button.disabled = true;
+  const original = button.textContent;
+  button.textContent = "Archivando…";
+  try {
+    const { data, error } = await supabase.rpc("archive_test_invoice", {
+      p_invoice_id: invoice.id,
+      p_confirmation: confirmation.trim(),
+      p_reason: reason.trim(),
+    });
+    if (error) throw error;
+    if (!data?.ok) throw new Error("No se pudo archivar el documento.");
+    showToast("Prueba archivada. Su historial permanece en auditoría.");
+    await render();
+  } catch (error) {
+    showError(error.message || "No pudimos archivar este documento.");
+    button.disabled = false;
+    button.textContent = original;
+  }
+}
+
+async function restoreArchivedInvoice(invoice, button) {
+  if (!state.isAdmin || !isInternalOrg()) return showError("Acción reservada para el Super Admin.");
+  const number = invoice.invoice_number || invoice.id;
+  const confirmation = prompt("RESTAURAR DOCUMENTO: escribe exactamente " + number + " para confirmar:");
+  if (confirmation === null) return;
+  if (confirmation.trim() !== number) return showError("El número de confirmación no coincide.");
+  button.disabled = true;
+  const original = button.textContent;
+  button.textContent = "Restaurando…";
+  try {
+    const { data, error } = await supabase.rpc("restore_archived_invoice", {
+      p_invoice_id: invoice.id,
+      p_confirmation: confirmation.trim(),
+    });
+    if (error) throw error;
+    if (!data?.ok) throw new Error("No se pudo restaurar la cuenta.");
+    showToast("Cuenta restaurada a la facturación habitual.");
+    await render();
+  } catch (error) {
+    showError(error.message || "No pudimos restaurar la cuenta.");
+    button.disabled = false;
+    button.textContent = original;
+  }
+}
+
 async function renderBillingPortal() {
   const internalAggregate = state.isAdmin && isInternalOrg();
   const orgIds = internalAggregate
@@ -3214,7 +3268,12 @@ async function renderBillingPortal() {
   const { data: invoices, error } = await request;
   if (error) throw error;
 
-  const rows = invoices || [];
+  const allRows = invoices || [];
+  const archivedCount=allRows.filter((row)=>row.archived_at).length;
+  const rows=(internalAggregate && state.billingShowArchived)
+    ? allRows
+    : allRows.filter((row)=>!row.archived_at);
+  const activeRows=rows.filter((row)=>!row.archived_at);
   const invoiceIds=rows.map((row)=>row.id);
   let paymentAttempts=[];
   if(invoiceIds.length){
@@ -3228,29 +3287,32 @@ async function renderBillingPortal() {
     return map;
   },new Map());
   const orgName = (id) => state.organizations.find((org) => org.id === id)?.name || "Cliente NEXO";
-  const pending = rows.filter((row) => ["pending","overdue"].includes(derivedInvoiceStatus(row)));
-  const overdue = rows.filter((row) => derivedInvoiceStatus(row) === "overdue");
-  const paid = rows.filter((row) => row.status === "paid");
+  const pending = activeRows.filter((row) => ["pending","overdue"].includes(derivedInvoiceStatus(row)));
+  const overdue = activeRows.filter((row) => derivedInvoiceStatus(row) === "overdue");
+  const paid = activeRows.filter((row) => row.status === "paid");
   const paidTotal = paid.reduce((sum,row)=>sum+Number(row.amount_cop||0),0);
   const receivable = pending.reduce((sum,row)=>sum+Number(row.amount_cop||0),0);
   const currentYear = new Date().getFullYear();
   const paidThisYear = paid.filter((row)=>row.paid_at && new Date(row.paid_at).getFullYear()===currentYear)
     .reduce((sum,row)=>sum+Number(row.amount_cop||0),0);
 
-  state.currentRows = rows;
+  state.currentRows = activeRows;
 
   $("content").innerHTML = `
     <div class="billing-portal-kpis">
       ${metricCard("Por pagar", money(receivable), `${pending.length} documento${pending.length===1?"":"s"} pendiente${pending.length===1?"":"s"}`, null, true)}
       ${metricCard("Vencidos", overdue.length, overdue.length ? "Requieren atención" : "Sin vencimientos")}
       ${metricCard("Pagado histórico", money(paidTotal), `${paid.length} pago${paid.length===1?"":"s"} registrado${paid.length===1?"":"s"}`)}
-      ${metricCard("Wompi", rows.filter((row)=>row.payment_provider==="wompi"||row.payment_url).length, `${paymentAttempts.filter((row)=>row.status==="approved").length} pago${paymentAttempts.filter((row)=>row.status==="approved").length===1?"":"s"} aprobado${paymentAttempts.filter((row)=>row.status==="approved").length===1?"":"s"}`)}
+      ${metricCard("Wompi", activeRows.filter((row)=>row.payment_provider==="wompi"||row.payment_url).length, `${paymentAttempts.filter((row)=>row.status==="approved" && activeRows.some((invoice)=>invoice.id===row.invoice_id)).length} pago${paymentAttempts.filter((row)=>row.status==="approved" && activeRows.some((invoice)=>invoice.id===row.invoice_id)).length===1?"":"s"} aprobado${paymentAttempts.filter((row)=>row.status==="approved" && activeRows.some((invoice)=>invoice.id===row.invoice_id)).length===1?"":"s"}`)}
     </div>
 
     <section class="card billing-portal-card">
       <div class="card-head">
         <div><h2>${internalAggregate ? "Facturación de clientes" : "Mis cuentas de cobro"}</h2><p>Historial de cobros, vencimientos y pagos registrados en NEXO</p></div>
-        <span class="count">${rows.length} documento${rows.length===1?"":"s"}</span>
+        <div class="billing-admin-summary">
+          <span class="count">${rows.length} documento${rows.length===1?"":"s"}</span>
+          ${internalAggregate?`<button class="btn small" id="billingArchivedToggle" type="button">${state.billingShowArchived?"Ocultar archivadas":"Ver archivadas"} (${archivedCount})</button>`:""}
+        </div>
       </div>
       <div class="table-wrap">
         <table>
@@ -3268,7 +3330,7 @@ async function renderBillingPortal() {
                 <td><span class="pill ${status==="paid"?"green":status==="overdue"?"orange":status==="pending"?"amber":""}">${esc(invoiceStatusLabel(status))}</span></td>
                 <td>${row.paid_at ? dateTime(row.paid_at) : "—"}</td>
                 <td>
-                  ${["pending","overdue"].includes(status)
+                  ${row.archived_at ? '<small class="muted">Prueba archivada</small>' : ["pending","overdue"].includes(status)
                     ? `<div class="billing-online-actions">
                         ${directWompiLink
                           ? `<a class="btn primary small billing-direct-link" href="${esc(row.payment_url)}" target="_blank" rel="noopener noreferrer">Abrir Wompi ↗</a>`
@@ -3283,17 +3345,24 @@ async function renderBillingPortal() {
                 <td>
                   <div class="billing-email-actions">
                     <span class="billing-email-status">${row.email_status==="sent"?"Enviado "+dateTime(row.email_sent_at):row.email_status==="failed"?"Error en envío":row.email_status==="disabled"?"Desactivado":"Pendiente"}</span>
-                    ${internalAggregate&&row.email_status!=="disabled"&& !["cancelled","waived"].includes(row.status)
+                    ${internalAggregate&&!row.archived_at&&row.email_status!=="disabled"&& !["cancelled","waived"].includes(row.status)
                       ? `<button class="btn small billing-send-email" data-invoice-id="${row.id}" type="button">${row.email_status==="sent"?"Reenviar":"Enviar email"}</button>` : ""}
                   </div>
                 </td>
-                ${internalAggregate ? `<td>${(
-                    ["pending","overdue","cancelled"].includes(row.status) &&
-                    !row.paid_at && row.payment_status==="not_requested" && !row.payment_url &&
-                    !row.payment_transaction_id && !["sent","disabled"].includes(row.email_status) &&
-                    !(attemptsByInvoice.get(row.id)||[]).length
-                  ) ? `<button class="btn small billing-delete-test" data-invoice-id="${row.id}" type="button" title="Solo cuentas sin pagos ni correos enviados">Eliminar prueba</button>` :
-                  '<small class="muted">Protegida</small>'}</td>` : ""}
+                ${internalAggregate ? `<td><div class="billing-email-actions">
+                  ${row.archived_at
+                    ? `<small class="muted">Archivada por: ${esc(row.archive_reason||"Prueba")}</small>
+                       <button class="btn small billing-restore-test" data-invoice-id="${row.id}" type="button">Restaurar</button>`
+                    : (
+                       ["pending","overdue","cancelled"].includes(row.status) &&
+                       !row.paid_at && row.payment_status==="not_requested" && !row.payment_url &&
+                       !row.payment_transaction_id && !["sent","disabled"].includes(row.email_status) &&
+                       !(attemptsByInvoice.get(row.id)||[]).length
+                      ) ? `<button class="btn small billing-delete-test" data-invoice-id="${row.id}" type="button">Eliminar prueba</button>`
+                    : ["paid","cancelled","waived"].includes(row.status) && row.payment_status!=="pending"
+                      ? `<button class="btn small billing-archive-test" data-invoice-id="${row.id}" type="button">Archivar prueba</button>`
+                      : '<small class="muted">Cobro activo · protegido</small>'}
+                </div></td>` : ""}
               </tr>`;
             }).join("") : `<tr><td colspan="${internalAggregate?11:9}">${emptyState("Todavía no hay cuentas de cobro.", "Cuando exista un cobro aparecerá aquí automáticamente.")}</td></tr>`}
           </tbody>
@@ -3317,6 +3386,24 @@ async function renderBillingPortal() {
         await navigator.clipboard.writeText(button.dataset.paymentUrl||"");
         showToast("Link de Wompi copiado.");
       }catch(error){showError("No pudimos copiar el link de pago.");}
+    });
+  });
+
+  $("billingArchivedToggle")?.addEventListener("click",async()=>{
+    state.billingShowArchived=!state.billingShowArchived;
+    await renderBillingPortal();
+  });
+
+  document.querySelectorAll(".billing-archive-test").forEach((button)=>{
+    button.addEventListener("click",()=>{
+      const invoice=byId.get(button.dataset.invoiceId);
+      if(invoice)archiveTestInvoice(invoice,button);
+    });
+  });
+  document.querySelectorAll(".billing-restore-test").forEach((button)=>{
+    button.addEventListener("click",()=>{
+      const invoice=byId.get(button.dataset.invoiceId);
+      if(invoice)restoreArchivedInvoice(invoice,button);
     });
   });
 
@@ -3664,7 +3751,7 @@ async function buildSearchIndex() {
     scope(supabase.from("conversations").select("*").order("last_message_at",{ascending:false}).limit(250)),
     scope(supabase.from("leads").select("*").order("created_at",{ascending:false}).limit(250)),
     scope(supabase.from("appointments").select("*").order("created_at",{ascending:false}).limit(250)),
-    scope(supabase.from("client_invoices").select("*").order("created_at",{ascending:false}).limit(250)),
+    scope(supabase.from("client_invoices").select("*").is("archived_at",null).order("created_at",{ascending:false}).limit(250)),
     scope(supabase.from("contacts").select("*").order("created_at",{ascending:false}).limit(350)),
     scope(supabase.from("work_tasks").select("*").order("created_at",{ascending:false}).limit(350)),
   ];
@@ -3796,7 +3883,7 @@ async function refreshNotifications() {
     internalAdmin
       ? supabase.from("appointments").select("id,organization_id,name,status,starts_at,created_at").eq("organization_id","00000000-0000-0000-0000-000000000000")
       : scoped(supabase.from("appointments").select("id,organization_id,name,status,starts_at,created_at").in("status",["Solicitada","Pendiente"]).order("created_at",{ascending:false}).limit(12)),
-    scoped(supabase.from("client_invoices").select("id,organization_id,invoice_number,status,due_date,amount_cop,reference").in("status",["pending","overdue"]).order("due_date",{ascending:true}).limit(20)),
+    scoped(supabase.from("client_invoices").select("id,organization_id,invoice_number,status,due_date,amount_cop,reference").is("archived_at",null).in("status",["pending","overdue"]).order("due_date",{ascending:true}).limit(20)),
     workTaskQuery,
     supabase.from("nexo_client_assignment_notices")
       .select("id,recipient_user_id,organization_id,assignment_type,created_at")

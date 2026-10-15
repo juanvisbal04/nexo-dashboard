@@ -76,7 +76,7 @@ export async function renderFounderCommandCenter(context){
     orgIds.length?C.supabase.from("assistants").select("*").in("organization_id",orgIds):Promise.resolve({data:[],error:null}),
     C.supabase.from("nexo_people_candidates").select("*").order("created_at",{ascending:false}).limit(1000),
     C.supabase.from("nexo_people_onboarding").select("*").order("created_at",{ascending:false}).limit(1000),
-    C.supabase.from("client_invoices").select("*").order("created_at",{ascending:false}).limit(2000),
+    C.supabase.from("client_invoices").select("*").is("archived_at",null).order("created_at",{ascending:false}).limit(2000),
     C.supabase.from("nexo_expenses").select("*").eq("active",true).limit(1000),
     C.supabase.from("nexo_departments").select("id,department_key,name,active,planned").eq("active",true),
     loadPeople(),

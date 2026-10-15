@@ -2345,3 +2345,9 @@ table{min-width:max-content}
 .billing-direct-link{text-decoration:none;white-space:nowrap}
 .billing-online-actions{min-width:130px}
 @media(max-width:700px){.billing-portal-card .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}}
+
+.billing-admin-summary{display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:flex-end}
+.billing-admin-summary .count{white-space:nowrap}
+.crm-invoice-actions .billing-delete-test{border-color:#ecb9b9;color:#9b3434;background:#fff7f7}
+.crm-invoice-actions button{margin:3px 2px}
+@media(max-width:700px){.billing-admin-summary{justify-content:flex-start}.crm-billing-table{overflow-x:auto}}

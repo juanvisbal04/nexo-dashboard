@@ -387,7 +387,7 @@ export async function openCustomer360(context,orgId){
       C.supabase.from("conversations").select("*").eq("organization_id",orgId).order("last_message_at",{ascending:false}).limit(500),
       C.supabase.from("leads").select("*").eq("organization_id",orgId).order("created_at",{ascending:false}).limit(500),
       C.supabase.from("appointments").select("*").eq("organization_id",orgId).order("starts_at",{ascending:false}).limit(500),
-      C.supabase.from("client_invoices").select("*").eq("organization_id",orgId).order("due_date",{ascending:false}).limit(500),
+      C.supabase.from("client_invoices").select("*").is("archived_at",null).eq("organization_id",orgId).order("due_date",{ascending:false}).limit(500),
       C.supabase.from("work_tasks").select("*").eq("organization_id",orgId).order("created_at",{ascending:false}).limit(200),
       C.supabase.from("services").select("id,name,price,active").eq("organization_id",orgId),
       C.supabase.from("organization_onboarding").select("*").eq("organization_id",orgId).maybeSingle(),
