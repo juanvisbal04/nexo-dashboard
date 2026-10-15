@@ -2,7 +2,7 @@ import { notificationFingerprint, loadNotificationReads, markNotificationReads }
 import { mountMfaProfile, promptForEnrolledMfa } from "./mfaShield.js?v=20261013-shield1";
 import { SERVICE_LINES, serviceLinesField, serviceLinesLabel, selectedServiceLines, needsAssistant, bindServiceLines, openServiceLineEditor } from "./serviceLines.js?v=20261013-lines2";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
-import { renderCrm, openProspectEditorFromGrowth, openNewProspectFromGrowth } from "./crm.js?v=20261015-billing6";
+import { renderCrm, openProspectEditorFromGrowth, openNewProspectFromGrowth } from "./crm.js?v=20261015-billing7-fix";
 import { renderTasks, openCustomer360, openContact360, closeDrawer } from "./workspace360.js?v=20261013-work2";
 import { renderDataQuality, openOnboarding, closeQualityDrawer } from "./qualityOnboarding.js?v=20261001-quality2";
 import { renderInternalTeam } from "./team.js?v=20261013-team2";
