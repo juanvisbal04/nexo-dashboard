@@ -5,6 +5,7 @@ const nav=document.getElementById("navLinks");
 const pageMain=document.querySelector("main");
 if(pageMain){
   if(!pageMain.id) pageMain.id="contenido";
+  if(!pageMain.hasAttribute("tabindex")) pageMain.setAttribute("tabindex","-1");
   if(!document.querySelector(".nexo-skip-link")){
     const skip=document.createElement("a");
     skip.className="nexo-skip-link";
@@ -35,7 +36,7 @@ menu?.addEventListener("click",(event)=>{
   menu.textContent=open?"×":"☰";
 });
 
-document.querySelectorAll("#navLinks a").forEach(a=>a.addEventListener("click",closeMobileNav));
+document.querySelectorAll("#navLinks a").forEach(a=>a.addEventListener("click",()=>closeMobileNav()));
 
 document.addEventListener("keydown",(event)=>{
   if(event.key==="Escape" && nav?.classList.contains("open")) closeMobileNav(true);
