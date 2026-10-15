@@ -4,18 +4,24 @@ const SUPABASE_URL=Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const service=createClient(SUPABASE_URL,SERVICE_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
 
-const CORS={
-  "access-control-allow-origin":"*",
-  "access-control-allow-headers":"content-type, apikey, x-client-info",
-  "access-control-allow-methods":"POST, OPTIONS",
-  "cache-control":"no-store",
-};
+const allowedOrigins=new Set([
+  "https://nexobyjv.online",
+  "https://www.nexobyjv.online",
+  "https://nexo-public.onrender.com"
+]);
+function cors(req:Request){
+  const origin=req.headers.get("origin")||"";
+  return {
+    ...(allowedOrigins.has(origin)?{"access-control-allow-origin":origin}:{}),
+    "access-control-allow-headers":"content-type, apikey, x-client-info",
+    "access-control-allow-methods":"POST, OPTIONS",
+    "vary":"Origin",
+    "cache-control":"no-store"
+  };
+}
 const clean=(value:unknown,max=1200)=>String(value??"").trim().slice(0,max);
 const norm=(value:unknown)=>clean(value,1200).toLowerCase()
   .normalize("NFD").replace(/[\u0300-\u036f]/g,"");
-const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{
-  status,headers:{...CORS,"content-type":"application/json; charset=utf-8"}
-});
 const emailRe=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const phoneRe=/\+?[0-9][0-9\s().-]{6,24}/;
 
@@ -109,16 +115,14 @@ async function hashKey(value:string){
 }
 async function rateLimit(req:Request){
   const ip=clean(req.headers.get("cf-connecting-ip")||req.headers.get("x-forwarded-for")?.split(",")[0]||"unknown",100);
-  const bucketMs=10*60*1000;
-  const bucketStart=new Date(Math.floor(Date.now()/bucketMs)*bucketMs).toISOString();
-  const key=await hashKey(`${ip}:${bucketStart}`);
-  const existing=await service.from("nora_web_rate_limits").select("request_count,window_start").eq("rate_key",key).maybeSingle();
-  const count=Number(existing.data?.request_count||0);
-  if(count>=40) return false;
-  await service.from("nora_web_rate_limits").upsert({
-    rate_key:key,window_start:bucketStart,request_count:count+1,updated_at:new Date().toISOString()
+  const period=10*60*1000;
+  const windowStart=new Date(Math.floor(Date.now()/period)*period).toISOString();
+  const rateKey=await hashKey("nora:v2:"+ip+":"+windowStart);
+  const rate=await service.rpc("nexo_public_rate_limit",{
+    p_rate_key:rateKey,p_window_start:windowStart,p_limit:40
   });
-  return true;
+  if(rate.error)throw rate.error;
+  return rate.data===true;
 }
 async function findOwner(product:string|null){
   const founder=await service.from("profiles").select("id").eq("platform_role","platform_admin").order("created_at").limit(1).maybeSingle();
@@ -188,10 +192,23 @@ async function createLead(session:SessionRow){
 }
 
 Deno.serve(async(req:Request)=>{
-  if(req.method==="OPTIONS") return new Response(null,{status:204,headers:CORS});
-  if(req.method!=="POST") return json({error:"Method not allowed"},405);
-  if(Number(req.headers.get("content-length")||"0")>16000) return json({error:"Payload too large"},413);
-  if(!(await rateLimit(req))) return json({error:"Has enviado demasiados mensajes. Intenta de nuevo en unos minutos."},429);
+  const origin=req.headers.get("origin")||"";
+  const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{
+    status,headers:{...cors(req),"content-type":"application/json; charset=utf-8"}
+  });
+  if(req.method==="OPTIONS"){
+    if(!allowedOrigins.has(origin))return new Response(null,{status:403,headers:{"cache-control":"no-store"}});
+    return new Response(null,{status:204,headers:cors(req)});
+  }
+  if(!allowedOrigins.has(origin))return json({error:"Origin not allowed"},403);
+  if(req.method!=="POST")return json({error:"Method not allowed"},405);
+  if(Number(req.headers.get("content-length")||"0")>16000)return json({error:"Payload too large"},413);
+  try{
+    if(!(await rateLimit(req)))return json({error:"Has enviado demasiados mensajes. Intenta de nuevo en unos minutos."},429);
+  }catch(error){
+    console.error("NORA_RATE_LIMIT_ERROR",error);
+    return json({error:"Nora no está disponible por el momento. Intenta nuevamente en unos minutos."},503);
+  }
 
   try{
     const body=await req.json().catch(()=>({}));
