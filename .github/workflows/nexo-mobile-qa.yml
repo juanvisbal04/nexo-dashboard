@@ -7,6 +7,7 @@ on:
       - 'tests/nora-mobile-smoke.mjs'
       - 'tests/demo-form-smoke.mjs'
       - 'tests/demo-edge-idempotency.mjs'
+      - 'tests/demo-public-api-smoke.mjs'
       - 'supabase/functions/submit-demo-request/index.ts'
       - 'supabase/migrations/20261016_demo_request_idempotency.sql'
       - '.github/workflows/nexo-mobile-qa.yml'
@@ -18,6 +19,7 @@ on:
       - 'tests/nora-mobile-smoke.mjs'
       - 'tests/demo-form-smoke.mjs'
       - 'tests/demo-edge-idempotency.mjs'
+      - 'tests/demo-public-api-smoke.mjs'
       - 'supabase/functions/submit-demo-request/index.ts'
       - 'supabase/migrations/20261016_demo_request_idempotency.sql'
       - '.github/workflows/nexo-mobile-qa.yml'
@@ -85,6 +87,18 @@ jobs:
           assert.equal(missingAsset.status,404,'Non-existent JavaScript must not return HTML 200');
           console.log('PASS missing JavaScript: HTTP 404');
           NODE
+
+  demo-api-live-health:
+    name: Demo Edge API guards (production, no writes)
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run safe negative API requests only
+        run: node tests/demo-public-api-smoke.mjs
 
   preview-lighthouse-mobile:
     name: Lighthouse on proposed public-site code
