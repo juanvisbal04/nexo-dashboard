@@ -130,6 +130,32 @@ try{
     assert.equal(api.calls,2);
     await c.close();
   });
+  await test('All four plan-specific demos use the current retry-safe script',async()=>{
+    const paths=[
+      ['/demo-start.html','start'],['/demo-growth.html','growth'],
+      ['/demo-pro.html','pro'],['/demo-custom.html','custom']
+    ];
+    for(const [path,expectedPlan] of paths){
+      const c=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+      const page=await c.newPage();
+      const api=intercept(page,async(route,body)=>{
+        assert.equal(body.plan_interest,expectedPlan,path+' should preserve its plan');
+        assert.match(body.client_request_id,/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+        return route.fulfill({status:200,contentType:'application/json',body:'{"ok":true,"id":"mock-plan-only"}'});
+      });
+      await page.goto(BASE+path,{waitUntil:'domcontentloaded'});
+      assert.equal(await page.locator('#demoPlan').inputValue(),expectedPlan);
+      await page.locator('#demoName').fill('Prospecto Ficticio Local');
+      await page.locator('#demoBusiness').fill('Negocio Prueba');
+      await page.locator('#demoEmail').fill('qa-only@example.test');
+      await page.locator('#demoIndustry').selectOption({label:'Comercio'});
+      await page.locator('#privacyConsent').check();
+      await page.locator('#demoSubmit').click();
+      await page.getByText(/Solicitud recibida/).waitFor();
+      assert.equal(api.calls,1);
+      await c.close();
+    }
+  });
   await test('Demo form: server success sends consent and resets fields once',async()=>{
     const c=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
     const page=await c.newPage();
@@ -152,5 +178,5 @@ try{
     await c.close();
   });
 }finally{await browser.close();}
-console.log('DEMO RESULTS:',passed,'of 7 checks; all API calls intercepted, no production writes.');
-if(passed!==7)process.exitCode=1;
+console.log('DEMO RESULTS:',passed,'of 8 checks; all API calls intercepted, no production writes.');
+if(passed!==8)process.exitCode=1;
