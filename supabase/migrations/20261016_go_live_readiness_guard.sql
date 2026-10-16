@@ -5,6 +5,7 @@
 CREATE OR REPLACE FUNCTION public.platform_activate_go_live(p_organization_id uuid)
 RETURNS jsonb
 LANGUAGE plpgsql
+SECURITY DEFINER
 SET search_path TO 'pg_catalog', 'public', 'private'
 AS $function$
 DECLARE
@@ -130,3 +131,37 @@ $function$;
 
 COMMENT ON FUNCTION private.seed_organization_onboarding() IS
   'Creates a pending checklist for new clients without marking unverified company setup as complete.';
+
+
+-- RLS also permits assigned implementation staff to edit ordinary checklist
+-- steps. They must not be able to bypass platform_activate_go_live by setting
+-- go_live_status/overall_status directly. The RPC runs as its postgres owner
+-- (SECURITY DEFINER) after checking the actual caller is a platform admin.
+CREATE OR REPLACE FUNCTION private.prevent_unverified_go_live_updates()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path TO 'pg_catalog', 'public'
+AS $function$
+BEGIN
+  IF CURRENT_USER <> 'postgres' THEN
+    IF TG_OP='INSERT' THEN
+      IF NEW.go_live_status='done' OR NEW.overall_status='live' THEN
+        RAISE EXCEPTION 'Go Live can only be activated through the verified platform action';
+      END IF;
+    ELSIF NEW.go_live_status IS DISTINCT FROM OLD.go_live_status
+       OR (NEW.overall_status='live' AND OLD.overall_status IS DISTINCT FROM 'live') THEN
+      RAISE EXCEPTION 'Go Live status is protected; use the platform activation action';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$function$;
+
+DROP TRIGGER IF EXISTS protect_organization_go_live ON public.organization_onboarding;
+CREATE TRIGGER protect_organization_go_live
+BEFORE INSERT OR UPDATE ON public.organization_onboarding
+FOR EACH ROW EXECUTE FUNCTION private.prevent_unverified_go_live_updates();
+
+COMMENT ON FUNCTION private.prevent_unverified_go_live_updates() IS
+  'Rejects direct Go Live status changes by authenticated users while allowing normal checklist edits.';
