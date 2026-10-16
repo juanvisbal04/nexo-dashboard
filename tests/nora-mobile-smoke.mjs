@@ -66,6 +66,30 @@ function mockNora(page){
     reset(){stage='welcome';}};
 }
 try{
+  await test('Home hero visible before site.js or IntersectionObserver runs',async()=>{
+    const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+    const page=await context.newPage();
+    await page.route('**/*',route=>{
+      if(route.request().url().startsWith(BASE))return route.continue();
+      return route.abort();
+    });
+    // Simulate delayed/failed site.js, without blocking the site's CSS.
+    await page.route('**/site.js*',route=>route.abort('failed'));
+    await page.goto(BASE+'/',{waitUntil:'domcontentloaded'});
+    await page.locator('.nx-hero-copy h1').waitFor();
+    const state=await page.locator('.nx-hero-copy').evaluate(el=>({
+      opacity:getComputedStyle(el).opacity,
+      visibility:getComputedStyle(el).visibility,
+      rendered:el.getBoundingClientRect().height>0,
+      hiddenAncestor:[...function*(n){for(let v=n;v;v=v.parentElement)yield v}(el)]
+        .some(n=>getComputedStyle(n).opacity==='0')
+    }));
+    assert.equal(state.opacity,'1','The primary headline must not begin hidden');
+    assert.equal(state.visibility,'visible');
+    assert.equal(state.hiddenAncestor,false,'No parent may hide the hero');
+    assert.equal(state.rendered,true);
+    await context.close();
+  });
   await test('Mobile: header/menu opens and navigates without overflow',async()=>{
     const context=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:3,isMobile:true,hasTouch:true});
     const page=await context.newPage();const api=mockNora(page);
@@ -145,5 +169,5 @@ try{
     await context.close();
   });
 } finally {await browser.close();}
-console.log('SMOKE RESULTS:',passed,'of 3 tests passed; no production leads or Supabase requests sent.');
-if(passed!==3)process.exitCode=1;
+console.log('SMOKE RESULTS:',passed,'of 4 tests passed; no production leads or Supabase requests sent.');
+if(passed!==4)process.exitCode=1;
