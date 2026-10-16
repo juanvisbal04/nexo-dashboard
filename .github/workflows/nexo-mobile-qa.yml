@@ -14,6 +14,10 @@ on:
       - 'index.html'
       - 'prospectAlerts.js'
       - 'tests/prospect-alerts.mjs'
+      - 'qualityOnboarding.js'
+      - 'onboardingReadiness.js'
+      - 'tests/onboarding-readiness.mjs'
+      - 'supabase/migrations/20261016_go_live_readiness_guard.sql'
       - '.github/workflows/nexo-mobile-qa.yml'
   workflow_dispatch:
   push:
@@ -30,6 +34,10 @@ on:
       - 'index.html'
       - 'prospectAlerts.js'
       - 'tests/prospect-alerts.mjs'
+      - 'qualityOnboarding.js'
+      - 'onboardingReadiness.js'
+      - 'tests/onboarding-readiness.mjs'
+      - 'supabase/migrations/20261016_go_live_readiness_guard.sql'
       - '.github/workflows/nexo-mobile-qa.yml'
 
 permissions:
@@ -66,6 +74,11 @@ jobs:
         run: node tests/demo-edge-idempotency.mjs
       - name: Test CRM follow-up notification grouping
         run: node tests/prospect-alerts.mjs
+      - name: Test onboarding readiness and guarded Go Live
+        run: |
+          node --check qualityOnboarding.js
+          node --check app.js
+          node tests/onboarding-readiness.mjs
 
   public-site-health:
     name: Public site availability and branded 404

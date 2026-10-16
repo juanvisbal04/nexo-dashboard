@@ -1,3 +1,4 @@
+import { evaluateGoLiveReadiness } from "./onboardingReadiness.js?v=20261016-ready1";
 let Q=null;
 
 const STEP_FIELDS=[
@@ -295,6 +296,14 @@ export async function openOnboarding(context=Q,orgId){
   const setting=settingsR.data||{};
   const commercial=commercialR.data||{};
   const progress=progressPercent(row);
+  const readiness=evaluateGoLiveReadiness({
+    steps:row,
+    serviceLines:Array.isArray(org.service_lines)?org.service_lines:[],
+    assistantActive:assistant?.status==="active",
+    activeServices:services.filter((svc)=>svc.active).length,
+    hasOperationalContact:Boolean(String(setting.notification_email||setting.whatsapp||setting.handoff_phone||"").trim()),
+    hasCommercial:Boolean(commercialR.data),
+  });
 
   const evidence={
     company_status:`${setting.notification_email||setting.whatsapp?"Contacto configurado":"Falta contacto operativo"}`,
@@ -317,13 +326,20 @@ export async function openOnboarding(context=Q,orgId){
       <div><span>Estado general</span><b>${esc(row.overall_status||"in_progress")}</b><p>Plan: ${esc(commercial.plan_name||"Por definir")} · Implementación: ${esc(commercial.implementation_status||"pending")}</p></div>
     </div>
 
+    ${row.go_live_status!=="done" ? `<section class="onboarding-readiness" role="status" aria-live="polite">
+      <b>${readiness.ready?"Preparado para activación":"Requisitos antes de Go Live"}</b>
+      ${readiness.ready?"Todos los controles básicos están aprobados. Confirma antes de activar.":
+        `<ul>${readiness.reasons.map((reason)=>`<li>${esc(reason)}</li>`).join("")}</ul>`}
+    </section>` : ""}
     <form id="onboardingForm">
       <div class="onboarding-steps">
         ${STEP_FIELDS.map(([field,label],index)=>`
           <section class="onboarding-step ${stepTone(row[field])}">
             <div class="onboarding-step-number">${String(index+1).padStart(2,"0")}</div>
             <div class="onboarding-step-copy"><b>${esc(label)}</b><span>${esc(evidence[field])}</span></div>
-            ${stepSelect(field,row[field])}
+            ${field==="go_live_status"
+              ? `<span class="onboarding-status-readonly" aria-label="Activación controlada">${row[field]==="done"?"Activado":"Solo mediante validación Go Live"}</span>`
+              : stepSelect(field,row[field])}
           </section>
         `).join("")}
       </div>
@@ -331,7 +347,9 @@ export async function openOnboarding(context=Q,orgId){
       <div class="onboarding-actions">
         <button id="onboardingConfigure" class="btn" type="button">Abrir configuración</button>
         <button id="onboardingCustomer360" class="btn" type="button">Customer 360</button>
-        ${row.go_live_status!=="done"?'<button id="onboardingGoLive" class="btn" type="button">Activar Go Live</button>':""}
+        ${row.go_live_status!=="done"
+          ? `<button id="onboardingGoLive" class="btn" type="button" ${readiness.ready?"":"disabled"}>Activar Go Live</button>`
+          :""}
         <button class="btn primary" type="submit">Guardar onboarding</button>
       </div>
     </form>
@@ -354,11 +372,12 @@ export async function openOnboarding(context=Q,orgId){
     event.preventDefault();
     const button=event.currentTarget.querySelector('button[type="submit"]');
     button.disabled=true;button.textContent="Guardando…";
-    const values={};
+    const values={go_live_status:row.go_live_status};
     root.querySelectorAll("[data-step-field]").forEach((select)=>{values[select.dataset.stepField]=select.value;});
     const overall=deriveOverall(values);
+    const {go_live_status:_lockedGoLive,...editableSteps}=values;
     const {error}=await Q.supabase.from("organization_onboarding").update({
-      ...values,
+      ...editableSteps,
       overall_status:overall,
       notes:root.querySelector("#onboardingNotes").value.trim()||null,
       updated_by:Q.state.session.user.id,
@@ -370,6 +389,7 @@ export async function openOnboarding(context=Q,orgId){
   });
 
   root.querySelector("#onboardingGoLive")?.addEventListener("click",async()=>{
+    if(!readiness.ready){Q.showError("Completa primero los requisitos de Go Live.");return;}
     if(!confirm(`¿Activar ${org.name} como cliente LIVE? Esto actualizará su etapa comercial y fecha de Go Live.`))return;
     const button=root.querySelector("#onboardingGoLive");
     button.disabled=true;button.textContent="Activando…";
