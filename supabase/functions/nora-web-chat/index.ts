@@ -259,6 +259,23 @@ Deno.serve(async(req:Request)=>{
       return json({ok:true,session_id:session.id,mode:"guided",reply:consentPrompt,quick_replies:consentButtons});
     }
 
+    // Network interruptions can leave the visitor holding an old quick-reply.
+    // Resynchronise with the current stage instead of treating the old choice as
+    // a new name, business, phone or consent decision.
+    const allowedQuick=session.stage==="welcome"?productButtons
+      :session.stage==="ask_goal"?nextPrompt(session).quick_replies
+      :session.stage==="ask_consent"?consentButtons:[];
+    if(quick && !allowedQuick.some((option)=>option.id===quick)){
+      const prompt=session.stage==="lead_created"
+        ?{reply:"Tu solicitud ya quedó registrada. Puedes continuar por WhatsApp o explorar otra solución.",
+          quick_replies:[{id:"open_whatsapp",label:"Hablar por WhatsApp"},{id:"restart",label:"Consultar otra cosa"}]}
+        :session.stage==="welcome"
+          ?{reply:"Puedes elegir una de nuestras soluciones para continuar.",quick_replies:productButtons}
+          :nextPrompt(session);
+      return json({ok:true,session_id:session.id,mode:"guided",
+        reply:prompt.reply,quick_replies:prompt.quick_replies,recovered:true});
+    }
+
     const displayMessage=message||quick;
     const explicitlyConsented=session.privacy_consent===true
       && Boolean(session.privacy_consent_at)
