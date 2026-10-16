@@ -24,6 +24,12 @@
   background:transparent;
   isolation:isolate;
 }
+.brand picture,
+.footer-logo picture{
+  display:block;
+  max-width:100%;
+  line-height:0;
+}
 .brand img{
   display:block;
   width:220px;
