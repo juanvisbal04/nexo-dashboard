@@ -43,8 +43,106 @@ jobs:
       - name: Run isolated iPhone/tablet smoke suite
         run: node tests/nora-mobile-smoke.mjs
 
+  preview-lighthouse-mobile:
+    name: Lighthouse on proposed public-site code
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Start isolated site
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 --directory public > /tmp/nexo-lighthouse-local.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/nexo-lighthouse-local.log
+          exit 1
+      - name: Lighthouse mobile on local branch
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+        run: |
+          npx --yes lighthouse@12 http://127.0.0.1:4173/             --chrome-flags="--headless --no-sandbox --disable-dev-shm-usage"             --only-categories=performance,accessibility             --form-factor=mobile             --throttling-method=simulate             --output=json             --output-path=lighthouse-preview-mobile.json             --quiet
+          node - <<'NODE'
+          const fs=require('fs');
+          const r=JSON.parse(fs.readFileSync('lighthouse-preview-mobile.json','utf8'));
+          const metric=(id)=>r.audits[id]?.numericValue??null;
+          console.log(JSON.stringify({
+            mode:'Mobile Lighthouse / local PR snapshot, not production, not field data',
+            collectedAt:r.fetchTime,
+            performanceScore:Math.round(100*(r.categories.performance?.score??0)),
+            accessibilityScore:Math.round(100*(r.categories.accessibility?.score??0)),
+            LCP_ms:metric('largest-contentful-paint'),
+            CLS:metric('cumulative-layout-shift'),
+            TBT_ms:metric('total-blocking-time'),
+            renderBlockingSavings_ms:metric('render-blocking-resources')
+          },null,2));
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nexo-preview-lighthouse
+          path: lighthouse-preview-mobile.json
+          if-no-files-found: ignore
+          retention-days: 7
+
+  baseline-lighthouse-mobile:
+    name: Lighthouse on unchanged main (control sample)
+    if: github.event_name == 'pull_request'
+    needs: preview-lighthouse-mobile
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Start isolated site
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 --directory public > /tmp/nexo-lighthouse-local.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/nexo-lighthouse-local.log
+          exit 1
+      - name: Lighthouse mobile on local branch
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+        run: |
+          npx --yes lighthouse@12 http://127.0.0.1:4173/             --chrome-flags="--headless --no-sandbox --disable-dev-shm-usage"             --only-categories=performance,accessibility             --form-factor=mobile             --throttling-method=simulate             --output=json             --output-path=lighthouse-baseline-mobile.json             --quiet
+          node - <<'NODE'
+          const fs=require('fs');
+          const r=JSON.parse(fs.readFileSync('lighthouse-baseline-mobile.json','utf8'));
+          const metric=(id)=>r.audits[id]?.numericValue??null;
+          console.log(JSON.stringify({
+            mode:'Mobile Lighthouse / local main baseline, not production, not field data',
+            collectedAt:r.fetchTime,
+            performanceScore:Math.round(100*(r.categories.performance?.score??0)),
+            accessibilityScore:Math.round(100*(r.categories.accessibility?.score??0)),
+            LCP_ms:metric('largest-contentful-paint'),
+            CLS:metric('cumulative-layout-shift'),
+            TBT_ms:metric('total-blocking-time'),
+            renderBlockingSavings_ms:metric('render-blocking-resources')
+          },null,2));
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nexo-baseline-lighthouse
+          path: lighthouse-baseline-mobile.json
+          if-no-files-found: ignore
+          retention-days: 7
+
   production-lighthouse-mobile:
     name: Lighthouse mobile — GET only (no leads)
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 12
     continue-on-error: true
