@@ -6,6 +6,9 @@ on:
       - 'public/**'
       - 'tests/nora-mobile-smoke.mjs'
       - 'tests/demo-form-smoke.mjs'
+      - 'tests/demo-edge-idempotency.mjs'
+      - 'supabase/functions/submit-demo-request/index.ts'
+      - 'supabase/migrations/20261016_demo_request_idempotency.sql'
       - '.github/workflows/nexo-mobile-qa.yml'
   workflow_dispatch:
   push:
@@ -14,6 +17,9 @@ on:
       - 'public/**'
       - 'tests/nora-mobile-smoke.mjs'
       - 'tests/demo-form-smoke.mjs'
+      - 'tests/demo-edge-idempotency.mjs'
+      - 'supabase/functions/submit-demo-request/index.ts'
+      - 'supabase/migrations/20261016_demo_request_idempotency.sql'
       - '.github/workflows/nexo-mobile-qa.yml'
 
 permissions:
@@ -30,7 +36,7 @@ jobs:
         with:
           node-version: '22'
       - name: Install browser test dependency
-        run: npm install --no-save --no-package-lock playwright@1.58.2
+        run: npm install --no-save --no-package-lock playwright@1.58.2 typescript@5.9.3
       - name: Install Chromium dependencies
         run: npx playwright install --with-deps chromium
       - name: Start local static website
@@ -46,6 +52,8 @@ jobs:
         run: node tests/nora-mobile-smoke.mjs
       - name: Run demo request form smoke suite (mocked API)
         run: node tests/demo-form-smoke.mjs
+      - name: Test real Edge function with isolated database simulation
+        run: node tests/demo-edge-idempotency.mjs
 
   public-site-health:
     name: Public site availability and branded 404
