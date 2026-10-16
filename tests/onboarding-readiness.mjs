@@ -50,5 +50,11 @@ assert.ok(migration.includes("NOT EXISTS("));
 assert.ok(!migration.includes("testing_status=case"));
 assert.ok(!migration.includes("values(new.id,'in_progress','done','pending')"));
 assert.ok(migration.includes("CREATE OR REPLACE FUNCTION private.seed_organization_onboarding()"));
+assert.ok(migration.includes('SECURITY DEFINER'),'Activation RPC must be able to make privileged state transition after admin check');
+assert.ok(migration.includes('SECURITY INVOKER'),'Trigger must retain original caller role');
+assert.ok(migration.includes("CURRENT_USER <> 'postgres'"),'Direct authenticated writes must be blocked');
+assert.ok(migration.includes('BEFORE INSERT OR UPDATE ON public.organization_onboarding'));
+assert.ok(migration.includes("NEW.go_live_status IS DISTINCT FROM OLD.go_live_status"));
+
 console.log('PASS SQL Go Live RPC and new-client seeding require explicit approval, no artificial completion');
 console.log('ONBOARDING SAFETY: 8 of 8 checks passed; no production data modified.');
