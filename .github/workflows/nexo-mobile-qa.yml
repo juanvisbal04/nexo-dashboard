@@ -45,6 +45,7 @@ jobs:
 
   preview-lighthouse-mobile:
     name: Lighthouse on proposed public-site code
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
@@ -92,6 +93,7 @@ jobs:
   baseline-lighthouse-mobile:
     name: Lighthouse on unchanged main (control sample)
     if: github.event_name == 'pull_request'
+    needs: preview-lighthouse-mobile
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
@@ -140,6 +142,7 @@ jobs:
 
   production-lighthouse-mobile:
     name: Lighthouse mobile — GET only (no leads)
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 12
     continue-on-error: true
