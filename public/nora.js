@@ -9,6 +9,13 @@
   const STATE_KEY="nexo_nora_state_v1";
   const TEASER_KEY="nexo_nora_teaser_v1";
   const MAX_STORED_MESSAGES=40;
+  // Keep contact information visible in the current chat bubble, but do not
+  // persist emails or phone numbers in browser storage (including older histories).
+  const redactStoredContact=(value)=>String(value||"")
+    .replace(/[^\s@]+@[^\s@]+\.[^\s@]+/gi,"[correo oculto]")
+    .replace(/(^|[^\d])(\+?\d[\d\s().-]{8,}\d)(?=$|[^\d])/g,
+      (_match,prefix)=>prefix+"[teléfono oculto]");
+
 
   const qs=new URLSearchParams(location.search);
   const now=Date.now();
@@ -33,9 +40,16 @@
     started:Boolean(saved?.session_id),
     open:false,
     loading:false,
-    messages:Array.isArray(saved?.messages)?saved.messages.slice(-MAX_STORED_MESSAGES):[],
+    messages:Array.isArray(saved?.messages)
+      ? saved.messages.slice(-MAX_STORED_MESSAGES).map((m)=>({
+          role:m.role,content:redactStoredContact(m.content)
+        }))
+      :[],
     quickReplies:Array.isArray(saved?.quick_replies)?saved.quick_replies.filter(item=>item && typeof item.id==="string" && typeof item.label==="string").slice(0,8):[],
   };
+
+  // Redact any legacy stored messages as soon as the updated script runs.
+  if(saved && state.messages.length) persist();
 
   function persist(){
     if(state.sessionId) localStorage.setItem(SESSION_KEY,state.sessionId);
@@ -132,7 +146,7 @@
     ui.messages.appendChild(row);
     ui.messages.scrollTop=ui.messages.scrollHeight;
     if(store){
-      state.messages.push({role,content});
+      state.messages.push({role,content:redactStoredContact(content)});
       state.messages=state.messages.slice(-MAX_STORED_MESSAGES);
       persist();
     }
