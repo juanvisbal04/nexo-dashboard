@@ -266,7 +266,7 @@ Deno.serve(async(req:Request)=>{
     // Visitors sometimes type their email or WhatsApp before reaching the opt-in.
     // Request consent without persisting their unsolicited contact information.
     const containsUnsolicitedContact=emailRe.test(displayMessage)
-      || /(?:^|[^\\d])\\+?\\d[\\d\\s().-]{8,}\\d(?:$|[^\\d])/.test(displayMessage);
+      || /(?:^|[^\d])\+?\d[\d\s().-]{8,}\d(?:$|[^\d])/.test(displayMessage);
     if(!explicitlyConsented && session.stage!=="ask_consent" && containsUnsolicitedContact){
       const staged=await service.from("nora_web_sessions")
         .update({stage:"ask_consent"}).eq("id",session.id);
