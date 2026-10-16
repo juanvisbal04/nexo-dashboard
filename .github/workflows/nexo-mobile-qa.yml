@@ -10,6 +10,10 @@ on:
       - 'tests/demo-public-api-smoke.mjs'
       - 'supabase/functions/submit-demo-request/index.ts'
       - 'supabase/migrations/20261016_demo_request_idempotency.sql'
+      - 'app.js'
+      - 'index.html'
+      - 'prospectAlerts.js'
+      - 'tests/prospect-alerts.mjs'
       - '.github/workflows/nexo-mobile-qa.yml'
   workflow_dispatch:
   push:
@@ -22,6 +26,10 @@ on:
       - 'tests/demo-public-api-smoke.mjs'
       - 'supabase/functions/submit-demo-request/index.ts'
       - 'supabase/migrations/20261016_demo_request_idempotency.sql'
+      - 'app.js'
+      - 'index.html'
+      - 'prospectAlerts.js'
+      - 'tests/prospect-alerts.mjs'
       - '.github/workflows/nexo-mobile-qa.yml'
 
 permissions:
@@ -56,6 +64,8 @@ jobs:
         run: node tests/demo-form-smoke.mjs
       - name: Test real Edge function with isolated database simulation
         run: node tests/demo-edge-idempotency.mjs
+      - name: Test CRM follow-up notification grouping
+        run: node tests/prospect-alerts.mjs
 
   public-site-health:
     name: Public site availability and branded 404
