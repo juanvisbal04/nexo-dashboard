@@ -66,6 +66,27 @@ function mockNora(page){
     reset(){stage='welcome';}};
 }
 try{
+  await test('Home critical CSS: primary headline visible and shared footer restored',async()=>{
+    const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+    const page=await context.newPage();mockNora(page);
+    await page.goto(BASE+'/',{waitUntil:'domcontentloaded'});
+    await page.waitForFunction(()=>{
+      const l=document.querySelector('link[href*="styles.css"]');
+      return l && l.media==='all';
+    },{timeout:15000});
+    const values=await page.evaluate(()=>({
+      hero: getComputedStyle(document.querySelector('.nx-hero h1')).color,
+      footer: getComputedStyle(document.querySelector('.site-footer')).display,
+      width:document.documentElement.scrollWidth,
+      viewport:window.innerWidth,
+      font: getComputedStyle(document.body).fontFamily
+    }));
+    assert.equal(values.hero,'rgb(255, 255, 255)');
+    assert.equal(values.footer,'grid');
+    assert.ok(values.width<=values.viewport+2,'No horizontal scroll on 390px viewport');
+    assert.ok(values.font.includes('Montserrat'));
+    await context.close();
+  });
   await test('Home hero visible before site.js or IntersectionObserver runs',async()=>{
     const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
     const page=await context.newPage();
@@ -169,5 +190,5 @@ try{
     await context.close();
   });
 } finally {await browser.close();}
-console.log('SMOKE RESULTS:',passed,'of 4 tests passed; no production leads or Supabase requests sent.');
-if(passed!==4)process.exitCode=1;
+console.log('SMOKE RESULTS:',passed,'of 5 tests passed; no production leads or Supabase requests sent.');
+if(passed!==5)process.exitCode=1;
