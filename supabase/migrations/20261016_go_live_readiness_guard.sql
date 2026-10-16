@@ -107,3 +107,26 @@ $function$;
 
 COMMENT ON FUNCTION public.platform_activate_go_live(uuid) IS
   'Platform-admin Go Live activation with server-enforced readiness. Never auto-approves unverified testing or setup.';
+
+
+-- New accounts must actually complete "Empresa"; do not pre-certify the
+-- first step merely because an organization record was created.
+-- This only changes future inserts. No existing onboarding is rewritten.
+CREATE OR REPLACE FUNCTION private.seed_organization_onboarding()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'pg_catalog', 'public'
+AS $function$
+BEGIN
+  IF NEW.name<>'NEXO Internal' THEN
+    INSERT INTO public.organization_onboarding(organization_id,overall_status)
+    VALUES (NEW.id,'in_progress')
+    ON CONFLICT (organization_id) DO NOTHING;
+  END IF;
+  RETURN NEW;
+END;
+$function$;
+
+COMMENT ON FUNCTION private.seed_organization_onboarding() IS
+  'Creates a pending checklist for new clients without marking unverified company setup as complete.';
