@@ -269,7 +269,11 @@
 
   async function sendMessage(text,quickId=""){
     const value=String(text||"").trim();
-    if(!value||state.loading)return;
+    if(!value||state.loading)return false;
+    // Keep the original message and response choices until the server confirms receipt.
+    // A lost connection should not delete the visitor's draft or opt-in buttons.
+    const previousMessages=state.messages.slice();
+    const previousChoices=state.quickReplies.slice();
     addMessage("user",value);
     renderQuick([]);
     setLoading(true);clearError();showTyping();
@@ -279,13 +283,24 @@
       if(data.session_id) state.sessionId=data.session_id;
       addMessage("assistant",data.reply||"Estoy aquí.");
       renderQuick(data.quick_replies||[]);
+      if(!quickId && ui.input.value.trim()===value){
+        ui.input.value="";
+        ui.input.style.height="";
+      }
       persist();
+      return true;
     }catch(error){
       hideTyping();
-      showError(error.message||"No pude enviar tu mensaje. Intenta de nuevo.");
+      // The remote request may already have been processed; do not retry automatically.
+      state.messages=previousMessages;
+      restoreMessages();
+      renderQuick(previousChoices);
+      persist();
+      showError(error.message||"No pude confirmar el envío. Tu mensaje sigue disponible para intentarlo de nuevo.");
+      return false;
     }finally{
       setLoading(false);
-      ui.input.focus({preventScroll:true});
+      if(state.open)ui.input.focus({preventScroll:true});
     }
   }
 
@@ -304,9 +319,13 @@
       await startConversation();
       return;
     }
+    const previousProduct=state.product;
     state.product=productFromQuick(item.id);
     persist();
-    await sendMessage(item.label,item.id);
+    if(!(await sendMessage(item.label,item.id))){
+      state.product=previousProduct;
+      persist();
+    }
   }
 
   function openPanel(){
@@ -352,8 +371,7 @@
     event.preventDefault();
     const value=ui.input.value.trim();
     if(!value)return;
-    ui.input.value="";
-    ui.input.style.height="";
+    // Only clear the draft after sendMessage receives a successful response.
     sendMessage(value);
   });
   ui.input.addEventListener("keydown",(event)=>{
