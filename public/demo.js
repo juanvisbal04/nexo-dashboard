@@ -49,6 +49,13 @@ form?.addEventListener("submit",async(event)=>{
   if(!phone&&!email){
     result.textContent="Comparte un WhatsApp o correo para poder contactarte.";
     result.className="demo-result error";
+    document.getElementById("demoPhone")?.focus({preventScroll:true});
+    return;
+  }
+  if(document.getElementById("privacyConsent")?.checked!==true){
+    result.textContent="Para atender tu solicitud necesitamos tu autorización de tratamiento de datos.";
+    result.className="demo-result error";
+    document.getElementById("privacyConsent")?.focus({preventScroll:true});
     return;
   }
   button.disabled=true;button.textContent="Enviando…";
@@ -112,8 +119,12 @@ form?.addEventListener("submit",async(event)=>{
         };
       })())
     });
-    const data=await response.json();
-    if(!response.ok) throw new Error(data.error||"No pudimos registrar la solicitud.");
+    // Some infrastructure errors return an HTML page, not JSON.
+    // Preserve the prospect's form and display a useful Spanish message in that case.
+    const data=await response.json().catch(()=>null);
+    if(!response.ok || !data?.ok){
+      throw new Error(data?.error||"No pudimos confirmar el envío. Tus datos siguen en el formulario; puedes intentar de nuevo.");
+    }
     window.NEXOFunnel?.track?.("demo_submit_success",{
       industry:document.getElementById("demoIndustry")?.value||"",
       plan:document.getElementById("demoPlan")?.value||"",
@@ -124,7 +135,12 @@ form?.addEventListener("submit",async(event)=>{
     result.className="demo-result success";
     button.textContent="Solicitud enviada ✓";
   }catch(error){
-    result.textContent=error.message||"No pudimos registrar la solicitud.";
+    // A lost response does not prove that the server rejected the request.
+    // Never automatically resend or clear the form: the visitor decides whether to retry.
+    const networkError=error instanceof TypeError || error instanceof SyntaxError;
+    result.textContent=networkError
+      ?"No pudimos confirmar el envío por un problema de conexión. Conservamos el formulario; revisa tu conexión antes de intentar nuevamente."
+      :(error.message||"No pudimos registrar tu solicitud. Intenta de nuevo.");
     result.className="demo-result error";
     button.disabled=false;button.innerHTML='Solicitar mi demo <span>→</span>';
   }
