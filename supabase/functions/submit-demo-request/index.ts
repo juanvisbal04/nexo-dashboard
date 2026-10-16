@@ -22,6 +22,27 @@ function json(req:Request,body:unknown,status=200){
 }
 const clean=(v:unknown,max=500)=>String(v??"").trim().slice(0,max);
 
+// Follow the same owner-routing rules used by Nora: route marketing leads to the
+// active marketing lead, if configured; otherwise to the platform administrator.
+// An assigned lead automatically gets a durable bell notification via the DB trigger.
+async function findOwner(planInterest:string|null){
+  const founder=await service.from("profiles").select("id")
+    .eq("platform_role","platform_admin").order("created_at").limit(1).maybeSingle();
+  if(founder.error) throw founder.error;
+  const fallback=founder.data?.id||null;
+  if(!fallback) throw new Error("No platform administrator available for new lead assignment");
+  if(planInterest!=="marketing") return fallback;
+  const role=await service.from("nexo_team_roles").select("id")
+    .eq("role_key","marketing_lead").eq("active",true).maybeSingle();
+  if(role.error) throw role.error;
+  if(!role.data?.id) return fallback;
+  const assignee=await service.from("nexo_user_roles").select("user_id")
+    .eq("role_id",role.data.id).eq("active",true)
+    .order("created_at").limit(1).maybeSingle();
+  if(assignee.error) throw assignee.error;
+  return assignee.data?.user_id||fallback;
+}
+
 Deno.serve(async(req:Request)=>{
   if(req.method==="OPTIONS") return new Response(null,{status:204,headers:cors(req)});
   if(req.method!=="POST") return json(req,{error:"Method not allowed"},405);
@@ -50,10 +71,23 @@ Deno.serve(async(req:Request)=>{
     const requestedPlan=clean(body.plan_interest,40).toLowerCase();
     const allowedPlans=new Set(["start","growth","pro","custom","marketing"]);
     const planInterest=allowedPlans.has(requestedPlan)?requestedPlan:null;
+    const requestId=clean(body.client_request_id,48).toLowerCase()||null;
+    if(requestId && !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(requestId)){
+      return json(req,{error:"Identificador de envío inválido."},400);
+    }
 
     if(!fullName||!businessName) return json(req,{error:"Nombre y negocio son obligatorios"},400);
     if(!email&&!phone) return json(req,{error:"Comparte un correo o WhatsApp para poder contactarte"},400);
     if(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json(req,{error:"Correo inválido"},400);
+
+    // Return the first accepted submission after a lost connection. Do this before
+    // rate limiting so a network retry never consumes the visitor's quota.
+    if(requestId){
+      const existing=await service.from("demo_requests").select("id")
+        .eq("client_request_id",requestId).maybeSingle();
+      if(existing.error) throw existing.error;
+      if(existing.data?.id) return json(req,{ok:true,id:existing.data.id,already_received:true});
+    }
 
     // Rate-limit valid submissions atomically, without storing visitor IP addresses.
     const ip=clean(req.headers.get("cf-connecting-ip")||req.headers.get("x-forwarded-for")?.split(",")[0]||"unknown",100);
@@ -82,6 +116,7 @@ Deno.serve(async(req:Request)=>{
       expectedSetup=plan.data?.setup_fee_min == null ? null : Number(plan.data.setup_fee_min);
     }
 
+    const owner=await findOwner(planInterest);
     const insert=await service.from("demo_requests").insert({
       full_name:fullName,
       business_name:businessName,
@@ -93,6 +128,8 @@ Deno.serve(async(req:Request)=>{
       status:"Nuevo",
       stage:"prospecto",
       plan_interest:planInterest,
+      owner_user_id:owner,
+      client_request_id:requestId,
       expected_mrr:expectedMrr,
       expected_setup_fee:expectedSetup,
       privacy_consent:true,
@@ -100,8 +137,16 @@ Deno.serve(async(req:Request)=>{
       privacy_policy_version:PRIVACY_POLICY_VERSION
     }).select("id").single();
 
+    // Two retries can race past the initial lookup; the partial UNIQUE index
+    // makes one INSERT win and the other recover the very same prospect.
+    if(insert.error?.code==="23505" && requestId){
+      const duplicate=await service.from("demo_requests").select("id")
+        .eq("client_request_id",requestId).maybeSingle();
+      if(duplicate.error) throw duplicate.error;
+      if(duplicate.data?.id) return json(req,{ok:true,id:duplicate.data.id,already_received:true});
+    }
     if(insert.error) throw insert.error;
-    return json(req,{ok:true,id:insert.data.id});
+    return json(req,{ok:true,id:insert.data.id,already_received:false});
   }catch(error){
     console.error("SUBMIT_DEMO_REQUEST_ERROR",error);
     return json(req,{error:"No pudimos registrar la solicitud. Escríbenos por WhatsApp si el problema continúa."},500);
