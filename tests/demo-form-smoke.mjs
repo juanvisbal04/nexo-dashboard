@@ -84,6 +84,52 @@ try{
     assert.equal(await page.locator('#demoSubmit').isEnabled(),true);
     await c.close();
   });
+  await test('Demo form: interrupted submission reuses one ID and stores no contact data locally',async()=>{
+    const c=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+    const page=await c.newPage();
+    let firstId=null;
+    const api=intercept(page,async(route,body)=>{
+      assert.match(body.client_request_id,/^[0-9a-f-]{36}$/);
+      if(!firstId){
+        firstId=body.client_request_id;
+        return route.abort('failed');
+      }
+      assert.equal(body.client_request_id,firstId,'Retried form must keep same opaque ID');
+      return route.fulfill({status:200,contentType:'application/json',body:'{"ok":true,"id":"same-mock-id","already_received":true}'});
+    });
+    await page.goto(BASE+'/demo.html',{waitUntil:'domcontentloaded'});
+    await fill(page);
+    await page.locator('#demoSubmit').click();
+    await page.getByText(/No pudimos confirmar el envío por un problema de conexión/).waitFor();
+    const stored=await page.evaluate(()=>sessionStorage.getItem('nexo_demo_pending_request_v1'));
+    assert.ok(stored);
+    assert.ok(!stored.includes('qa-only@example.test'));
+    assert.ok(!stored.includes('Prospecto Prueba Local'));
+    await page.locator('#demoSubmit').click();
+    await page.getByText(/Solicitud recibida/).waitFor();
+    assert.equal(api.calls,2);
+    assert.equal(await page.evaluate(()=>sessionStorage.getItem('nexo_demo_pending_request_v1')),null);
+    await c.close();
+  });
+  await test('Demo form: changing details after a failed attempt starts a new ID',async()=>{
+    const c=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+    const page=await c.newPage();
+    let id=null;
+    const api=intercept(page,async(route,body)=>{
+      if(id===null)id=body.client_request_id;
+      else assert.notEqual(body.client_request_id,id,'Edited lead details need a fresh submission ID');
+      return route.abort('failed');
+    });
+    await page.goto(BASE+'/demo.html',{waitUntil:'domcontentloaded'});
+    await fill(page);
+    await page.locator('#demoSubmit').click();
+    await page.getByText(/No pudimos confirmar el envío por un problema de conexión/).waitFor();
+    await page.locator('#demoMessage').fill('Nuevo requisito para mi negocio.');
+    await page.locator('#demoSubmit').click();
+    await page.waitForFunction(()=>document.querySelector('#demoSubmit')&&!document.querySelector('#demoSubmit').disabled);
+    assert.equal(api.calls,2);
+    await c.close();
+  });
   await test('Demo form: server success sends consent and resets fields once',async()=>{
     const c=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
     const page=await c.newPage();
@@ -106,5 +152,5 @@ try{
     await c.close();
   });
 }finally{await browser.close();}
-console.log('DEMO RESULTS:',passed,'of 5 checks; all API calls intercepted, no production writes.');
-if(passed!==5)process.exitCode=1;
+console.log('DEMO RESULTS:',passed,'of 7 checks; all API calls intercepted, no production writes.');
+if(passed!==7)process.exitCode=1;

@@ -41,6 +41,36 @@ const button=document.getElementById("demoSubmit");
 const SUPABASE_URL="https://ixewnbjndguchunwcuhf.supabase.co";
 const KEY="sb_publishable_vFnLRe9cmnOcyz2Fivprhw_8UjBaRGL";
 
+// One opaque UUID per unchanged submission. After an uncertain network error,
+// reusing it guarantees that a retry cannot create a second CRM opportunity.
+// Only a salted digest and UUID are stored; no email/phone/name is stored here.
+const REQUEST_CACHE_KEY="nexo_demo_pending_request_v1";
+let pendingInMemory=null;
+async function requestIdFor(payload){
+  const encoded=JSON.stringify(payload);
+  let previous=pendingInMemory;
+  try{
+    const saved=JSON.parse(sessionStorage.getItem(REQUEST_CACHE_KEY)||"null");
+    if(saved?.id && saved?.nonce && saved?.digest && Date.now()-saved.at<86400000) previous=saved;
+  }catch(_error){/* Storage can be disabled in privacy modes. */}
+  const digestFor=async(nonce)=>{
+    const bytes=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(nonce+":"+encoded));
+    return [...new Uint8Array(bytes)].map(b=>b.toString(16).padStart(2,"0")).join("");
+  };
+  if(previous?.id && previous?.nonce && previous?.digest){
+    if(await digestFor(previous.nonce)===previous.digest) return previous.id;
+  }
+  const nonce=crypto.randomUUID();
+  const next={id:crypto.randomUUID(),nonce,digest:await digestFor(nonce),at:Date.now()};
+  pendingInMemory=next;
+  try{sessionStorage.setItem(REQUEST_CACHE_KEY,JSON.stringify(next));}catch(_error){}
+  return next.id;
+}
+function clearRequestId(){
+  pendingInMemory=null;
+  try{sessionStorage.removeItem(REQUEST_CACHE_KEY);}catch(_error){}
+}
+
 form?.addEventListener("submit",async(event)=>{
   event.preventDefault();
   result.className="demo-result hidden";
@@ -60,10 +90,7 @@ form?.addEventListener("submit",async(event)=>{
   }
   button.disabled=true;button.textContent="Enviando…";
   try{
-    const response=await fetch(SUPABASE_URL+"/functions/v1/submit-demo-request",{
-      method:"POST",
-      headers:{"content-type":"application/json","apikey":KEY},
-      body:JSON.stringify((()=>{
+    const payload=(()=>{
         const goal=document.getElementById("demoGoal")?.value||"";
         const volume=document.getElementById("demoVolume")?.value||"";
         const channel=document.getElementById("demoChannel")?.value||"";
@@ -117,7 +144,12 @@ form?.addEventListener("submit",async(event)=>{
           privacy_policy_version:"2026-10-06",
           source:document.getElementById("demoPlan").value==="marketing"?"nexobyjv.online/nexo-marketing":"nexobyjv.online/demo"
         };
-      })())
+      })();
+    payload.client_request_id=await requestIdFor(payload);
+    const response=await fetch(SUPABASE_URL+"/functions/v1/submit-demo-request",{
+      method:"POST",
+      headers:{"content-type":"application/json","apikey":KEY},
+      body:JSON.stringify(payload)
     });
     // Some infrastructure errors return an HTML page, not JSON.
     // Preserve the prospect's form and display a useful Spanish message in that case.
@@ -131,6 +163,7 @@ form?.addEventListener("submit",async(event)=>{
       placement:"demo_form"
     });
     form.reset();
+    clearRequestId();
     result.innerHTML="<strong>Solicitud recibida.</strong><br>Gracias. Ya tenemos el contexto inicial para revisar tu operación y preparar el siguiente paso.";
     result.className="demo-result success";
     button.textContent="Solicitud enviada ✓";
