@@ -5,6 +5,7 @@ on:
     paths:
       - 'public/**'
       - 'tests/nora-mobile-smoke.mjs'
+      - 'tests/demo-form-smoke.mjs'
       - '.github/workflows/nexo-mobile-qa.yml'
   workflow_dispatch:
   push:
@@ -12,6 +13,7 @@ on:
     paths:
       - 'public/**'
       - 'tests/nora-mobile-smoke.mjs'
+      - 'tests/demo-form-smoke.mjs'
       - '.github/workflows/nexo-mobile-qa.yml'
 
 permissions:
@@ -42,6 +44,39 @@ jobs:
           exit 1
       - name: Run isolated iPhone/tablet smoke suite
         run: node tests/nora-mobile-smoke.mjs
+      - name: Run demo request form smoke suite (mocked API)
+        run: node tests/demo-form-smoke.mjs
+
+  public-site-health:
+    name: Public site availability and branded 404
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check public pages and missing routes (GET only)
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          const base='https://nexobyjv.online';
+          for(const path of ['/','/demo.html','/catalogo.html','/privacidad.html','/404.html']){
+            const res=await fetch(base+path,{redirect:'follow',signal:AbortSignal.timeout(20000)});
+            const html=await res.text();
+            assert.equal(res.status,200,path+' must be accessible');
+            assert.ok(html.includes('NEXO'),path+' must contain NEXO branding');
+            console.log('PASS',path,'HTTP',res.status);
+          }
+          const missing=await fetch(base+'/ruta-inexistente-auditoria-nexo-qa',{redirect:'manual',signal:AbortSignal.timeout(20000)});
+          const body=await missing.text();
+          assert.equal(missing.status,404,'Unknown pages must return HTTP 404, not HTTP 200');
+          assert.ok(body.includes('Esta página tomó') || body.includes('Página no encontrada'),
+            'The custom branded 404.html should be served for invalid routes');
+          console.log('PASS missing route: HTTP 404 + NEXO branded content');
+          const missingAsset=await fetch(base+'/_nexo-qa-asset-inexistente.js',{redirect:'manual',signal:AbortSignal.timeout(20000)});
+          assert.equal(missingAsset.status,404,'Non-existent JavaScript must not return HTML 200');
+          console.log('PASS missing JavaScript: HTTP 404');
+          NODE
 
   preview-lighthouse-mobile:
     name: Lighthouse on proposed public-site code
