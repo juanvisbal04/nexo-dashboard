@@ -20,6 +20,7 @@ Use NEXO Platform > Edge Functions > Secrets, NEVER paste these into chat or int
 - NORA_IG_ACCESS_TOKEN: Instagram Login token with instagram_business_manage_messages
 - NORA_OPENAI_API_KEY: dedicated Nora OpenAI project key, separate from Lía
 - NORA_OPENAI_MODEL (optional): defaults to gpt-6-luna; verify model access and price
+- NORA_DAILY_REPLY_LIMIT (optional): defaults to 60 sent assistant messages per UTC day, a conservative cost guard. A thread is limited to 20 inbound messages within 10 minutes.
 
 Use the official Meta developer app and authorized business portfolio. Configure and subscribe to messages webhooks. Depending on Meta access level, App Review / Advanced Access may be required to serve people who are not app testers. Webhook verification alone does not grant messaging access.
 
@@ -37,7 +38,7 @@ Image/audio handling, full long-term cross-channel identity linking, operator in
 5. Consent declined -> no lead; consent accepted then contact -> single lead in NEXO sales CRM.
 6. Request human takeover and verify Nora stops responding.
 7. Verify rejected invalid signatures, foreign account IDs, stale messages, and OpenAI or Meta API failures.
-8. Before production implement admin inbox, budget limits, token monitoring, deletion request flow, and long-term memory validation.
+8. Before production implement admin inbox, spend alerting, token monitoring, deletion request flow, and long-term memory validation. The basic 60/day reply guard is already in place.
 
 ## Budget and isolation
 The webhook does not require an additional Render service. Supabase and OpenAI usage are metered and may incur costs even if Meta messaging is available. Do not connect or reuse Isabel/Lía tokens or change their production automation.
