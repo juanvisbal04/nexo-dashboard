@@ -66,6 +66,24 @@ function mockNora(page){
     reset(){stage='welcome';}};
 }
 try{
+  await test('Official NEXO logo: responsive WebP renders in header and footer',async()=>{
+    const context=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true});
+    const page=await context.newPage();mockNora(page);
+    await page.goto(BASE+'/',{waitUntil:'domcontentloaded'});
+    const logos=page.locator('header .brand picture img, .site-footer .footer-logo picture img');
+    assert.equal(await logos.count(),2);
+    for(const img of await logos.all()){
+      const r=await img.evaluate(async(el)=>{
+        await el.decode();
+        return {src:el.currentSrc,width:el.naturalWidth,displayWidth:el.getBoundingClientRect().width};
+      });
+      assert.ok(r.src.endsWith('.webp'),'Chromium should use original-logo-derived WebP');
+      assert.ok([400,605].includes(r.width));
+      assert.ok(r.displayWidth>50 && r.displayWidth<280);
+    }
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth)<=2);
+    await context.close();
+  });
   await test('Home critical CSS: primary headline visible and shared footer restored',async()=>{
     const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
     const page=await context.newPage();mockNora(page);
@@ -190,5 +208,5 @@ try{
     await context.close();
   });
 } finally {await browser.close();}
-console.log('SMOKE RESULTS:',passed,'of 5 tests passed; no production leads or Supabase requests sent.');
-if(passed!==5)process.exitCode=1;
+console.log('SMOKE RESULTS:',passed,'of 6 tests passed; no production leads or Supabase requests sent.');
+if(passed!==6)process.exitCode=1;
