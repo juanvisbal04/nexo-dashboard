@@ -1,4 +1,5 @@
 import { notificationFingerprint, loadNotificationReads, markNotificationReads } from "./notificationReads.js?v=20261013-read1";
+import { buildUnscheduledProspectsAlert } from "./prospectAlerts.js?v=20261016-followup1";
 import { mountMfaProfile, promptForEnrolledMfa } from "./mfaShield.js?v=20261013-shield1";
 import { SERVICE_LINES, serviceLinesField, serviceLinesLabel, selectedServiceLines, needsAssistant, bindServiceLines, openServiceLineEditor } from "./serviceLines.js?v=20261013-lines2";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
@@ -4024,13 +4025,19 @@ async function refreshNotifications() {
   });
 
   if (state.isAdmin && isInternalOrg()) {
-    const [{data:prospects},{data:commercials}] = await Promise.all([
+    const [{data:prospects},{data:commercials},{count:unscheduledCount,error:unscheduledError}] = await Promise.all([
       supabase.from("demo_requests").select("id,business_name,full_name,stage,status,next_action_at,created_at").in("stage",["prospecto","demo","propuesta"]).order("created_at",{ascending:false}).limit(20),
       supabase.from("organization_commercials").select("organization_id,integration_status,renewal_date,lifecycle_stage").neq("lifecycle_stage","cancelado"),
+      supabase.from("demo_requests").select("id",{count:"exact",head:true}).is("archived_at",null).in("stage",["prospecto","demo","propuesta"]).is("next_action_at",null),
     ]);
+    if(unscheduledError) console.warn("NEXO_UNSCHEDULED_PROSPECT_ALERT",unscheduledError);
+    if(!unscheduledError){
+      const summary=buildUnscheduledProspectsAlert(unscheduledCount);
+      if(summary) items.push(summary);
+    }
 
-    (prospects || []).forEach((row) => {
-      const stale = row.next_action_at && new Date(row.next_action_at).getTime() < Date.now();
+    (prospects || []).filter((row)=>Boolean(row.next_action_at)).forEach((row) => {
+      const stale = new Date(row.next_action_at).getTime() < Date.now();
       items.push({
         key:`prospect:${row.id}`,version:row.stage,tone:stale?"risk":"info", priority:stale?90:70, page:"pipeline", orgId:null,
         title:stale?"Seguimiento comercial vencido":"Nuevo prospecto en pipeline",
