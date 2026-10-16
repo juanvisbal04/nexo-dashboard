@@ -260,10 +260,33 @@ Deno.serve(async(req:Request)=>{
     }
 
     const displayMessage=message||quick;
-    await addMessage(session.id,"user",displayMessage,{quick_reply:quick||null,stage:session.stage});
-    await service.from("nora_web_sessions").update({
+    const explicitlyConsented=session.privacy_consent===true
+      && Boolean(session.privacy_consent_at)
+      && session.privacy_policy_version===PRIVACY_POLICY_VERSION;
+    // Visitors sometimes type their email or WhatsApp before reaching the opt-in.
+    // Request consent without persisting their unsolicited contact information.
+    const containsUnsolicitedContact=/[^\s@]+@[^\s@]+\.[^\s@]+/.test(displayMessage)
+      || /(?:^|[^\d])\+?\d[\d\s().-]{8,}\d(?:$|[^\d])/.test(displayMessage);
+    if(!explicitlyConsented && session.stage!=="ask_consent" && containsUnsolicitedContact){
+      const staged=await service.from("nora_web_sessions")
+        .update({stage:"ask_consent"}).eq("id",session.id);
+      if(staged.error) throw staged.error;
+      await addMessage(session.id,"assistant",consentPrompt,{stage:"ask_consent",reason:"contact_before_consent"});
+      return json({ok:true,session_id:session.id,mode:"guided",reply:consentPrompt,quick_replies:consentButtons});
+    }
+    // At the consent step record only the actual button decision, never arbitrary
+    // free text that could contain a phone number, email or other personal data.
+    const isConsentChoice=quick==="consent_accept" || quick==="consent_decline";
+    if(session.stage!=="ask_consent" || isConsentChoice){
+      await addMessage(session.id,"user",
+        session.stage==="ask_consent" ? quick : displayMessage,
+        {quick_reply:quick||null,stage:session.stage}
+      );
+    }
+    const messageCount=await service.from("nora_web_sessions").update({
       message_count:session.message_count+1,last_message_at:new Date().toISOString()
     }).eq("id",session.id);
+    if(messageCount.error) throw messageCount.error;
 
     const lower=norm(displayMessage);
     if(session.stage==="ask_consent"){
