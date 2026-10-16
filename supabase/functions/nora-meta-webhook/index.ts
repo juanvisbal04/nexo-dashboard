@@ -149,6 +149,12 @@ const KNOWLEDGE = [
 async function generate(thread:Thread,inbound:string):Promise<string> {
   const token=Deno.env.get("NORA_OPENAI_API_KEY")||"";
   if(!token) throw new Error("NORA_OPENAI_KEY_NOT_CONFIGURED");
+  const dailyLimit=Math.max(1,Math.min(1000,Number(Deno.env.get("NORA_DAILY_REPLY_LIMIT")||"60")||60));
+  const today=new Date();today.setUTCHours(0,0,0,0);
+  const usage=await DB.from("nora_social_messages").select("id",{count:"exact",head:true})
+    .eq("role","assistant").eq("delivery_status","sent").gte("created_at",today.toISOString());
+  if(usage.error) throw usage.error;
+  if((usage.count||0)>=dailyLimit) throw new Error("NORA_DAILY_BUDGET_GUARD");
   const previous=await latest(thread.id,14);
   const messages=[
     {role:"system",content:KNOWLEDGE + "\nConsentimiento: " + thread.consent_status
@@ -187,6 +193,11 @@ async function handleMessage(channel:Channel,biz:string,sender:string,event:any)
   if(inbound.error) throw inbound.error;
   await updateThread(thread.id,{last_inbound_at:new Date().toISOString(),last_message_at:new Date().toISOString()});
   if(thread.status==="human_handoff") return; // Human retains control until staff closes handoff.
+  const tenMinutesAgo=new Date(Date.now()-600000).toISOString();
+  const volume=await DB.from("nora_social_messages").select("id",{count:"exact",head:true})
+    .eq("thread_id",thread.id).eq("role","user").gte("created_at",tenMinutesAgo);
+  if(volume.error) throw volume.error;
+  if((volume.count||0)>20) return; // Anti-spam; prevents runaway model costs.
   if(/(?:hablar|contactar|pasar).{0,24}(?:humano|persona|asesor|asesora|juan|equipo)/i.test(original)) {
     await updateThread(thread.id,{status:"human_handoff"});
     await outgoing(thread,channel,biz,sender,"Claro. Voy a dejar esta conversación para que una persona de NEXO pueda continuar contigo. Gracias por contarme lo que necesitas.");
