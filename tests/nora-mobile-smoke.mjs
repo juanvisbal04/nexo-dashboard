@@ -66,6 +66,25 @@ function mockNora(page){
     reset(){stage='welcome';}};
 }
 try{
+  await test('Official logo: responsive WebP decodes in header and footer',async()=>{
+    const context=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true});
+    const page=await context.newPage();mockNora(page);
+    await page.goto(BASE+'/',{waitUntil:'domcontentloaded'});
+    const images=page.locator('header .brand picture img, .site-footer .footer-logo picture img');
+    assert.equal(await images.count(),2,'The real approved logo must appear in both locations');
+    for(const element of await images.all()){
+      const decoded=await element.evaluate(async(img)=>{
+        await img.decode();
+        return {src:img.currentSrc,naturalWidth:img.naturalWidth,displayWidth:img.getBoundingClientRect().width};
+      });
+      assert.ok(decoded.src.endsWith('.webp'),'Browser should download optimized WebP');
+      assert.ok(decoded.naturalWidth===400||decoded.naturalWidth===605);
+      assert.ok(decoded.displayWidth>50&&decoded.displayWidth<280,'Logo width must remain visually reasonable');
+    }
+    const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth);
+    assert.ok(overflow<=2,'Logo cannot introduce horizontal overflow');
+    await context.close();
+  });
   await test('Home hero visible before site.js or IntersectionObserver runs',async()=>{
     const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
     const page=await context.newPage();
@@ -169,5 +188,5 @@ try{
     await context.close();
   });
 } finally {await browser.close();}
-console.log('SMOKE RESULTS:',passed,'of 4 tests passed; no production leads or Supabase requests sent.');
-if(passed!==4)process.exitCode=1;
+console.log('SMOKE RESULTS:',passed,'of 5 tests passed; no production leads or Supabase requests sent.');
+if(passed!==5)process.exitCode=1;
