@@ -78,7 +78,8 @@ try{
         return {src:el.currentSrc,width:el.naturalWidth,displayWidth:el.getBoundingClientRect().width};
       });
       assert.ok(r.src.endsWith('.webp'),'Chromium should use original-logo-derived WebP');
-      assert.ok([400,605].includes(r.width));
+      // naturalWidth is density-corrected with srcset/sizes; it need not equal source pixel width.
+      assert.ok(r.width>=100 && r.width<=605,'Decoded WebP must have sensible density-corrected dimensions');
       assert.ok(r.displayWidth>50 && r.displayWidth<280);
     }
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth)<=2);
