@@ -13,7 +13,7 @@
   // persist emails or phone numbers in browser storage (including older histories).
   const redactStoredContact=(value)=>String(value||"")
     .replace(/[^\s@]+@[^\s@]+\.[^\s@]+/gi,"[correo oculto]")
-    .replace(/(^|[^\d])(\+?\d[\d\s().-]{8,}\d)(?=$|[^\d])/g,
+    .replace(/(^|[^\d])(\+?\(?\d[\d\s().-]{8,}\d)(?=$|[^\d])/g,
       (_match,prefix)=>prefix+"[teléfono oculto]");
 
 
