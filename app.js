@@ -5,7 +5,7 @@ import { SERVICE_LINES, serviceLinesField, serviceLinesLabel, selectedServiceLin
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
 import { renderCrm, openProspectEditorFromGrowth, openNewProspectFromGrowth } from "./crm.js?v=20261015-billing7-fix";
 import { renderTasks, openCustomer360, openContact360, closeDrawer } from "./workspace360.js?v=20261013-work2";
-import { renderDataQuality, openOnboarding, closeQualityDrawer } from "./qualityOnboarding.js?v=20261001-quality2";
+import { renderDataQuality, openOnboarding, closeQualityDrawer } from "./qualityOnboarding.js?v=20261016-ready1";
 import { renderInternalTeam } from "./team.js?v=20261013-team2";
 import { renderStaffHome, renderStaffProjects, renderStaffAccounts, renderStaffPerformance } from "./staffWorkspace.js?v=20261013-work2";
 import { renderSalesWorkspace, renderImplementationWorkspace, renderOperationsWorkspace } from "./departmentWorkspaces.js?v=20261013-work2";
