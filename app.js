@@ -49,7 +49,20 @@ const state = {
 };
 let realtimeChannel = null;
 let realtimeTimer = null;
+let realtimeReconnectTimer = null;
+let realtimeGeneration = 0;
+let realtimeRetryCount = 0;
+let realtimeConnected = false;
 let passiveRenderDepth = 0;
+
+// Only subscribe to tables enabled in the supabase_realtime publication.
+// Nonpublished tables remain available via authenticated, on-demand queries.
+const REALTIME_TABLES = [
+  "appointments", "assistants", "client_invoices", "contact_notes",
+  "conversation_reads", "conversations", "crm_activities", "crm_integrations",
+  "demo_requests", "followups", "invoice_payments", "leads", "messages",
+  "nexo_lead_assignment_notices", "organization_commercials", "work_tasks",
+];
 
 const UI_STATE_KEY = "nexo.dashboard.ui.v2";
 
@@ -1456,6 +1469,23 @@ function filterRows(rows, query) {
   );
 }
 
+function isTransientNetworkError(error) {
+  const message = String(error?.message || error || "");
+  return /load failed|failed to fetch|networkerror|network request failed|fetch failed|timed out|timeout/i.test(message)
+    || (Number(error?.status) === 0 && !error?.code);
+}
+
+async function retryNetworkLoad(operation, retries = 2) {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (attempt >= retries || !isTransientNetworkError(error) || !navigator.onLine) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 500 * (2 ** attempt)));
+    }
+  }
+}
+
 async function fetchDetailedRows(type) {
   const orgId = currentOrgId();
   const orgIds = metricOrgIds(orgId);
@@ -1472,21 +1502,24 @@ async function fetchDetailedRows(type) {
     select = "*, contacts(id,name,phone,email)";
   }
 
-  let request = supabase.from(table).select(select);
-  request = orgIds.length === 1
-    ? request.eq("organization_id", orgIds[0])
-    : request.in("organization_id", orgIds);
-  const timeField = type === "conversations" ? "last_message_at" : "created_at";
-  request = request.gte(timeField, since).order(order, { ascending }).limit(5000);
+  const queryRows = async () => {
+    let request = supabase.from(table).select(select);
+    request = orgIds.length === 1
+      ? request.eq("organization_id", orgIds[0])
+      : request.in("organization_id", orgIds);
+    const timeField = type === "conversations" ? "last_message_at" : "created_at";
+    request = request.gte(timeField, since).order(order, { ascending }).limit(5000);
 
-  const { data, error } = await request;
-  if (error) throw error;
-  return (data || []).map((row) => ({
-    ...row,
-    phone: row.contacts?.phone || "",
-    contact_name: row.contacts?.name || row.name || "",
-    organization_name: state.organizations.find((org) => org.id === row.organization_id)?.name || "",
-  }));
+    const { data, error } = await request;
+    if (error) throw error;
+    return (data || []).map((row) => ({
+      ...row,
+      phone: row.contacts?.phone || "",
+      contact_name: row.contacts?.name || row.name || "",
+      organization_name: state.organizations.find((org) => org.id === row.organization_id)?.name || "",
+    }));
+  };
+  return type === "conversations" ? retryNetworkLoad(queryRows) : queryRows();
 }
 
 async function enrichConversationInboxRows(rows) {
@@ -1650,7 +1683,24 @@ function bindChatButtons() {
 async function renderTablePage(type) {
   let rows = await fetchDetailedRows(type);
   const showOrganization = state.isAdmin && isInternalOrg();
-  if(type==="conversations") rows=await enrichConversationInboxRows(rows);
+  let inboxPreviewLimited = false;
+  if (type === "conversations") {
+    try {
+      rows = await retryNetworkLoad(() => enrichConversationInboxRows(rows));
+    } catch (error) {
+      console.warn("NEXO_INBOX_PREVIEW", error);
+      inboxPreviewLimited = true;
+      rows = rows.map((row) => ({
+        ...row,
+        inbox_state: row.status === "Requiere atención" ? "Escalado"
+          : ["Resuelta", "Cerrada"].includes(row.status) ? "Resuelto" : "Activo",
+        last_message_content: "",
+        last_message_created_at: row.last_message_at,
+        is_unread: false,
+        needs_reply: false,
+      }));
+    }
+  }
 
   state.currentRows = rows.map((row) => ({
     ...row,
@@ -1726,16 +1776,17 @@ async function renderTablePage(type) {
     : "";
 
   if(type==="conversations"){
-    const unread=rows.filter((row)=>row.is_unread).length;
-    const needsReply=rows.filter((row)=>row.needs_reply).length;
+    const unread=inboxPreviewLimited ? null : rows.filter((row)=>row.is_unread).length;
+    const needsReply=inboxPreviewLimited ? null : rows.filter((row)=>row.needs_reply).length;
     const handoffs=rows.filter((row)=>row.status==="Requiere atención").length;
     $("content").innerHTML = `
       <div class="inbox-summary">
         <div><span>Total</span><b>${rows.length}</b></div>
-        <div class="${unread?"attention":""}"><span>No leídos</span><b>${unread}</b></div>
-        <div class="${needsReply?"attention":""}"><span>Sin responder</span><b>${needsReply}</b></div>
+        <div class="${unread?"attention":""}"><span>No leídos</span><b>${unread ?? "—"}</b></div>
+        <div class="${needsReply?"attention":""}"><span>Sin responder</span><b>${needsReply ?? "—"}</b></div>
         <div class="${handoffs?"attention":""}"><span>Handoffs</span><b>${handoffs}</b></div>
       </div>
+      ${inboxPreviewLimited ? '<div class="message error" role="status">Las conversaciones están disponibles, pero no se pudo actualizar su vista previa y estado de lectura. Pulsa Actualizar para reintentar.</div>' : ""}
       <div class="table-toolbar inbox-toolbar">
         <label class="search"><input id="tableSearch" type="search" placeholder="Buscar nombre, teléfono, servicio o mensaje" /></label>
         ${clientConversationFilter ? `<select id="conversationClientFilter" class="control" aria-label="Filtrar conversaciones por cliente">
@@ -3732,32 +3783,65 @@ function scheduleRealtimeRefresh(table) {
   }, 650);
 }
 
+function setRealtimeStatus(status) {
+  const statusEl = $("realtimeStatus");
+  if (!statusEl) return;
+  const subscribed = status === "SUBSCRIBED";
+  const failed = ["CHANNEL_ERROR", "TIMED_OUT", "CLOSED", "OFFLINE"].includes(status);
+  statusEl.className = "realtime-status " + (subscribed ? "online" : failed ? "offline" : "connecting");
+  statusEl.innerHTML = `<i></i>${subscribed ? "Live" : status === "OFFLINE" ? "Sin conexión" : failed ? "Reconectando" : "Conectando"}`;
+}
+
+function stopRealtime() {
+  realtimeGeneration += 1;
+  realtimeConnected = false;
+  clearTimeout(realtimeReconnectTimer);
+  realtimeReconnectTimer = null;
+  const previous = realtimeChannel;
+  realtimeChannel = null;
+  return previous ? supabase.removeChannel(previous).catch((error) => {
+    console.warn("NEXO_REALTIME_CLEANUP", error);
+  }) : Promise.resolve();
+}
+
 function startRealtime() {
   if (!state.session) return;
-  if (realtimeChannel) supabase.removeChannel(realtimeChannel);
-  realtimeChannel = supabase.channel("nexo-dashboard-live");
-  [
-    "conversations","messages","leads","appointments","followups",
-    "client_invoices","invoice_payments","demo_requests","crm_activities","work_tasks","contact_notes",
-    "conversation_reads","assistants","organization_onboarding","nexo_projects","nexo_people_candidates","nexo_people_onboarding","organization_commercials","crm_integrations","audit_log","nexo_user_roles","nexo_client_assignments","nexo_lead_assignment_notices"
-  ].forEach((table) => {
-    realtimeChannel.on("postgres_changes", { event: "*", schema: "public", table }, () => {
+  if (!navigator.onLine) {
+    setRealtimeStatus("OFFLINE");
+    return;
+  }
+  stopRealtime();
+  const generation = realtimeGeneration;
+  const channel = supabase.channel("nexo-dashboard-live");
+  realtimeChannel = channel;
+
+  REALTIME_TABLES.forEach((table) => {
+    channel.on("postgres_changes", { event: "*", schema: "public", table }, () => {
+      if (generation !== realtimeGeneration) return;
       scheduleRealtimeRefresh(table);
-      refreshNotifications().catch(()=>{});
+      refreshNotifications().catch(() => {});
     });
   });
-  const statusEl=$("realtimeStatus");
-  const setRealtimeStatus=(status)=>{
-    if(!statusEl)return;
-    const subscribed=status==="SUBSCRIBED";
-    const failed=["CHANNEL_ERROR","TIMED_OUT","CLOSED"].includes(status);
-    statusEl.className="realtime-status "+(subscribed?"online":failed?"offline":"connecting");
-    statusEl.innerHTML=`<i></i>${subscribed?"Live":failed?"Reconectando":"Conectando"}`;
-  };
-  realtimeChannel.subscribe((status)=>{
-    setRealtimeStatus(status);
-    if(["CHANNEL_ERROR","TIMED_OUT","CLOSED"].includes(status)){
-      setTimeout(()=>{if(state.session)startRealtime();},2500);
+
+  setRealtimeStatus("CONNECTING");
+  channel.subscribe((status, error) => {
+    if (generation !== realtimeGeneration || realtimeChannel !== channel || !state.session) return;
+    if (status === "SUBSCRIBED") {
+      realtimeConnected = true;
+      realtimeRetryCount = 0;
+      setRealtimeStatus(status);
+      return;
+    }
+    if (["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(status)) {
+      realtimeConnected = false;
+      setRealtimeStatus(status);
+      console.warn("NEXO_REALTIME_STATUS", status, error?.message || "");
+      if (!navigator.onLine || realtimeReconnectTimer) return;
+      const delay = Math.min(30000, 2000 * (2 ** Math.min(4, realtimeRetryCount++)));
+      realtimeReconnectTimer = setTimeout(() => {
+        realtimeReconnectTimer = null;
+        if (state.session && navigator.onLine) startRealtime();
+      }, delay);
     }
   });
 }
@@ -4572,10 +4656,7 @@ async function performLogout(sourceButton = null) {
   try {
     localStorage.removeItem(UI_STATE_KEY);
     sessionStorage.clear();
-    if (realtimeChannel) {
-      await supabase.removeChannel(realtimeChannel);
-      realtimeChannel = null;
-    }
+    await stopRealtime();
     await supabase.auth.signOut({ scope: "local" });
   } catch (error) {
     buttons.forEach((button) => {
@@ -4735,7 +4816,21 @@ window.addEventListener("pageshow", () => {
 });
 
 document.addEventListener("visibilitychange", () => {
-  if (!document.hidden) repairUiLocks();
+  if (document.hidden) return;
+  repairUiLocks();
+  if (state.session && navigator.onLine && !realtimeConnected && !realtimeReconnectTimer) startRealtime();
+});
+
+window.addEventListener("online", () => {
+  if (!state.session) return;
+  realtimeRetryCount = 0;
+  startRealtime();
+  if (!isUserEditing()) renderPassiveRefresh().catch((error) => console.warn("NEXO_ONLINE_REFRESH", error));
+});
+
+window.addEventListener("offline", () => {
+  stopRealtime();
+  setRealtimeStatus("OFFLINE");
 });
 
 supabase.auth.onAuthStateChange((event, session) => {
@@ -4760,10 +4855,7 @@ supabase.auth.onAuthStateChange((event, session) => {
     activeSessionUserId = null;
     appSessionReady = false;
     state.session = null;
-    if (realtimeChannel) {
-      supabase.removeChannel(realtimeChannel).catch(()=>{});
-      realtimeChannel = null;
-    }
+    stopRealtime();
     hideBootView();
     $("appView")?.classList.add("hidden");
     $("loginView")?.classList.remove("hidden");
