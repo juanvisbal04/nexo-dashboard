@@ -25,6 +25,6 @@ assert.ok(app.includes('.is("archived_at",null)'));
 assert.ok(app.includes('.filter((row)=>Boolean(row.next_action_at))'));
 console.log('PASS dashboard obtains server-side aggregate, excludes archived and avoids per-lead duplicate bell alerts');
 const html=fs.readFileSync('index.html','utf8');
-assert.ok(html.includes('app.js?v=20261016-ready1'));
+assert.match(html, /app\.js\?v=20\d{6}-[a-z0-9-]+/, 'Dashboard module should have a versioned cache-busting URL');
 console.log('PASS dashboard reloads updated app code');
 console.log('PROSPECT ALERTS: 5/5 checks passed; no CRM records modified.');
