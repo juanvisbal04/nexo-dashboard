@@ -159,7 +159,7 @@ export async function renderInternalTeam(ctx) {
         <span class="team-security-icon">◎</span>
         <div>
           <strong>Gobierno por departamentos</strong>
-          <p>Los cargos activos reciben solo los permisos de su función. Finance & Administration permanece planificado y sin roles asignables hasta autorización del Founder.</p>
+          <p>Los cargos activos reciben únicamente los permisos de su función. Product & Technology y Finance & Administration están habilitados para asignación por el Super Admin. El acceso efectivo a cada dato sigue protegido por las reglas de seguridad.</p>
         </div>
       </div>
       <span class="pill green">Solo CEO</span>
@@ -259,7 +259,7 @@ export async function renderInternalTeam(ctx) {
     </div>
 
     <details class="card team-roles-section team-structure-details"><summary>Estructura de NEXO · departamentos y cargos</summary>
-      <div class="card-head"><div><h2>Estructura de NEXO</h2><p>Departamentos, jerarquía, líneas de reporte y cargos futuros. Los roles planificados no se pueden asignar todavía.</p></div></div>
+      <div class="card-head"><div><h2>Estructura de NEXO</h2><p>Departamentos, jerarquía y líneas de reporte. Puedes asignar colaboradores a los cargos activos; los cargos planificados permanecen bloqueados.</p></div></div>
       <div class="team-department-grid">${departmentCards}</div>
     </details>
   `;
